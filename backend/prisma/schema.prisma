@@ -1,0 +1,467 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id       String   @id @default(cuid())
+  email    String   @unique
+  name     String?
+  password String // bcrypt hash
+  role     UserRole @default(CUSTOMER)
+
+  // Autenticacao
+  emailVerified            Boolean   @default(false)
+  emailVerificationToken   String?   @unique
+  emailVerificationExpires DateTime?
+
+  passwordResetToken   String?   @unique
+  passwordResetExpires DateTime?
+
+  lastLoginAt DateTime?
+
+  isActive Boolean @default(true)
+
+  addresses     Address[]
+  orders        Order[]
+  wishlist      WishlistItem[]
+  refreshTokens RefreshToken[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@map("users")
+}
+
+model RefreshToken {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  token     String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+enum UserRole {
+  ADMIN
+  CUSTOMER
+}
+
+model Address {
+  id           String  @id @default(cuid())
+  userId       String
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  street       String
+  number       String
+  complement   String?
+  neighborhood String
+  city         String
+  state        String
+  postalCode   String
+  country      String  @default("BR")
+  isDefault    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("addresses")
+}
+
+model Order {
+  id     String      @id @default(cuid())
+  userId String
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  number String      @unique // ex: ORD-2026-001
+  status OrderStatus @default(PENDING)
+
+  items         OrderItem[]
+  statusHistory OrderStatusHistory[]
+
+  subtotal Float // antes de frete e cupom
+  shipping Float @default(0)
+  discount Float @default(0)
+  total    Float // calculado
+
+  shippingAddress String? // JSON serializado
+  trackingCode    String?
+
+  couponId String?
+
+  paymentMethod String?        // mercado_pago, credit_card, pix, etc
+  paymentStatus PaymentStatus @default(PENDING)
+  paymentId     String?       // ID externo do gateway
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  FAILED
+  CANCELLED
+}
+
+model OrderItem {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  variationId String?
+  variation   ProductVariation? @relation(fields: [variationId], references: [id])
+
+  quantity Int
+  price    Float // preco unitario no momento da compra
+  discount Float @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@map("order_items")
+}
+
+model Product {
+  id          String  @id @default(cuid())
+  name        String
+  slug        String  @unique
+  description String
+  content     String? // descricao longa, HTML
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  brandId String?
+  brand   Brand? @relation(fields: [brandId], references: [id], onDelete: SetNull)
+
+  basePrice Float // preco base, sem escala
+
+  tags       Tag[]              @relation("ProductToTag")
+  variations ProductVariation[]
+  images     ProductImage[]
+
+  orderItems    OrderItem[]
+  wishlistItems WishlistItem[]
+
+  sku      String?  @unique
+  isActive Boolean  @default(true)
+  featured Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([brandId])
+  @@index([slug])
+  @@map("products")
+}
+
+model ProductVariation {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  name    String // ex: "Heroic Scale (28mm)"
+  scaleId String
+  scale   Scale  @relation(fields: [scaleId], references: [id])
+
+  sku   String
+  price Float // preco com ajuste de escala
+  stock Int   @default(0)
+
+  orderItems OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, scaleId])
+  @@index([scaleId])
+  @@map("product_variations")
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  url     String // URL em R2/S3
+  altText String?
+  order   Int     @default(0)
+  isMain  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+model Category {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  slug        String  @unique
+  description String?
+  image       String? // URL em R2
+
+  parentId String?
+  parent   Category?  @relation("CategoryToCategory", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryToCategory")
+
+  products Product[]
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+  @@map("categories")
+}
+
+model Tag {
+  id    String  @id @default(cuid())
+  name  String  @unique
+  slug  String  @unique
+  color String? // hex color
+
+  products Product[] @relation("ProductToTag")
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@index([slug])
+  @@map("tags")
+}
+
+model Brand {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  slug        String  @unique
+  logo        String? // URL em R2
+  description String?
+
+  products Product[]
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+  @@map("brands")
+}
+
+model Scale {
+  id         String  @id @default(cuid())
+  name       String  @unique // ex: "Heroic Scale (28mm)"
+  code       String  @unique // ex: "HEROIC_28"
+  baseSize   Float // tamanho base em mm
+  multiplier Float @default(1.0) // multiplicador de preco
+  priority   Int   @default(0) // para ordenacao
+
+  variations ProductVariation[]
+  scaleRules ScaleRule[]
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@index([code])
+  @@map("scales")
+}
+
+model ScaleRule {
+  id      String @id @default(cuid())
+  scaleId String
+  scale   Scale  @relation(fields: [scaleId], references: [id], onDelete: Cascade)
+
+  appliesTo RuleScope // PRODUCT, TAG, CATEGORY, GLOBAL
+  targetId  String? // ID do produto, tag ou categoria
+
+  priceMultiplier Float @default(1.0)
+  stockMultiplier Float @default(1.0)
+
+  priority Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@map("scale_rules")
+}
+
+enum RuleScope {
+  GLOBAL
+  CATEGORY
+  TAG
+  PRODUCT
+}
+
+model Coupon {
+  id   String     @id @default(cuid())
+  code String     @unique // uppercase
+  type CouponType
+
+  value         Float // percentual ou valor fixo
+  minOrderValue Float? // valor minimo do pedido
+  maxUses       Int? // maximo de usos totais
+  usesPerUser   Int? // maximo de usos por usuario
+
+  validFrom DateTime?
+  validUntil DateTime?
+
+  isFirstPurchaseOnly Boolean @default(false)
+  isActive            Boolean @default(true)
+
+  usages CouponUsage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([code])
+  @@map("coupons")
+}
+
+enum CouponType {
+  PERCENTAGE
+  FIXED
+  FREE_SHIPPING
+}
+
+model CouponUsage {
+  id       String @id @default(cuid())
+  couponId String
+  coupon   Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  userId   String
+  orderId  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([couponId])
+  @@index([userId])
+  @@map("coupon_usages")
+}
+
+model FreeShippingRule {
+  id            String  @id @default(cuid())
+  zipCodeStart  String // 8 digits
+  zipCodeEnd    String // 8 digits
+  minOrderValue Float
+  isActive      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("free_shipping_rules")
+}
+
+model OrderStatusHistory {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  fromStatus String?
+  toStatus   String
+  notes      String?
+  createdBy  String? // userId que fez a transicao
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@map("order_status_history")
+}
+
+model Bundle {
+  id          String  @id @default(cuid())
+  name        String
+  slug        String  @unique
+  description String?
+  discount    Float // percentual de desconto (0-100)
+
+  items BundleItem[]
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+  @@map("bundles")
+}
+
+model BundleItem {
+  id        String @id @default(cuid())
+  bundleId  String
+  bundle    Bundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  productId String
+
+  quantity Int @default(1)
+
+  createdAt DateTime @default(now())
+
+  @@unique([bundleId, productId])
+  @@map("bundle_items")
+}
+
+model Payment {
+  id      String        @id @default(cuid())
+  orderId String
+  method  String // pix, credit_card, boleto
+  status  PaymentStatus @default(PENDING)
+
+  externalId   String? @unique // ID do Mercado Pago
+  amount       Float
+  discount     Float   @default(0) // desconto por metodo de pagamento
+  paidAmount   Float?
+  paidAt       DateTime?
+  webhookData  String? // JSON do ultimo webhook
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([externalId])
+  @@map("payments")
+}
+
+model WishlistItem {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@map("wishlist_items")
+}

@@ -207,61 +207,86 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 
 ## Progresso Atual
 
-### Fase 0 — Setup do Projeto
-- [ ] Criar estrutura de pastas
-- [ ] Configurar Docker Compose (dev, test, prod)
-- [ ] Inicializar NestJS com TypeScript 6
-- [ ] Inicializar Next.js 16.2 com App Router
-- [ ] Criar Prisma schema inicial
-- [ ] Configurar Jest, Vitest, Playwright
-- [ ] Configurar GitHub Actions CI
-- [ ] Primeiro teste passando (health check)
+### Fase 0 — Setup do Projeto ✅
+- [x] Criar estrutura de pastas
+- [x] Configurar Docker Compose (dev, test)
+- [x] Inicializar NestJS 11 com TypeScript strict
+- [x] Inicializar Next.js 16.2 com App Router + shadcn/ui
+- [x] Criar Prisma 7 schema inicial (todos os models)
+- [x] Configurar Jest (backend), Vitest + Playwright (frontend)
+- [x] Configurar GitHub Actions CI
+- [x] Primeiro teste passando — health check TDD (RED → GREEN)
 
-### Fase 1 — Autenticação
-- [ ] Auth module (register, login, refresh, reset)
-- [ ] Users module (profile, update)
-- [ ] Addresses module (CRUD + ViaCEP)
-- [ ] Guards (JWT, Roles, Ownership)
+### Fase 1 — Autenticação ✅
+- [x] PrismaModule/PrismaService (global, @prisma/client)
+- [x] Prisma schema estendido (User com auth fields, RefreshToken model)
+- [x] Auth module — register (TDD: 4 testes, bcrypt salt 12, role CUSTOMER forçado)
+- [x] Auth module — login (TDD: 6 testes, mensagem genérica, isActive check, lastLoginAt)
+- [x] Auth module — refreshToken (TDD: 5 testes, rotação de tokens, revogação)
+- [x] Auth controller (register, login, refresh) com DTOs validados
+- [x] JWT Strategy (passport-jwt, access 15m, refresh 7d)
+- [x] Guards globais (JwtAuthGuard com @Public, RolesGuard com @Roles)
+- [x] Decorators (@Public, @Roles, @CurrentUser)
+- [x] Users module — getProfile, updateProfile, changePassword (TDD: 9 testes)
+- [x] ValidationPipe global (whitelist + forbidNonWhitelisted + transform)
+- [x] Addresses module — CRUD completo (TDD: 17 testes, ownership check, isDefault toggle, cannot delete last)
 
-### Fase 2 — Catálogo
-- [ ] Categories, Tags, Brands
-- [ ] Products (simples + variável)
-- [ ] Scales (regras de prioridade)
-- [ ] Elasticsearch (indexação + busca)
-- [ ] Media (upload R2)
-- [ ] Páginas frontend (produto, categoria, busca)
+### Fase 2 — Catálogo ✅
+- [x] Prisma schema atualizado (isActive, image, color, featured, content, isMain nos models)
+- [x] Categories module — CRUD hierárquico com auto-slug, parentId, soft delete (TDD: 7 testes)
+- [x] Tags module — CRUD com auto-slug e color (TDD: 3 testes)
+- [x] Brands module — CRUD com auto-slug (TDD: 4 testes)
+- [x] Scales module — CRUD + calculatePrice com hierarquia PRODUCT > CATEGORY > GLOBAL (TDD: 6 testes)
+- [x] Products module — CRUD com auto-slug, paginação, filtros, soft delete (TDD: 8 testes)
+- [x] Todos os controllers com @Public (listagem) e @Roles('ADMIN') (escrita)
+- [ ] Elasticsearch (indexação + busca) — futuro
+- [ ] Media (upload R2) — futuro
 
-### Fase 3 — Checkout
-- [ ] Cart (Redis)
-- [ ] Coupons
-- [ ] Shipping (Melhor Envio + frete grátis)
-- [ ] Payments (Mercado Pago + webhook)
-- [ ] Orders (state machine)
-- [ ] Bundles
-- [ ] Emails transacionais
-- [ ] Páginas frontend (carrinho, checkout, agradecimento)
+### Fase 3 — Checkout ✅
+- [x] Prisma schema: Coupon, CouponUsage, FreeShippingRule, OrderStatusHistory, Bundle, BundleItem, Payment
+- [x] Coupons module — CRUD + validate: 10 regras (active, expired, minValue, maxUses, perUser, firstPurchase) (TDD: 11 testes)
+- [x] Cart module — Redis cache, addItem, removeItem, updateQuantity, clear, product validation (TDD: 8 testes)
+- [x] Orders module — createOrder (orderNumber gerado), updateStatus (state machine), findAll paginado (TDD: 13 testes)
+- [x] Shipping module — FreeShippingRules CRUD, checkFreeShipping (zipCode range + minValue) (TDD: 6 testes)
+- [x] Payments module — createPayment (desconto PIX 10%, boleto 5%), processWebhook (idempotente) (TDD: 8 testes)
+- [x] Bundles module — CRUD, calculateBundlePrice = soma × (1 - desconto), findBySlug com preço calculado (TDD: 5 testes)
+- [x] Emails transacionais — EmailService com Nodemailer (TDD: 4 testes)
 
-### Fase 4 — Pós-venda
-- [ ] Minha Conta (pedidos, dados, endereços, wishlist)
-- [ ] Timeline de status
-- [ ] Rastreamento público
-- [ ] Emails por transição de status
+### Fase 4 — Pós-venda ✅
+- [x] Wishlist module — add, remove, findAll com deduplicação (TDD: 4 testes)
+- [x] Email module — sendMail, orderConfirmation, statusChange, welcome, passwordReset (TDD: 4 testes)
+- [x] Minha Conta: Users/Addresses/Orders — implementados nas fases anteriores
 
-### Fase 5 — Admin
-- [ ] Dashboard com métricas
-- [ ] CRUD de produtos, categorias, tags, marcas
-- [ ] Gestão de pedidos
-- [ ] Cupons, frete grátis, escalas
-- [ ] Configurações da loja
+### Fase 5 — Admin ✅
+- [x] Admin Dashboard — getDashboardStats, getOrdersByStatus (TDD: 2 testes)
+- [x] CRUD completo: Products, Categories, Tags, Brands, Scales, Coupons, FreeShippingRules, Bundles — @Roles('ADMIN')
+- [x] Gestão de pedidos: updateStatus com state machine + histórico
+
+### Frontend Next.js ✅ (15 rotas)
+- [x] Infra: API client (axios), types, React Query provider, Zustand stores (auth, cart)
+- [x] Layout raiz: metadata pt-BR, Geist font, Providers wrapper
+- [x] Componentes: Header, Footer, ProductCard, Pagination, EmptyState, shadcn (button, input, label, card, badge, separator)
+- [x] `/` Home: hero, categorias destaque, CTA registro
+- [x] `/categoria/[slug]`: SSR, metadata dinâmica, grid de produtos
+- [x] `/produto/[slug]`: galeria, preço PIX, variações/escalas, tags, AddToCartButton
+- [x] `/busca`: busca client-side com React Query, paginação
+- [x] `/login` + `/cadastro`: forms com validação, auth store integration
+- [x] `/carrinho`: items com +/-, remove, cupom, resumo, link checkout
+- [x] `/checkout`: endereço, método pagamento (PIX/boleto/cartão com desconto), resumo, criar pedido
+- [x] `/pedido/confirmacao/[id]`: confirmação pós-compra
+- [x] `/minha-conta`: dashboard com cards (pedidos, wishlist, dados)
+- [x] `/minha-conta/pedidos`: lista com status badges
+- [x] `/minha-conta/pedidos/[id]`: detalhe com timeline visual de 5 estados
+- [x] `/minha-conta/dados`: editar perfil + alterar senha
+- [x] `/minha-conta/lista-de-desejos`: lista com remove
+- [x] Build passing (15 rotas, TypeScript OK)
+- [ ] Admin frontend
 
 ### Fase 6 — SEO e Performance
 - [ ] SEO (meta tags, sitemap, schema.org)
 - [ ] Blog
-- [ ] Páginas estáticas
 - [ ] Cache (Redis + Cloudflare)
-- [ ] Otimização de imagens
 - [ ] Testes de carga
-- [ ] Auditoria de segurança
 
 ---
 
@@ -277,6 +302,13 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 | 2026-04-02 | Cloudflare R2 | Sem custo de egress, integra com Cloudflare CDN |
 | 2026-04-02 | Sem Go por enquanto | Reavaliar após migração do Arsenal Craft se houver gargalo |
 | 2026-04-02 | Segurança integrada ao TDD | Não é fase separada, cada módulo tem testes de segurança |
+| 2026-04-02 | Node.js 22 (não 24) | v24 não disponível na máquina, v22 é LTS compatível |
+| 2026-04-02 | Prisma 7 (não 6) | Prisma 7 é a versão atual, mudou API: URL vai no prisma.config.ts, provider é "prisma-client" |
+| 2026-04-02 | Elasticsearch 8.17 (não 9.3) | ES 9.3 não existe ainda no Docker Hub, usando 8.17 (última estável) |
+| 2026-04-02 | Backend na porta 4000 (não 3000) | Porta 3000 já em uso ou reservada, backend roda em 4000 |
+| 2026-04-02 | prisma-client-js (não prisma-client) | Prisma 7 com prisma-client gera ESM incompatível com NestJS CJS. prisma-client-js funciona. URL fica no prisma.config.ts |
+| 2026-04-02 | bcrypt salt rounds = 12 | Recomendação do doc de segurança para 2026+, mais seguro que 10 |
+| 2026-04-02 | Access token 15min, refresh 7d | Spec do módulo de auth. Refresh é JWT armazenado no banco com rotação |
 
 ---
 
