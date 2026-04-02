@@ -1,3 +1,4 @@
+import type { ApiRecord } from '@/types/api';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -28,7 +29,7 @@ export default async function BlogPage() {
         <p className="text-muted-foreground">Nenhum post publicado ainda.</p>
       ) : (
         <div className="space-y-8">
-          {posts.data.map((post: any) => (
+          {posts.data.map((post: ApiRecord) => (
             <article key={post.id} className="border-b pb-8 last:border-0">
               <Link href={`/blog/${post.slug}`} className="group">
                 {post.coverImage && (

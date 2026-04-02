@@ -11,7 +11,7 @@ interface Props {
   productName: string;
 }
 
-export function AddToCartButton({ productId, productName }: Props) {
+export function AddToCartButton({ productId }: Props) {
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
   const [added, setAdded] = useState(false);

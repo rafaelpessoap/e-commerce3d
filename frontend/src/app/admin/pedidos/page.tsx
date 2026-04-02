@@ -1,4 +1,5 @@
 'use client';
+import type { ApiRecord } from '@/types/api';
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -33,7 +34,7 @@ export default function AdminOrdersPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'orders', page, statusFilter],
     queryFn: async () => {
-      const params: Record<string, any> = { page, perPage: 20 };
+      const params: Record<string, string | number> = { page, perPage: 20 };
       if (statusFilter !== 'ALL') params.status = statusFilter;
       const { data } = await api.get('/orders', { params });
       return data;
@@ -74,7 +75,7 @@ export default function AdminOrdersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data?.data?.map((order: any) => (
+                {data?.data?.map((order: ApiRecord) => (
                   <TableRow key={order.id}>
                     <TableCell className="font-mono text-xs">
                       {order.number}

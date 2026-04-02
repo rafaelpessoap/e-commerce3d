@@ -1,4 +1,5 @@
 'use client';
+import type { ApiRecord } from '@/types/api';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Trash2 } from 'lucide-react';
@@ -41,7 +42,7 @@ export default function WishlistPage() {
         />
       ) : (
         <div className="space-y-3">
-          {items.map((item: any) => (
+          {items.map((item: ApiRecord) => (
             <div
               key={item.id}
               className="flex items-center justify-between border rounded-lg p-4"

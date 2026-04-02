@@ -1,4 +1,5 @@
 'use client';
+import type { ApiRecord } from '@/types/api';
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -36,7 +37,7 @@ export default function AdminTagsPage() {
           <Table>
             <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Slug</TableHead><TableHead>Cor</TableHead></TableRow></TableHeader>
             <TableBody>
-              {tags?.map((t: any) => (
+              {tags?.map((t: ApiRecord) => (
                 <TableRow key={t.id}>
                   <TableCell className="font-medium">{t.name}</TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">{t.slug}</TableCell>

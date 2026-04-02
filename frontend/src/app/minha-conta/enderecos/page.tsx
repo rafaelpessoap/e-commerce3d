@@ -1,4 +1,5 @@
 'use client';
+import type { ApiRecord } from '@/types/api';
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -29,7 +30,7 @@ export default function AddressesPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => api.post('/addresses', data),
+    mutationFn: (data: ApiRecord) => api.post('/addresses', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['addresses'] });
       setShowForm(false);
@@ -118,7 +119,7 @@ export default function AddressesPage() {
         <EmptyState title="Nenhum endereco" description="Adicione um endereco de entrega." />
       ) : (
         <div className="space-y-3">
-          {addresses.map((addr: any) => (
+          {addresses.map((addr: ApiRecord) => (
             <div key={addr.id} className="flex items-start justify-between border rounded-lg p-4">
               <div>
                 <div className="flex items-center gap-2">

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +13,6 @@ import { useAuthStore } from '@/store/auth-store';
 export default function ProfilePage() {
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
-  const queryClient = useQueryClient();
 
   const [name, setName] = useState(user?.name ?? '');
   const [saving, setSaving] = useState(false);
@@ -31,8 +31,8 @@ export default function ProfilePage() {
       const { data } = await api.put('/users/me', { name });
       setUser({ ...user!, name: data.data.name });
       setMsg('Dados atualizados!');
-    } catch (err: any) {
-      setMsg(err.response?.data?.message ?? 'Erro ao atualizar');
+    } catch (err) {
+      setMsg((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Erro ao atualizar');
     } finally {
       setSaving(false);
     }
@@ -46,8 +46,8 @@ export default function ProfilePage() {
       setPwMsg('Senha alterada com sucesso!');
       setCurrentPassword('');
       setNewPassword('');
-    } catch (err: any) {
-      setPwMsg(err.response?.data?.message ?? 'Erro ao alterar senha');
+    } catch (err) {
+      setPwMsg((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Erro ao alterar senha');
     }
   }
 

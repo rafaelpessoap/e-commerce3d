@@ -1,4 +1,5 @@
 'use client';
+import type { ApiRecord } from '@/types/api';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
@@ -52,7 +53,7 @@ export default function AdminBlogPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {posts?.map((post: any) => (
+              {posts?.map((post: ApiRecord) => (
                 <TableRow key={post.id}>
                   <TableCell className="font-medium">{post.title}</TableCell>
                   <TableCell>

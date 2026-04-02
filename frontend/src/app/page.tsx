@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
-import { ROUTES, SITE_NAME, formatCurrency } from '@/lib/constants';
+import { ROUTES } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Sword, Shield, Wand2 } from 'lucide-react';
 

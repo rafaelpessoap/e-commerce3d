@@ -10,7 +10,6 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { api } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth-store';
 import { ROUTES } from '@/lib/constants';
-import type { Metadata } from 'next';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -29,8 +28,8 @@ export default function LoginPage() {
       const { data } = await api.post('/auth/login', { email, password });
       login(data.data.user, data.data.accessToken, data.data.refreshToken);
       router.push(ROUTES.account);
-    } catch (err: any) {
-      setError(err.response?.data?.message ?? 'Email ou senha inválidos');
+    } catch (err) {
+      setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Email ou senha inválidos');
     } finally {
       setLoading(false);
     }

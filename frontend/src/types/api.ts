@@ -14,6 +14,9 @@ export interface PaginationMeta {
   lastPage: number;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ApiRecord = Record<string, any>;
+
 export interface ApiError {
   error: {
     statusCode: number;

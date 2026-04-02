@@ -56,8 +56,8 @@ export default function CartPage() {
         cartValue: subtotal,
       });
       setCouponMsg(`Cupom aplicado! Desconto: ${formatCurrency(data.data.discount)}`);
-    } catch (err: any) {
-      setCouponMsg(err.response?.data?.message ?? 'Cupom inválido');
+    } catch (err) {
+      setCouponMsg((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Cupom inválido');
     }
   }
 

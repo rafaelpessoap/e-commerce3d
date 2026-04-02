@@ -1,4 +1,5 @@
 'use client';
+import type { ApiRecord } from '@/types/api';
 
 import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -108,7 +109,7 @@ export default function AdminOrderDetailPage() {
           <CardTitle className="text-lg">Itens</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {order.items?.map((item: any) => (
+          {order.items?.map((item: ApiRecord) => (
             <div key={item.id} className="flex justify-between text-sm">
               <span>{item.product?.name ?? 'Produto'} x{item.quantity}</span>
               <span className="font-medium">
@@ -142,7 +143,7 @@ export default function AdminOrderDetailPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {order.statusHistory.map((entry: any, i: number) => (
+              {order.statusHistory.map((entry: ApiRecord, i: number) => (
                 <div key={i} className="flex items-start gap-3 text-sm">
                   <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
                   <div>

@@ -1,4 +1,5 @@
 'use client';
+import type { ApiRecord } from '@/types/api';
 
 import { useQuery } from '@tanstack/react-query';
 import { Package, DollarSign, Users, ShoppingBag } from 'lucide-react';
@@ -75,7 +76,7 @@ export default function AdminDashboard() {
         <CardContent>
           {ordersByStatus ? (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {ordersByStatus.map((item: any) => (
+              {ordersByStatus.map((item: ApiRecord) => (
                 <div key={item.status} className="text-center p-3 rounded-lg bg-muted/50">
                   <p className="text-2xl font-bold">{item.count}</p>
                   <p className="text-xs text-muted-foreground mt-1">{item.status}</p>

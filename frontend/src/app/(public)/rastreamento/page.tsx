@@ -1,4 +1,5 @@
 'use client';
+import type { ApiRecord } from '@/types/api';
 
 import { useState } from 'react';
 import { Search, CheckCircle, Circle } from 'lucide-react';
@@ -21,7 +22,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function TrackingPage() {
   const [orderNumber, setOrderNumber] = useState('');
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState<ApiRecord | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -113,7 +114,7 @@ export default function TrackingPage() {
             {order.statusHistory?.length > 0 && (
               <div className="mt-6 space-y-3">
                 <h3 className="text-sm font-medium">Histórico</h3>
-                {order.statusHistory.map((entry: any, i: number) => (
+                {order.statusHistory.map((entry: ApiRecord, i: number) => (
                   <div key={i} className="flex items-start gap-3 text-sm">
                     <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
                     <div>

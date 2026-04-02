@@ -1,4 +1,5 @@
 'use client';
+import type { ApiRecord } from '@/types/api';
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -56,7 +57,7 @@ export default function AdminShippingPage() {
           <Table>
             <TableHeader><TableRow><TableHead>CEP Início</TableHead><TableHead>CEP Fim</TableHead><TableHead>Valor Mínimo</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
             <TableBody>
-              {rules?.map((r: any) => (
+              {rules?.map((r: ApiRecord) => (
                 <TableRow key={r.id}>
                   <TableCell className="font-mono">{r.zipCodeStart}</TableCell>
                   <TableCell className="font-mono">{r.zipCodeEnd}</TableCell>

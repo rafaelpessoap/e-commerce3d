@@ -28,8 +28,8 @@ export default function NewProductPage() {
         sku: formData.get('sku') || undefined,
       });
       router.push('/admin/produtos');
-    } catch (err: any) {
-      setError(err.response?.data?.message ?? 'Erro ao criar produto');
+    } catch (err) {
+      setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Erro ao criar produto');
     } finally {
       setLoading(false);
     }

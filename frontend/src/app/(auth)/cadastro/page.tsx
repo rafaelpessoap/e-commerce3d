@@ -26,8 +26,8 @@ export default function RegisterPage() {
     try {
       await api.post('/auth/register', { name, email, password });
       router.push(ROUTES.login + '?registered=1');
-    } catch (err: any) {
-      const msg = err.response?.data?.message;
+    } catch (err) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       if (Array.isArray(msg)) {
         setError(msg.join('. '));
       } else {

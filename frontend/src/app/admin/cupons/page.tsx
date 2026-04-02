@@ -1,4 +1,5 @@
 'use client';
+import type { ApiRecord } from '@/types/api';
 
 import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
@@ -41,7 +42,7 @@ export default function AdminCouponsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {coupons?.map((coupon: any) => (
+              {coupons?.map((coupon: ApiRecord) => (
                 <TableRow key={coupon.id}>
                   <TableCell className="font-mono font-medium">
                     {coupon.code}

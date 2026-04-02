@@ -1,4 +1,5 @@
 'use client';
+import type { ApiRecord } from '@/types/api';
 
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
@@ -46,7 +47,7 @@ export default function OrdersPage() {
       <h1 className="text-2xl font-bold mb-6">Meus Pedidos</h1>
 
       <div className="space-y-4">
-        {orders.map((order: any) => {
+        {orders.map((order: ApiRecord) => {
           const status = STATUS_LABELS[order.status] ?? { label: order.status, variant: 'outline' as const };
 
           return (

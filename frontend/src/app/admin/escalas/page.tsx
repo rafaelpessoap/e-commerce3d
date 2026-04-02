@@ -1,4 +1,5 @@
 'use client';
+import type { ApiRecord } from '@/types/api';
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -103,7 +104,7 @@ export default function AdminScalesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {scales?.map((scale: any) => (
+              {scales?.map((scale: ApiRecord) => (
                 <TableRow key={scale.id}>
                   <TableCell className="font-medium">{scale.name}</TableCell>
                   <TableCell className="font-mono text-xs">{scale.code}</TableCell>

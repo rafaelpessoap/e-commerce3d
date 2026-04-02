@@ -63,8 +63,8 @@ export default function CheckoutPage() {
       clear();
 
       router.push(`/pedido/confirmacao/${orderData.data.id}`);
-    } catch (err: any) {
-      setError(err.response?.data?.message ?? 'Erro ao finalizar pedido');
+    } catch (err) {
+      setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Erro ao finalizar pedido');
     } finally {
       setLoading(false);
     }
