@@ -8,6 +8,7 @@ on:
 
 jobs:
   backend:
+    name: Backend (NestJS)
     runs-on: ubuntu-latest
 
     services:
@@ -51,16 +52,28 @@ jobs:
       - name: Generate Prisma client
         run: cd backend && npx prisma generate
 
+      - name: TypeScript check
+        run: cd backend && npx tsc --noEmit
+
       - name: Run linter
         run: cd backend && npm run lint
 
-      - name: Run tests
+      - name: Run tests with coverage
         run: cd backend && npm run test -- --coverage
         env:
           DATABASE_URL: postgresql://test:testpass@localhost:5432/miniatures_test
           REDIS_URL: redis://localhost:6379
+          JWT_SECRET: ci-test-secret-key-minimum-64-characters-long-for-security-purposes
+
+      - name: Check test count
+        run: |
+          TESTS=$(cd backend && npm run test 2>&1 | grep "Tests:" | grep -oP '\d+ passed')
+          echo "Backend tests: $TESTS"
+        env:
+          JWT_SECRET: ci-test-secret
 
   frontend:
+    name: Frontend (Next.js)
     runs-on: ubuntu-latest
 
     steps:
@@ -83,3 +96,24 @@ jobs:
         run: cd frontend && npm run build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:4000
+
+      - name: Count routes
+        run: |
+          ROUTES=$(cd frontend && npm run build 2>&1 | grep -cE "^[├└]" || echo "0")
+          echo "Frontend routes: $ROUTES"
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+
+  docker:
+    name: Docker Build Check
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate docker-compose configs
+        run: |
+          docker compose -f docker-compose.dev.yml config > /dev/null
+          docker compose -f docker-compose.test.yml config > /dev/null
+          echo "✅ Docker Compose configs valid"
