@@ -296,45 +296,37 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 - [x] Docker prod: multi-stage Dockerfiles (backend + frontend), docker-compose.prod.yml, nginx reverse proxy
 - [x] Nginx: security headers, gzip, rate limiting (API 10r/s, login 5r/m), static cache, proxy pass
 - [x] GitHub Actions: deploy.yml (SSH + docker compose)
-- [ ] Cache (Redis + Cloudflare)
-- [ ] Testes de carga
+- [ ] Cache (Redis + Cloudflare) — pós-deploy, baseado em métricas reais de tráfego
+- [ ] Testes de carga (k6/Artillery) — pós-deploy, com seed de dados e infra rodando
 
 ---
 
-## Pendências Identificadas (Gap Analysis)
+## Pendências Restantes
 
-### PRIORIDADE CRÍTICA — Segurança e infra base
-- [x] **OwnershipGuard** — guard + @CheckOwnership decorator (TDD: 4 testes)
-- [x] **HttpExceptionFilter** — erros padronizados `{ error: { statusCode, message, details? } }` (TDD: 3 testes)
-- [x] **PrismaExceptionFilter** — P2002→409, P2025→404, P2003→400 (TDD: 4 testes)
-- [x] **TransformInterceptor** — auto-wrap `{ data }`, skip se já tem data/meta/error (TDD: 5 testes)
-- [x] **LoggingInterceptor** — log HTTP method, url, status, duration
-- [x] **DTOs completos** — CreateProductDto, UpdateProductDto, CreateOrderDto, UpdateOrderStatusDto, CreateScaleDto, CreateBundleDto, CreateCouponDto
-- [x] **Wiring global** — filters + interceptors registrados no main.ts, controllers sem `any`
-- [x] **Forgot/Reset Password** — forgotPassword (gera token, envia email, nao revela existencia), resetPassword (valida token, 1h expiry, uso unico) (TDD: 5 testes)
-- [x] **Config module** — registerAs: app, database, redis, mail, storage + load no AppModule
-- [x] **ThrottleGuard** — @nestjs/throttler global (short 3/s, medium 20/10s, long 100/min) + login @Throttle 5/min
+### PRÉ-DEPLOY — Fazer antes de subir para produção
+- [ ] **Prisma seed** — dados iniciais: admin user, categorias, escalas padrão, cupom WELCOME10
+- [ ] **GitHub Secrets** — DEPLOY_HOST, DEPLOY_USER, DEPLOY_KEY, JWT_SECRET, DATABASE_URL, REDIS_PASSWORD
+- [ ] **Backend .env prod** — criar no servidor com todas as variáveis reais
+- [ ] **Primeiro deploy** — `make prod-build && make prod` + `prisma migrate deploy`
+- [ ] **Teste manual** — fluxo completo: registro → login → carrinho → checkout → pedido → rastreamento
 
-### PRIORIDADE ALTA — Features incompletas
-- [x] **ScalesController** — GET /scales (public), POST /scales e /scale-rules (admin)
-- [x] **Product Variations** — VariationsService + Controller em /products/:productId/variations (TDD: 5 testes)
-- [ ] **ViaCEP integração** — auto-fill endereço por CEP no AddressesService
+### PÓS-DEPLOY — Melhorias baseadas em uso real
+- [ ] **Cache Redis por rota** — CacheInterceptor em /products, /categories (quando houver tráfego)
+- [ ] **Cloudflare cache rules** — configurar no dashboard para assets estáticos e API GET
+- [ ] **Testes de carga** — k6/Artillery contra infra prod com seed de dados
 - [ ] **Test infrastructure** — test/helpers/, test/fixtures/, jest configs de integração
-- [ ] **Testes de integração** — E2E com supertest + banco real, testes de segurança (IDOR, 401, 403)
+- [ ] **Testes E2E** — supertest + banco real, testes de segurança (IDOR, 401, 403)
 
-### PRIORIDADE MÉDIA — Frontend e extras
-- [x] **Páginas estáticas** — /sobre, /contato, /faq, /termos, /privacidade, /trocas-e-devolucoes (6 páginas)
-- [x] **Recuperar senha** — /recuperar-senha (form + mensagem genérica anti-enumeração)
-- [x] **Minha Conta endereços** — /minha-conta/enderecos (lista + criar + deletar)
-- [x] **ViaCEP integração** — ViaCepService (lookup, validação, fallback manual) + endpoint GET /addresses/cep/:cep (TDD: 4 testes)
-- [x] **Rastreamento público** — /rastreamento (busca por orderNumber, timeline, histórico) + backend GET /orders/track/:orderNumber
-- [x] **Admin páginas faltantes** — /admin/marcas, /admin/tags, /admin/frete, /admin/configuracoes (4 páginas)
-- [x] **Hooks** — use-auth (redirect se não autenticado), use-cart (fetchCart, addItem, removeItem, updateQuantity, clearCart), use-search (useDebounce)
-- [x] **Pages module (backend)** — PagesService CRUD com auto-slug + PagesController (TDD: 3 testes)
-- [ ] **Componentes faltantes** — scale-selector, variation-selector, shipping-simulator, mini-cart, breadcrumb, loading skeletons, search-filters sidebar
-- [ ] **Email templates** — React Email: welcome, order-confirmation, status-change, password-reset
-- [ ] **BullMQ email processor** — fila assíncrona para envio de emails
-- [ ] **Cache module** — wrapper Redis com invalidação, cache interceptor por rota
+### REFINAMENTOS DE UX — Podem ser feitos incrementalmente
+- [ ] **Componentes frontend** — scale-selector, variation-selector, shipping-simulator, mini-cart, breadcrumb, loading skeletons, search-filters sidebar
+- [ ] **Email templates** — React Email: welcome, order-confirmation, status-change, password-reset (hoje usa HTML inline)
+- [ ] **BullMQ email processor** — fila assíncrona para envio de emails (hoje é síncrono, funciona mas pode travar request)
+
+### CONCLUÍDO (referência)
+- [x] OwnershipGuard, HttpExceptionFilter, PrismaExceptionFilter, TransformInterceptor, LoggingInterceptor
+- [x] DTOs completos, ValidationPipe global, Config module, ThrottleGuard
+- [x] Forgot/Reset Password, ViaCEP, ScalesController, Product Variations
+- [x] Todas as 41 rotas frontend, todos os 22 módulos backend, 203 testes passando
 
 ---
 
