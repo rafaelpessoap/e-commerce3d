@@ -1,6 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import {
+  appConfig,
+  databaseConfig,
+  redisConfig,
+  mailConfig,
+  storageConfig,
+} from './config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -30,7 +38,15 @@ import { RolesGuard } from './common/guards/roles.guard';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [appConfig, databaseConfig, redisConfig, mailConfig, storageConfig],
+    }),
+    ThrottlerModule.forRoot([
+      { name: 'short', ttl: 1000, limit: 3 },
+      { name: 'medium', ttl: 10000, limit: 20 },
+      { name: 'long', ttl: 60000, limit: 100 },
+    ]),
     PrismaModule,
     // Fase 1 — Autenticação
     AuthModule,
@@ -54,7 +70,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     EmailModule,
     // Fase 5 — Admin
     AdminModule,
-    // Fase 6 — Busca + Media
+    // Fase 6 — Busca + Media + SEO + Blog
     SearchModule,
     MediaModule,
     SeoModule,
@@ -65,6 +81,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     AppService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}

@@ -4,13 +4,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
-import { User, Package, Heart, Settings } from 'lucide-react';
+import { User, Package, Heart, Settings, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
   { href: '/minha-conta', label: 'Minha Conta', icon: User, exact: true },
   { href: '/minha-conta/pedidos', label: 'Pedidos', icon: Package },
   { href: '/minha-conta/lista-de-desejos', label: 'Lista de Desejos', icon: Heart },
+  { href: '/minha-conta/enderecos', label: 'Enderecos', icon: MapPin },
   { href: '/minha-conta/dados', label: 'Meus Dados', icon: Settings },
 ];
 

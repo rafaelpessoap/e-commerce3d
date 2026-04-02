@@ -312,21 +312,21 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 - [x] **DTOs completos** — CreateProductDto, UpdateProductDto, CreateOrderDto, UpdateOrderStatusDto, CreateScaleDto, CreateBundleDto, CreateCouponDto
 - [x] **Wiring global** — filters + interceptors registrados no main.ts, controllers sem `any`
 - [x] **Forgot/Reset Password** — forgotPassword (gera token, envia email, nao revela existencia), resetPassword (valida token, 1h expiry, uso unico) (TDD: 5 testes)
-- [ ] **Config module** — arquivos separados (app, database, redis, elasticsearch, mail, storage, payment, shipping)
+- [x] **Config module** — registerAs: app, database, redis, mail, storage + load no AppModule
+- [x] **ThrottleGuard** — @nestjs/throttler global (short 3/s, medium 20/10s, long 100/min) + login @Throttle 5/min
 
 ### PRIORIDADE ALTA — Features incompletas
-- [ ] **ScalesController** — expor endpoints REST (GET, POST /scales e /scale-rules)
-- [ ] **Product Variations** — CRUD endpoints em /products/:productId/variations
+- [x] **ScalesController** — GET /scales (public), POST /scales e /scale-rules (admin)
+- [x] **Product Variations** — VariationsService + Controller em /products/:productId/variations (TDD: 5 testes)
 - [ ] **ViaCEP integração** — auto-fill endereço por CEP no AddressesService
-- [ ] **ThrottleGuard** — rate limiting NestJS: login 5/min, API geral via @nestjs/throttler
-- [ ] **Test infrastructure** — test/helpers/ (test-app, database, auth, factory), test/fixtures/, jest configs de integração
+- [ ] **Test infrastructure** — test/helpers/, test/fixtures/, jest configs de integração
 - [ ] **Testes de integração** — E2E com supertest + banco real, testes de segurança (IDOR, 401, 403)
 
 ### PRIORIDADE MÉDIA — Frontend e extras
-- [ ] **Páginas estáticas** — /sobre, /contato, /faq, /termos, /privacidade, /trocas-e-devolucoes
-- [ ] **Recuperar senha** — /recuperar-senha (frontend)
+- [x] **Páginas estáticas** — /sobre, /contato, /faq, /termos, /privacidade, /trocas-e-devolucoes (6 páginas)
+- [x] **Recuperar senha** — /recuperar-senha (form + mensagem genérica anti-enumeração)
+- [x] **Minha Conta endereços** — /minha-conta/enderecos (lista + criar + deletar)
 - [ ] **Rastreamento público** — /rastreamento (busca por orderNumber + email)
-- [ ] **Minha Conta endereços** — /minha-conta/enderecos (CRUD frontend)
 - [ ] **Admin páginas faltantes** — /admin/marcas, /admin/tags, /admin/frete, /admin/seo, /admin/configuracoes
 - [ ] **Componentes faltantes** — scale-selector, variation-selector, shipping-simulator, mini-cart, breadcrumb, loading skeletons, search-filters sidebar
 - [ ] **Hooks** — use-cart, use-auth, use-search (debounce), use-media-query
