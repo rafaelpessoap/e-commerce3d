@@ -6,11 +6,10 @@ import {
   LayoutDashboard,
   Package,
   FolderTree,
-  Tags,
   Ruler,
   ShoppingBag,
   Ticket,
-  Truck,
+  FileText,
   ArrowLeft,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -23,6 +22,7 @@ const NAV_ITEMS = [
   { href: '/admin/categorias', label: 'Categorias', icon: FolderTree },
   { href: '/admin/cupons', label: 'Cupons', icon: Ticket },
   { href: '/admin/escalas', label: 'Escalas', icon: Ruler },
+  { href: '/admin/blog', label: 'Blog', icon: FileText },
 ];
 
 export default function AdminLayout({

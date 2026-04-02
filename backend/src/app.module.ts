@@ -23,6 +23,8 @@ import { EmailModule } from './email/email.module';
 import { AdminModule } from './admin/admin.module';
 import { SearchModule } from './search/search.module';
 import { MediaModule } from './media/media.module';
+import { SeoModule } from './seo/seo.module';
+import { BlogModule } from './blog/blog.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -55,6 +57,8 @@ import { RolesGuard } from './common/guards/roles.guard';
     // Fase 6 — Busca + Media
     SearchModule,
     MediaModule,
+    SeoModule,
+    BlogModule,
   ],
   controllers: [AppController],
   providers: [

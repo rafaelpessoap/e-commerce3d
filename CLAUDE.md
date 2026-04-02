@@ -289,9 +289,10 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 - [x] `/admin/escalas`: lista + criar inline (nome, código, tamanho)
 - [x] Build passing (22 rotas, TypeScript OK)
 
-### Fase 6 — SEO e Performance
-- [ ] SEO (meta tags, sitemap, schema.org)
-- [ ] Blog
+### Fase 6 — SEO e Performance (em andamento)
+- [x] SEO module — upsertMeta por entidade, getMeta, generateSitemap (produtos + categorias + blog + estáticas) (TDD: 5 testes)
+- [x] Blog module — CRUD posts com auto-slug, publish/unpublish, paginação (TDD: 7 testes)
+- [x] Frontend: /blog (listagem SSR), /blog/[slug] (post completo), /admin/blog (publicar/despublicar)
 - [ ] Cache (Redis + Cloudflare)
 - [ ] Testes de carga
 
