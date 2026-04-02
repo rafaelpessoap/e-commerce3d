@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://elitepinup3d.com.br/sitemap.xml

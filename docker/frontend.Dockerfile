@@ -28,7 +28,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Copy standalone output
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
-COPY --from=build /app/public ./public
+# public/ may be empty — create dir and copy if exists
+RUN mkdir -p ./public
+COPY --from=build /app/public/. ./public/
 
 # Non-root user
 RUN addgroup -g 1001 -S nodejs && \
