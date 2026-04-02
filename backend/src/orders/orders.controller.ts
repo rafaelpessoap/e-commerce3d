@@ -8,12 +8,25 @@ import {
   Query,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
+import { CreateOrderDto } from './dto/create-order.dto';
+import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 
 @Controller('api/v1/orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
+
+  @Post()
+  async create(
+    @CurrentUser() user: { id: string },
+    @Body() dto: CreateOrderDto,
+  ) {
+    return await this.ordersService.createOrder({
+      userId: user.id,
+      ...dto,
+    });
+  }
 
   @Get()
   async findAll(
@@ -22,7 +35,6 @@ export class OrdersController {
     @Query('perPage') perPage = '10',
     @Query('status') status?: string,
   ) {
-    // Customer sees only their orders; admin sees all
     const userId = user.role === 'ADMIN' ? undefined : user.id;
     return await this.ordersService.findAll({
       page: parseInt(page, 10),
@@ -34,7 +46,7 @@ export class OrdersController {
 
   @Get(':id')
   async findById(@Param('id') id: string) {
-    return { data: await this.ordersService.findById(id) };
+    return await this.ordersService.findById(id);
   }
 
   @Roles('ADMIN')
@@ -42,10 +54,8 @@ export class OrdersController {
   async updateStatus(
     @Param('id') id: string,
     @CurrentUser() user: { id: string },
-    @Body() dto: { status: string; notes?: string },
+    @Body() dto: UpdateOrderStatusDto,
   ) {
-    return {
-      data: await this.ordersService.updateStatus(id, dto.status, user.id),
-    };
+    return await this.ordersService.updateStatus(id, dto.status, user.id);
   }
 }

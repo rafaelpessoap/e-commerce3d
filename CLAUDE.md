@@ -301,6 +301,42 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 
 ---
 
+## Pendências Identificadas (Gap Analysis)
+
+### PRIORIDADE CRÍTICA — Segurança e infra base
+- [x] **OwnershipGuard** — guard + @CheckOwnership decorator (TDD: 4 testes)
+- [x] **HttpExceptionFilter** — erros padronizados `{ error: { statusCode, message, details? } }` (TDD: 3 testes)
+- [x] **PrismaExceptionFilter** — P2002→409, P2025→404, P2003→400 (TDD: 4 testes)
+- [x] **TransformInterceptor** — auto-wrap `{ data }`, skip se já tem data/meta/error (TDD: 5 testes)
+- [x] **LoggingInterceptor** — log HTTP method, url, status, duration
+- [x] **DTOs completos** — CreateProductDto, UpdateProductDto, CreateOrderDto, UpdateOrderStatusDto, CreateScaleDto, CreateBundleDto, CreateCouponDto
+- [x] **Wiring global** — filters + interceptors registrados no main.ts, controllers sem `any`
+- [ ] **Forgot/Reset Password** — endpoints POST /auth/forgot-password e /auth/reset-password
+- [ ] **Config module** — arquivos separados (app, database, redis, elasticsearch, mail, storage, payment, shipping)
+
+### PRIORIDADE ALTA — Features incompletas
+- [ ] **ScalesController** — expor endpoints REST (GET, POST /scales e /scale-rules)
+- [ ] **Product Variations** — CRUD endpoints em /products/:productId/variations
+- [ ] **ViaCEP integração** — auto-fill endereço por CEP no AddressesService
+- [ ] **ThrottleGuard** — rate limiting NestJS: login 5/min, API geral via @nestjs/throttler
+- [ ] **Test infrastructure** — test/helpers/ (test-app, database, auth, factory), test/fixtures/, jest configs de integração
+- [ ] **Testes de integração** — E2E com supertest + banco real, testes de segurança (IDOR, 401, 403)
+
+### PRIORIDADE MÉDIA — Frontend e extras
+- [ ] **Páginas estáticas** — /sobre, /contato, /faq, /termos, /privacidade, /trocas-e-devolucoes
+- [ ] **Recuperar senha** — /recuperar-senha (frontend)
+- [ ] **Rastreamento público** — /rastreamento (busca por orderNumber + email)
+- [ ] **Minha Conta endereços** — /minha-conta/enderecos (CRUD frontend)
+- [ ] **Admin páginas faltantes** — /admin/marcas, /admin/tags, /admin/frete, /admin/seo, /admin/configuracoes
+- [ ] **Componentes faltantes** — scale-selector, variation-selector, shipping-simulator, mini-cart, breadcrumb, loading skeletons, search-filters sidebar
+- [ ] **Hooks** — use-cart, use-auth, use-search (debounce), use-media-query
+- [ ] **Email templates** — React Email: welcome, order-confirmation, status-change, password-reset
+- [ ] **BullMQ email processor** — fila assíncrona para envio de emails
+- [ ] **Pages module (backend)** — CRUD de páginas estáticas editáveis pelo admin
+- [ ] **Cache module** — wrapper Redis com invalidação, cache interceptor por rota
+
+---
+
 ## Decisões Tomadas (Log)
 
 | Data | Decisão | Contexto |
