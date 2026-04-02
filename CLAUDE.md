@@ -326,13 +326,14 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 - [x] **Páginas estáticas** — /sobre, /contato, /faq, /termos, /privacidade, /trocas-e-devolucoes (6 páginas)
 - [x] **Recuperar senha** — /recuperar-senha (form + mensagem genérica anti-enumeração)
 - [x] **Minha Conta endereços** — /minha-conta/enderecos (lista + criar + deletar)
-- [ ] **Rastreamento público** — /rastreamento (busca por orderNumber + email)
-- [ ] **Admin páginas faltantes** — /admin/marcas, /admin/tags, /admin/frete, /admin/seo, /admin/configuracoes
+- [x] **ViaCEP integração** — ViaCepService (lookup, validação, fallback manual) + endpoint GET /addresses/cep/:cep (TDD: 4 testes)
+- [x] **Rastreamento público** — /rastreamento (busca por orderNumber, timeline, histórico) + backend GET /orders/track/:orderNumber
+- [x] **Admin páginas faltantes** — /admin/marcas, /admin/tags, /admin/frete, /admin/configuracoes (4 páginas)
+- [x] **Hooks** — use-auth (redirect se não autenticado), use-cart (fetchCart, addItem, removeItem, updateQuantity, clearCart), use-search (useDebounce)
+- [x] **Pages module (backend)** — PagesService CRUD com auto-slug + PagesController (TDD: 3 testes)
 - [ ] **Componentes faltantes** — scale-selector, variation-selector, shipping-simulator, mini-cart, breadcrumb, loading skeletons, search-filters sidebar
-- [ ] **Hooks** — use-cart, use-auth, use-search (debounce), use-media-query
 - [ ] **Email templates** — React Email: welcome, order-confirmation, status-change, password-reset
 - [ ] **BullMQ email processor** — fila assíncrona para envio de emails
-- [ ] **Pages module (backend)** — CRUD de páginas estáticas editáveis pelo admin
 - [ ] **Cache module** — wrapper Redis com invalidação, cache interceptor por rota
 
 ---

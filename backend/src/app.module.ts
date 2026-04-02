@@ -33,6 +33,7 @@ import { SearchModule } from './search/search.module';
 import { MediaModule } from './media/media.module';
 import { SeoModule } from './seo/seo.module';
 import { BlogModule } from './blog/blog.module';
+import { PagesModule } from './pages/pages.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -75,6 +76,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     MediaModule,
     SeoModule,
     BlogModule,
+    PagesModule,
   ],
   controllers: [AppController],
   providers: [

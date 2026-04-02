@@ -10,6 +10,10 @@ import {
   ShoppingBag,
   Ticket,
   FileText,
+  Tag,
+  Award,
+  Truck,
+  Settings,
   ArrowLeft,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -21,8 +25,12 @@ const NAV_ITEMS = [
   { href: '/admin/pedidos', label: 'Pedidos', icon: ShoppingBag },
   { href: '/admin/categorias', label: 'Categorias', icon: FolderTree },
   { href: '/admin/cupons', label: 'Cupons', icon: Ticket },
+  { href: '/admin/marcas', label: 'Marcas', icon: Award },
+  { href: '/admin/tags', label: 'Tags', icon: Tag },
   { href: '/admin/escalas', label: 'Escalas', icon: Ruler },
+  { href: '/admin/frete', label: 'Frete', icon: Truck },
   { href: '/admin/blog', label: 'Blog', icon: FileText },
+  { href: '/admin/configuracoes', label: 'Config', icon: Settings },
 ];
 
 export default function AdminLayout({

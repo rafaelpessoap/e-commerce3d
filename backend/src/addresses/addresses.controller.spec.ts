@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AddressesController } from './addresses.controller';
 import { AddressesService } from './addresses.service';
+import { ViaCepService } from './viacep.service';
 
 describe('AddressesController', () => {
   let controller: AddressesController;
@@ -21,6 +22,10 @@ describe('AddressesController', () => {
             update: jest.fn(),
             remove: jest.fn(),
           },
+        },
+        {
+          provide: ViaCepService,
+          useValue: { lookup: jest.fn() },
         },
       ],
     }).compile();

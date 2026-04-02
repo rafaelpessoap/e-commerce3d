@@ -10,13 +10,24 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { AddressesService } from './addresses.service';
+import { ViaCepService } from './viacep.service';
 import { CreateAddressDto } from './dto/create-address.dto';
 import { UpdateAddressDto } from './dto/update-address.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Public } from '../common/decorators/public.decorator';
 
 @Controller('api/v1/addresses')
 export class AddressesController {
-  constructor(private readonly addressesService: AddressesService) {}
+  constructor(
+    private readonly addressesService: AddressesService,
+    private readonly viaCepService: ViaCepService,
+  ) {}
+
+  @Public()
+  @Get('cep/:cep')
+  async lookupCep(@Param('cep') cep: string) {
+    return await this.viaCepService.lookup(cep);
+  }
 
   @Get()
   async findAll(@CurrentUser() user: { id: string }) {

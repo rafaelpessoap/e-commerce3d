@@ -12,6 +12,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
+import { Public } from '../common/decorators/public.decorator';
 
 @Controller('api/v1/orders')
 export class OrdersController {
@@ -57,5 +58,11 @@ export class OrdersController {
     @Body() dto: UpdateOrderStatusDto,
   ) {
     return await this.ordersService.updateStatus(id, dto.status, user.id);
+  }
+
+  @Public()
+  @Get('track/:orderNumber')
+  async track(@Param('orderNumber') orderNumber: string) {
+    return await this.ordersService.trackByNumber(orderNumber);
   }
 }
