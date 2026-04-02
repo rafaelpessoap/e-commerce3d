@@ -1,17 +1,20 @@
 # ---- Dependencies ----
 FROM node:22-alpine AS deps
 WORKDIR /app
-COPY frontend/package.json frontend/package-lock.json ./
+COPY package.json package-lock.json ./
 RUN npm ci
 
 # ---- Build ----
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY frontend/ ./
+COPY . ./
 
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NEXT_PUBLIC_API_URL=http://backend:4000
+
+# API URL is baked at build time for client components
+ARG NEXT_PUBLIC_API_URL=https://elitepinup3d.com.br
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
 RUN npm run build
 

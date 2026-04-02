@@ -5,24 +5,62 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
-  deploy:
+  build-and-push:
+    name: Build & Push Docker Images
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
 
     steps:
       - uses: actions/checkout@v6
 
-      - name: Deploy to server
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./docker/backend.Dockerfile
+          push: true
+          tags: ghcr.io/rafaelpessoap/e-commerce3d-backend:latest
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./docker/frontend.Dockerfile
+          push: true
+          tags: ghcr.io/rafaelpessoap/e-commerce3d-frontend:latest
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://elitepinup3d.com.br
+
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    needs: [build-and-push]
+
+    steps:
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_KEY }}
+          host: 24.152.39.104
+          username: masterdaweb
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 2222
           script: |
-            cd /opt/miniatures-store
-            git pull origin main
-            docker compose -f docker-compose.prod.yml build
-            docker compose -f docker-compose.prod.yml up -d
-            docker compose -f docker-compose.prod.yml exec backend npx prisma migrate deploy
-            echo "Deploy completed at $(date)"
+            cd /opt/elitepinup
+            docker compose pull
+            docker compose up -d
+            # Wait for backend to be healthy
+            sleep 15
+            curl -sf http://127.0.0.1:3002/api/health || (docker compose logs --tail=50 && exit 1)
+            curl -sf http://127.0.0.1:3003 || (docker compose logs --tail=50 && exit 1)
+            echo "Deploy OK at $(date)"
