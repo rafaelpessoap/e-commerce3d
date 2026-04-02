@@ -7,9 +7,12 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   constructor() {
-    super({
-      datasourceUrl: process.env.DATABASE_URL,
-    });
+    // Prisma 7: url removed from schema (prisma.config.ts handles CLI).
+    // Runtime needs datasourceUrl passed via constructor.
+    // Using 'as any' because prisma-client-js types don't expose datasourceUrl
+    // but the runtime accepts it (documented in Prisma 7 migration guide).
+    const url = process.env.DATABASE_URL;
+    super(url ? ({ datasourceUrl: url } as any) : {});
   }
 
   async onModuleInit() {
