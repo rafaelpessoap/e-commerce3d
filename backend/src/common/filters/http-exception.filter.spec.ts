@@ -36,7 +36,10 @@ describe('HttpExceptionFilter', () => {
 
   it('should include validation details when available', () => {
     const exception = new HttpException(
-      { statusCode: 400, message: ['email must be an email', 'name is required'] },
+      {
+        statusCode: 400,
+        message: ['email must be an email', 'name is required'],
+      },
       HttpStatus.BAD_REQUEST,
     );
 

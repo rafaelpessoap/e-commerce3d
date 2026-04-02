@@ -17,7 +17,10 @@ import { MediaService } from './media.service';
           endpoint: configService.get<string>('S3_ENDPOINT'),
           credentials: {
             accessKeyId: configService.get<string>('S3_ACCESS_KEY_ID', ''),
-            secretAccessKey: configService.get<string>('S3_SECRET_ACCESS_KEY', ''),
+            secretAccessKey: configService.get<string>(
+              'S3_SECRET_ACCESS_KEY',
+              '',
+            ),
           },
           forcePathStyle: true,
         });

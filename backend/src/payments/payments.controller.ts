@@ -9,7 +9,9 @@ export class PaymentsController {
 
   @Post('create')
   async createPayment(@Body() dto: { orderId: string; method: string }) {
-    return { data: await this.paymentsService.createPayment(dto.orderId, dto.method) };
+    return {
+      data: await this.paymentsService.createPayment(dto.orderId, dto.method),
+    };
   }
 
   @Public()

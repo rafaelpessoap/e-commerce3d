@@ -37,7 +37,10 @@ export class VariationsService {
     });
   }
 
-  async update(id: string, dto: { price?: number; stock?: number; name?: string }) {
+  async update(
+    id: string,
+    dto: { price?: number; stock?: number; name?: string },
+  ) {
     return this.prisma.productVariation.update({
       where: { id },
       data: dto,

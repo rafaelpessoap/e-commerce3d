@@ -22,7 +22,8 @@ export class PrismaExceptionFilter implements ExceptionFilter {
       case 'P2002': {
         // Unique constraint violation
         statusCode = HttpStatus.CONFLICT;
-        const target = (exception.meta?.target as string[])?.join(', ') ?? 'field';
+        const target =
+          (exception.meta?.target as string[])?.join(', ') ?? 'field';
         message = `Unique constraint violation on: ${target}`;
         break;
       }

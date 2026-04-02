@@ -45,7 +45,9 @@ describe('TagsService', () => {
     });
 
     it('should throw ConflictException for duplicate name', async () => {
-      (prisma.tag.findUnique as jest.Mock).mockResolvedValue({ id: 'existing' });
+      (prisma.tag.findUnique as jest.Mock).mockResolvedValue({
+        id: 'existing',
+      });
 
       await expect(service.create({ name: 'Pin Up' })).rejects.toThrow(
         ConflictException,

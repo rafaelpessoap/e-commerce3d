@@ -94,15 +94,14 @@ export class CouponsService {
         where: { userId: params.userId },
       });
       if (orderCount > 0) {
-        throw new BadRequestException(
-          'This coupon is for first purchase only',
-        );
+        throw new BadRequestException('This coupon is for first purchase only');
       }
     }
 
     let discount = 0;
     if (coupon.type === 'PERCENTAGE') {
-      discount = Math.round(params.cartValue * (coupon.value / 100) * 100) / 100;
+      discount =
+        Math.round(params.cartValue * (coupon.value / 100) * 100) / 100;
     } else if (coupon.type === 'FIXED') {
       discount = Math.min(coupon.value, params.cartValue);
     }

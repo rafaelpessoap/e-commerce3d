@@ -22,10 +22,7 @@ async function bootstrap() {
   );
 
   // Filtros globais: padronizam erros
-  app.useGlobalFilters(
-    new HttpExceptionFilter(),
-    new PrismaExceptionFilter(),
-  );
+  app.useGlobalFilters(new HttpExceptionFilter(), new PrismaExceptionFilter());
 
   // Interceptors globais
   app.useGlobalInterceptors(

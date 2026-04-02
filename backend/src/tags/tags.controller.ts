@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+} from '@nestjs/common';
 import { TagsService } from './tags.service';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -21,7 +29,10 @@ export class TagsController {
 
   @Roles('ADMIN')
   @Put(':id')
-  async update(@Param('id') id: string, @Body() dto: { name?: string; color?: string }) {
+  async update(
+    @Param('id') id: string,
+    @Body() dto: { name?: string; color?: string },
+  ) {
     return { data: await this.tagsService.update(id, dto) };
   }
 

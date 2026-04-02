@@ -48,9 +48,11 @@ export class CartService {
   }
 
   private calculateSubtotal(items: CartItem[]): number {
-    return Math.round(
-      items.reduce((sum, item) => sum + item.price * item.quantity, 0) * 100,
-    ) / 100;
+    return (
+      Math.round(
+        items.reduce((sum, item) => sum + item.price * item.quantity, 0) * 100,
+      ) / 100
+    );
   }
 
   async getCart(userId: string) {
@@ -110,10 +112,7 @@ export class CartService {
 
     cart.items = cart.items.filter(
       (item) =>
-        !(
-          item.productId === productId &&
-          item.variationId === variationId
-        ),
+        !(item.productId === productId && item.variationId === variationId),
     );
 
     await this.saveCartData(userId, cart);
@@ -124,11 +123,7 @@ export class CartService {
     };
   }
 
-  async updateQuantity(
-    userId: string,
-    productId: string,
-    quantity: number,
-  ) {
+  async updateQuantity(userId: string, productId: string, quantity: number) {
     const cart = await this.getCartData(userId);
 
     const item = cart.items.find((i) => i.productId === productId);

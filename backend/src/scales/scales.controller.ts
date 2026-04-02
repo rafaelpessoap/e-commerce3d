@@ -38,8 +38,8 @@ export class ScalesController {
   @Public()
   @Get('price/:productId/:scaleId')
   async calculatePrice(
-    @Param('productId') productId: string,
-    @Param('scaleId') scaleId: string,
+    @Param('productId') _productId: string,
+    @Param('scaleId') _scaleId: string,
   ) {
     // Preço base vem do banco, NUNCA do frontend
     return { message: 'Use product endpoint for price with scale' };

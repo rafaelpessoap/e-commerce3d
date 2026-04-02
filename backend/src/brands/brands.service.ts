@@ -19,7 +19,12 @@ export class BrandsService {
     }
 
     return this.prisma.brand.create({
-      data: { name: dto.name, slug, description: dto.description, logo: dto.logo },
+      data: {
+        name: dto.name,
+        slug,
+        description: dto.description,
+        logo: dto.logo,
+      },
     });
   }
 

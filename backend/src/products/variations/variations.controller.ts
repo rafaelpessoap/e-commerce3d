@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+} from '@nestjs/common';
 import { VariationsService } from './variations.service';
 import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -17,7 +25,14 @@ export class VariationsController {
   @Post()
   async create(
     @Param('productId') productId: string,
-    @Body() dto: { name: string; scaleId: string; sku: string; price: number; stock: number },
+    @Body()
+    dto: {
+      name: string;
+      scaleId: string;
+      sku: string;
+      price: number;
+      stock: number;
+    },
   ) {
     return await this.variationsService.create(productId, dto);
   }

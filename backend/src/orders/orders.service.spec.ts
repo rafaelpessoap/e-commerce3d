@@ -104,7 +104,11 @@ describe('OrdersService', () => {
       });
       (prisma.orderStatusHistory.create as jest.Mock).mockResolvedValue({});
 
-      const result = await service.updateStatus('order1', 'CONFIRMED', 'admin1');
+      const result = await service.updateStatus(
+        'order1',
+        'CONFIRMED',
+        'admin1',
+      );
 
       expect(result.status).toBe('CONFIRMED');
       expect(prisma.orderStatusHistory.create).toHaveBeenCalledWith({
@@ -142,7 +146,11 @@ describe('OrdersService', () => {
       (prisma.order.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.order.count as jest.Mock).mockResolvedValue(0);
 
-      const result = await service.findAll({ page: 1, perPage: 10, userId: 'user1' });
+      const result = await service.findAll({
+        page: 1,
+        perPage: 10,
+        userId: 'user1',
+      });
 
       expect(result.meta).toHaveProperty('total', 0);
       expect(result.meta).toHaveProperty('page', 1);

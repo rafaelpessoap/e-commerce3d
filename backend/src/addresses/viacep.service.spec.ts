@@ -55,9 +55,7 @@ describe('ViaCepService', () => {
     });
 
     it('should throw BadRequestException for malformed CEP', async () => {
-      await expect(service.lookup('123')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.lookup('123')).rejects.toThrow(BadRequestException);
     });
 
     it('should return null fields when API fails (allow manual input)', async () => {

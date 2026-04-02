@@ -106,7 +106,9 @@ describe('AddressesController', () => {
 
       const result = await controller.remove('addr1', mockUser);
 
-      expect(result).toEqual({ data: { message: 'Address deleted successfully' } });
+      expect(result).toEqual({
+        data: { message: 'Address deleted successfully' },
+      });
     });
   });
 });

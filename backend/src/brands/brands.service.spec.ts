@@ -44,7 +44,9 @@ describe('BrandsService', () => {
     });
 
     it('should throw ConflictException for duplicate name', async () => {
-      (prisma.brand.findUnique as jest.Mock).mockResolvedValue({ id: 'existing' });
+      (prisma.brand.findUnique as jest.Mock).mockResolvedValue({
+        id: 'existing',
+      });
 
       await expect(service.create({ name: 'Arsenal Craft' })).rejects.toThrow(
         ConflictException,

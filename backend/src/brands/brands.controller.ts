@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+} from '@nestjs/common';
 import { BrandsService } from './brands.service';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -21,13 +29,18 @@ export class BrandsController {
 
   @Roles('ADMIN')
   @Post()
-  async create(@Body() dto: { name: string; description?: string; logo?: string }) {
+  async create(
+    @Body() dto: { name: string; description?: string; logo?: string },
+  ) {
     return { data: await this.brandsService.create(dto) };
   }
 
   @Roles('ADMIN')
   @Put(':id')
-  async update(@Param('id') id: string, @Body() dto: { name?: string; description?: string; logo?: string }) {
+  async update(
+    @Param('id') id: string,
+    @Body() dto: { name?: string; description?: string; logo?: string },
+  ) {
     return { data: await this.brandsService.update(id, dto) };
   }
 

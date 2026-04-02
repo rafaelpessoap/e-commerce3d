@@ -65,7 +65,9 @@ describe('UsersController', () => {
 
       const result = await controller.changePassword(mockUser, dto);
 
-      expect(result).toEqual({ data: { message: 'Password changed successfully' } });
+      expect(result).toEqual({
+        data: { message: 'Password changed successfully' },
+      });
     });
   });
 });

@@ -36,10 +36,7 @@ export class AddressesController {
   }
 
   @Get(':id')
-  async findOne(
-    @Param('id') id: string,
-    @CurrentUser() user: { id: string },
-  ) {
+  async findOne(@Param('id') id: string, @CurrentUser() user: { id: string }) {
     const address = await this.addressesService.findOne(id, user.id);
     return { data: address };
   }
@@ -65,10 +62,7 @@ export class AddressesController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  async remove(
-    @Param('id') id: string,
-    @CurrentUser() user: { id: string },
-  ) {
+  async remove(@Param('id') id: string, @CurrentUser() user: { id: string }) {
     await this.addressesService.remove(id, user.id);
     return { data: { message: 'Address deleted successfully' } };
   }

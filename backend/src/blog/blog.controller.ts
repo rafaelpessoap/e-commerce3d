@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  Query,
+} from '@nestjs/common';
 import { BlogService } from './blog.service';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -36,9 +45,17 @@ export class BlogController {
   @Post()
   async create(
     @CurrentUser() user: { id: string },
-    @Body() dto: { title: string; content: string; excerpt?: string; coverImage?: string },
+    @Body()
+    dto: {
+      title: string;
+      content: string;
+      excerpt?: string;
+      coverImage?: string;
+    },
   ) {
-    return { data: await this.blogService.create({ ...dto, authorId: user.id }) };
+    return {
+      data: await this.blogService.create({ ...dto, authorId: user.id }),
+    };
   }
 
   @Roles('ADMIN')

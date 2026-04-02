@@ -71,9 +71,9 @@ describe('PaymentsService', () => {
     it('should throw NotFoundException for non-existent order', async () => {
       (prisma.order.findUnique as jest.Mock).mockResolvedValue(null);
 
-      await expect(
-        service.createPayment('fake', 'pix'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.createPayment('fake', 'pix')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

@@ -32,7 +32,10 @@ describe('PagesService', () => {
   describe('findBySlug', () => {
     it('should return page by slug', async () => {
       (prisma.page.findUnique as jest.Mock).mockResolvedValue({
-        id: 'p1', title: 'About', slug: 'about', content: '<p>Hello</p>',
+        id: 'p1',
+        title: 'About',
+        slug: 'about',
+        content: '<p>Hello</p>',
       });
 
       const result = await service.findBySlug('about');
@@ -41,17 +44,25 @@ describe('PagesService', () => {
 
     it('should throw NotFoundException', async () => {
       (prisma.page.findUnique as jest.Mock).mockResolvedValue(null);
-      await expect(service.findBySlug('nope')).rejects.toThrow(NotFoundException);
+      await expect(service.findBySlug('nope')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('create', () => {
     it('should create page with auto-slug', async () => {
       (prisma.page.create as jest.Mock).mockResolvedValue({
-        id: 'p1', title: 'Custom Page', slug: 'custom-page', content: 'hi',
+        id: 'p1',
+        title: 'Custom Page',
+        slug: 'custom-page',
+        content: 'hi',
       });
 
-      const result = await service.create({ title: 'Custom Page', content: 'hi' });
+      const result = await service.create({
+        title: 'Custom Page',
+        content: 'hi',
+      });
       expect(result.slug).toBe('custom-page');
     });
   });

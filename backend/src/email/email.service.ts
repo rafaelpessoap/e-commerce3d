@@ -8,7 +8,8 @@ export class EmailService {
   private from: string;
 
   constructor(private configService: ConfigService) {
-    this.from = this.configService.get<string>('SMTP_FROM') ?? 'noreply@miniatures3d.com';
+    this.from =
+      this.configService.get<string>('SMTP_FROM') ?? 'noreply@miniatures3d.com';
 
     this.transporter = nodemailer.createTransport({
       host: this.configService.get<string>('SMTP_HOST'),

@@ -52,7 +52,9 @@ describe('VariationsService', () => {
 
   describe('create', () => {
     it('should create a variation for existing product', async () => {
-      (prisma.product.findUnique as jest.Mock).mockResolvedValue({ id: 'prod1' });
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue({
+        id: 'prod1',
+      });
       (prisma.productVariation.create as jest.Mock).mockResolvedValue({
         id: 'v1',
         productId: 'prod1',

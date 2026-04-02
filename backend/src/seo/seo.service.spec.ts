@@ -52,7 +52,9 @@ describe('SeoService', () => {
       expect(result.title).toBe('Warrior Miniature - Buy Now');
       expect(prisma.seoMeta.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { entityType_entityId: { entityType: 'product', entityId: 'prod1' } },
+          where: {
+            entityType_entityId: { entityType: 'product', entityId: 'prod1' },
+          },
         }),
       );
     });

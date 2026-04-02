@@ -36,7 +36,11 @@ export class CartController {
     @Body() dto: { quantity: number },
   ) {
     return {
-      data: await this.cartService.updateQuantity(user.id, productId, dto.quantity),
+      data: await this.cartService.updateQuantity(
+        user.id,
+        productId,
+        dto.quantity,
+      ),
     };
   }
 

@@ -25,13 +25,23 @@ export class ShippingController {
 
   @Roles('ADMIN')
   @Post('free-rules')
-  async createRule(@Body() dto: { zipCodeStart: string; zipCodeEnd: string; minOrderValue: number }) {
+  async createRule(
+    @Body()
+    dto: {
+      zipCodeStart: string;
+      zipCodeEnd: string;
+      minOrderValue: number;
+    },
+  ) {
     return { data: await this.shippingService.createFreeShippingRule(dto) };
   }
 
   @Roles('ADMIN')
   @Put('free-rules/:id')
-  async updateRule(@Param('id') id: string, @Body() dto: { minOrderValue?: number; isActive?: boolean }) {
+  async updateRule(
+    @Param('id') id: string,
+    @Body() dto: { minOrderValue?: number; isActive?: boolean },
+  ) {
     return { data: await this.shippingService.updateFreeShippingRule(id, dto) };
   }
 }

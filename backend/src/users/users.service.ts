@@ -35,10 +35,7 @@ export class UsersService {
     return user;
   }
 
-  async updateProfile(
-    userId: string,
-    dto: { name?: string; email?: string },
-  ) {
+  async updateProfile(userId: string, dto: { name?: string; email?: string }) {
     // SEGURANCA: remover qualquer campo proibido (role, password, isActive, etc.)
     const { name, email } = dto;
     const data: Record<string, string> = {};

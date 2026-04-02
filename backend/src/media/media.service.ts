@@ -1,10 +1,20 @@
-import { Injectable, Inject, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
 import { extname } from 'path';
 
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+const ALLOWED_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+];
+const _ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 const MIME_TO_EXT: Record<string, string[]> = {
@@ -47,9 +57,7 @@ export class MediaService {
     const ext = extname(filename).toLowerCase();
     const allowedExts = MIME_TO_EXT[mimetype];
     if (!allowedExts || !allowedExts.includes(ext)) {
-      throw new BadRequestException(
-        'File extension does not match MIME type',
-      );
+      throw new BadRequestException('File extension does not match MIME type');
     }
   }
 

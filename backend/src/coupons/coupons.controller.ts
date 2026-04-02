@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+} from '@nestjs/common';
 import { CouponsService } from './coupons.service';
 import { CreateCouponDto } from './dto/create-coupon.dto';
 import { Public } from '../common/decorators/public.decorator';
@@ -22,7 +30,9 @@ export class CouponsController {
 
   @Public()
   @Post('validate')
-  async validate(@Body() dto: { code: string; cartValue: number; userId?: string }) {
+  async validate(
+    @Body() dto: { code: string; cartValue: number; userId?: string },
+  ) {
     return await this.couponsService.validate(dto);
   }
 

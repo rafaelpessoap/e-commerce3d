@@ -18,10 +18,12 @@ describe('TransformInterceptor', () => {
       handle: () => of({ name: 'Test' }),
     };
 
-    interceptor.intercept(createMockContext(), callHandler).subscribe((result) => {
-      expect(result).toEqual({ data: { name: 'Test' } });
-      done();
-    });
+    interceptor
+      .intercept(createMockContext(), callHandler)
+      .subscribe((result) => {
+        expect(result).toEqual({ data: { name: 'Test' } });
+        done();
+      });
   });
 
   it('should NOT double-wrap if response already has { data }', (done) => {
@@ -29,10 +31,12 @@ describe('TransformInterceptor', () => {
       handle: () => of({ data: { name: 'Test' } }),
     };
 
-    interceptor.intercept(createMockContext(), callHandler).subscribe((result) => {
-      expect(result).toEqual({ data: { name: 'Test' } });
-      done();
-    });
+    interceptor
+      .intercept(createMockContext(), callHandler)
+      .subscribe((result) => {
+        expect(result).toEqual({ data: { name: 'Test' } });
+        done();
+      });
   });
 
   it('should NOT wrap if response has { data } and { meta } (paginated)', (done) => {
@@ -44,10 +48,12 @@ describe('TransformInterceptor', () => {
       handle: () => of(paginated),
     };
 
-    interceptor.intercept(createMockContext(), callHandler).subscribe((result) => {
-      expect(result).toEqual(paginated);
-      done();
-    });
+    interceptor
+      .intercept(createMockContext(), callHandler)
+      .subscribe((result) => {
+        expect(result).toEqual(paginated);
+        done();
+      });
   });
 
   it('should NOT wrap if response has { error }', (done) => {
@@ -56,10 +62,12 @@ describe('TransformInterceptor', () => {
       handle: () => of(errorResponse),
     };
 
-    interceptor.intercept(createMockContext(), callHandler).subscribe((result) => {
-      expect(result).toEqual(errorResponse);
-      done();
-    });
+    interceptor
+      .intercept(createMockContext(), callHandler)
+      .subscribe((result) => {
+        expect(result).toEqual(errorResponse);
+        done();
+      });
   });
 
   it('should wrap primitive values', (done) => {
@@ -67,9 +75,11 @@ describe('TransformInterceptor', () => {
       handle: () => of('hello'),
     };
 
-    interceptor.intercept(createMockContext(), callHandler).subscribe((result) => {
-      expect(result).toEqual({ data: 'hello' });
-      done();
-    });
+    interceptor
+      .intercept(createMockContext(), callHandler)
+      .subscribe((result) => {
+        expect(result).toEqual({ data: 'hello' });
+        done();
+      });
   });
 });

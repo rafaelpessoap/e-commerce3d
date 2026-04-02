@@ -176,9 +176,7 @@ describe('SearchService', () => {
           body: expect.objectContaining({
             query: expect.objectContaining({
               bool: expect.objectContaining({
-                filter: expect.arrayContaining([
-                  { term: { isActive: true } },
-                ]),
+                filter: expect.arrayContaining([{ term: { isActive: true } }]),
               }),
             }),
           }),

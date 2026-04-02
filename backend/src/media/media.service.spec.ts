@@ -99,7 +99,9 @@ describe('MediaService', () => {
       });
 
       expect(mockS3Client.send).toHaveBeenCalled();
-      expect(result.url).toMatch(/^https:\/\/cdn\.miniatures3d\.com\/products\//);
+      expect(result.url).toMatch(
+        /^https:\/\/cdn\.miniatures3d\.com\/products\//,
+      );
       expect(result.key).toMatch(/^products\//);
     });
   });

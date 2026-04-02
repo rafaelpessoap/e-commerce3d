@@ -54,33 +54,78 @@ describe('ScalesService', () => {
   describe('calculatePrice — HIERARQUIA DE PRIORIDADE', () => {
     it('should apply PRODUCT-level rule (highest priority)', async () => {
       (prisma.scaleRule.findMany as jest.Mock).mockResolvedValue([
-        { appliesTo: 'PRODUCT', targetId: 'prod-1', priceMultiplier: 1.5, priority: 10 },
-        { appliesTo: 'CATEGORY', targetId: 'cat-1', priceMultiplier: 1.2, priority: 5 },
-        { appliesTo: 'GLOBAL', targetId: null, priceMultiplier: 1.1, priority: 1 },
+        {
+          appliesTo: 'PRODUCT',
+          targetId: 'prod-1',
+          priceMultiplier: 1.5,
+          priority: 10,
+        },
+        {
+          appliesTo: 'CATEGORY',
+          targetId: 'cat-1',
+          priceMultiplier: 1.2,
+          priority: 5,
+        },
+        {
+          appliesTo: 'GLOBAL',
+          targetId: null,
+          priceMultiplier: 1.1,
+          priority: 1,
+        },
       ]);
 
-      const price = await service.calculatePrice(100, 'prod-1', 'scale-1', 'cat-1');
+      const price = await service.calculatePrice(
+        100,
+        'prod-1',
+        'scale-1',
+        'cat-1',
+      );
 
       expect(price).toBe(150); // 100 * 1.5
     });
 
     it('should apply CATEGORY-level rule when no PRODUCT rule', async () => {
       (prisma.scaleRule.findMany as jest.Mock).mockResolvedValue([
-        { appliesTo: 'CATEGORY', targetId: 'cat-1', priceMultiplier: 1.2, priority: 5 },
-        { appliesTo: 'GLOBAL', targetId: null, priceMultiplier: 1.1, priority: 1 },
+        {
+          appliesTo: 'CATEGORY',
+          targetId: 'cat-1',
+          priceMultiplier: 1.2,
+          priority: 5,
+        },
+        {
+          appliesTo: 'GLOBAL',
+          targetId: null,
+          priceMultiplier: 1.1,
+          priority: 1,
+        },
       ]);
 
-      const price = await service.calculatePrice(100, 'prod-2', 'scale-1', 'cat-1');
+      const price = await service.calculatePrice(
+        100,
+        'prod-2',
+        'scale-1',
+        'cat-1',
+      );
 
       expect(price).toBe(120); // 100 * 1.2
     });
 
     it('should fallback to GLOBAL rule', async () => {
       (prisma.scaleRule.findMany as jest.Mock).mockResolvedValue([
-        { appliesTo: 'GLOBAL', targetId: null, priceMultiplier: 1.1, priority: 1 },
+        {
+          appliesTo: 'GLOBAL',
+          targetId: null,
+          priceMultiplier: 1.1,
+          priority: 1,
+        },
       ]);
 
-      const price = await service.calculatePrice(100, 'prod-3', 'scale-1', 'cat-1');
+      const price = await service.calculatePrice(
+        100,
+        'prod-3',
+        'scale-1',
+        'cat-1',
+      );
 
       expect(price).toBe(110); // 100 * 1.1
     });
@@ -88,17 +133,32 @@ describe('ScalesService', () => {
     it('should return base price when no rules exist', async () => {
       (prisma.scaleRule.findMany as jest.Mock).mockResolvedValue([]);
 
-      const price = await service.calculatePrice(100, 'prod-4', 'scale-1', 'cat-1');
+      const price = await service.calculatePrice(
+        100,
+        'prod-4',
+        'scale-1',
+        'cat-1',
+      );
 
       expect(price).toBe(100);
     });
 
     it('should round to 2 decimal places', async () => {
       (prisma.scaleRule.findMany as jest.Mock).mockResolvedValue([
-        { appliesTo: 'GLOBAL', targetId: null, priceMultiplier: 1.333, priority: 1 },
+        {
+          appliesTo: 'GLOBAL',
+          targetId: null,
+          priceMultiplier: 1.333,
+          priority: 1,
+        },
       ]);
 
-      const price = await service.calculatePrice(100, 'prod-5', 'scale-1', 'cat-1');
+      const price = await service.calculatePrice(
+        100,
+        'prod-5',
+        'scale-1',
+        'cat-1',
+      );
 
       expect(price).toBe(133.3); // 100 * 1.333 = 133.3 rounded
     });

@@ -32,9 +32,7 @@ export interface SearchResult {
 export class SearchService {
   private readonly logger = new Logger(SearchService.name);
 
-  constructor(
-    @Inject('ELASTICSEARCH_CLIENT') private readonly esClient: any,
-  ) {}
+  constructor(@Inject('ELASTICSEARCH_CLIENT') private readonly esClient: any) {}
 
   async ensureIndex() {
     const exists = await this.esClient.indices.exists({ index: INDEX_NAME });
