@@ -240,7 +240,7 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 - [x] Products module — CRUD com auto-slug, paginação, filtros, soft delete (TDD: 8 testes)
 - [x] Todos os controllers com @Public (listagem) e @Roles('ADMIN') (escrita)
 - [x] Elasticsearch — SearchService (index, remove, bulk, search com filtros + fuzzy), SearchIndexer (sync DB→ES, reindexAll) (TDD: 12 testes)
-- [ ] Media (upload R2) — futuro
+- [x] Media module — upload S3/R2, validateFile (MIME + ext + size), generateKey (UUID), delete (TDD: 12 testes)
 
 ### Fase 3 — Checkout ✅
 - [x] Prisma schema: Coupon, CouponUsage, FreeShippingRule, OrderStatusHistory, Bundle, BundleItem, Payment

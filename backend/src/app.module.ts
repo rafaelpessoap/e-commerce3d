@@ -22,6 +22,7 @@ import { WishlistModule } from './wishlist/wishlist.module';
 import { EmailModule } from './email/email.module';
 import { AdminModule } from './admin/admin.module';
 import { SearchModule } from './search/search.module';
+import { MediaModule } from './media/media.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -51,8 +52,9 @@ import { RolesGuard } from './common/guards/roles.guard';
     EmailModule,
     // Fase 5 — Admin
     AdminModule,
-    // Fase 6 — Busca
+    // Fase 6 — Busca + Media
     SearchModule,
+    MediaModule,
   ],
   controllers: [AppController],
   providers: [
