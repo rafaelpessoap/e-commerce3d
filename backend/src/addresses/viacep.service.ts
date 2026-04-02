@@ -19,8 +19,17 @@ export class ViaCepService {
       throw new BadRequestException('CEP must be exactly 8 digits');
     }
 
+    // SECURITY: strict validation — only digits, exactly 8 chars
+    // Prevents SSRF by ensuring the value is a safe numeric CEP
+    if (!/^\d{8}$/.test(cleaned)) {
+      throw new BadRequestException('Invalid CEP format');
+    }
+
+    // Build URL with validated, safe value only
+    const safeUrl = `https://viacep.com.br/ws/${encodeURIComponent(cleaned)}/json/`;
+
     try {
-      const response = await fetch(`https://viacep.com.br/ws/${cleaned}/json/`);
+      const response = await fetch(safeUrl);
       const data = await response.json();
 
       if (data.erro) {
