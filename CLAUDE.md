@@ -311,7 +311,7 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 - [x] **LoggingInterceptor** — log HTTP method, url, status, duration
 - [x] **DTOs completos** — CreateProductDto, UpdateProductDto, CreateOrderDto, UpdateOrderStatusDto, CreateScaleDto, CreateBundleDto, CreateCouponDto
 - [x] **Wiring global** — filters + interceptors registrados no main.ts, controllers sem `any`
-- [ ] **Forgot/Reset Password** — endpoints POST /auth/forgot-password e /auth/reset-password
+- [x] **Forgot/Reset Password** — forgotPassword (gera token, envia email, nao revela existencia), resetPassword (valida token, 1h expiry, uso unico) (TDD: 5 testes)
 - [ ] **Config module** — arquivos separados (app, database, redis, elasticsearch, mail, storage, payment, shipping)
 
 ### PRIORIDADE ALTA — Features incompletas
