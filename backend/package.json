@@ -20,16 +20,16 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1022.0",
+    "@aws-sdk/client-s3": "^3.1023.0",
     "@elastic/elasticsearch": "^9.3.4",
     "@nestjs/bullmq": "^11.0.4",
     "@nestjs/cache-manager": "^3.1.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.3",
-    "@nestjs/core": "^11.0.1",
+    "@nestjs/core": "^11.1.17",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/passport": "^11.0.5",
-    "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/platform-express": "^11.1.17",
     "@nestjs/swagger": "^11.2.6",
     "@nestjs/throttler": "^6.5.0",
     "@prisma/client": "^7.6.0",
@@ -53,14 +53,14 @@
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
     "@faker-js/faker": "^10.4.0",
-    "@nestjs/cli": "^11.0.0",
+    "@nestjs/cli": "^11.0.17",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
     "@types/bcrypt": "^6.0.0",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/multer": "^2.1.0",
-    "@types/node": "^24.0.0",
+    "@types/node": "^25.5.0",
     "@types/nodemailer": "^7.0.11",
     "@types/passport-jwt": "^4.0.1",
     "@types/slug": "^5.0.9",
@@ -99,5 +99,9 @@
     "transformIgnorePatterns": [
       "node_modules/(?!slug)"
     ]
+  },
+  "overrides": {
+    "picomatch": "^4.0.4",
+    "lodash": "^4.17.25"
   }
 }
