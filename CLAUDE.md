@@ -239,7 +239,7 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 - [x] Scales module — CRUD + calculatePrice com hierarquia PRODUCT > CATEGORY > GLOBAL (TDD: 6 testes)
 - [x] Products module — CRUD com auto-slug, paginação, filtros, soft delete (TDD: 8 testes)
 - [x] Todos os controllers com @Public (listagem) e @Roles('ADMIN') (escrita)
-- [ ] Elasticsearch (indexação + busca) — futuro
+- [x] Elasticsearch — SearchService (index, remove, bulk, search com filtros + fuzzy), SearchIndexer (sync DB→ES, reindexAll) (TDD: 12 testes)
 - [ ] Media (upload R2) — futuro
 
 ### Fase 3 — Checkout ✅

@@ -19,10 +19,11 @@ export default function SearchPage() {
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['products', 'search', search, page],
+    queryKey: ['search', search, page],
     queryFn: async () => {
-      const { data } = await api.get<PaginatedResponse<Product>>('/products', {
-        params: { search, page, perPage: ITEMS_PER_PAGE },
+      // Usa Elasticsearch via /api/v1/search
+      const { data } = await api.get<PaginatedResponse<Product>>('/search', {
+        params: { q: search, page, perPage: ITEMS_PER_PAGE },
       });
       return data;
     },
