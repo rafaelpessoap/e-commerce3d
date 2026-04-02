@@ -279,8 +279,15 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 - [x] `/minha-conta/pedidos/[id]`: detalhe com timeline visual de 5 estados
 - [x] `/minha-conta/dados`: editar perfil + alterar senha
 - [x] `/minha-conta/lista-de-desejos`: lista com remove
-- [x] Build passing (15 rotas, TypeScript OK)
-- [ ] Admin frontend
+- [x] `/admin`: dashboard com 4 cards de métricas + pedidos por status
+- [x] `/admin/produtos`: tabela paginada, link criar/editar
+- [x] `/admin/produtos/novo`: form com nome, descrição, preço, SKU
+- [x] `/admin/pedidos`: tabela com filtro por status (Select)
+- [x] `/admin/pedidos/[id]`: detalhe, update status (state machine), histórico timeline
+- [x] `/admin/categorias`: lista + criar inline
+- [x] `/admin/cupons`: tabela com código, tipo, valor, usos, status
+- [x] `/admin/escalas`: lista + criar inline (nome, código, tamanho)
+- [x] Build passing (22 rotas, TypeScript OK)
 
 ### Fase 6 — SEO e Performance
 - [ ] SEO (meta tags, sitemap, schema.org)
