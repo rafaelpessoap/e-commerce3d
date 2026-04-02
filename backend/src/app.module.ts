@@ -36,6 +36,7 @@ import { BlogModule } from './blog/blog.module';
 import { PagesModule } from './pages/pages.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { RolesGuard } from './common/guards/roles.guard';
       { name: 'long', ttl: 60000, limit: 100 },
     ]),
     PrismaModule,
+    RedisModule,
     // Fase 1 — Autenticação
     AuthModule,
     UsersModule,

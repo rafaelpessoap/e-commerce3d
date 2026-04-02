@@ -1,12 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CartService } from './cart.service';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { RedisService } from '../redis/redis.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('CartService', () => {
   let service: CartService;
-  let cacheManager: any;
+  let redis: RedisService;
   let prisma: PrismaService;
 
   beforeEach(async () => {
@@ -14,10 +14,10 @@ describe('CartService', () => {
       providers: [
         CartService,
         {
-          provide: CACHE_MANAGER,
+          provide: RedisService,
           useValue: {
-            get: jest.fn(),
-            set: jest.fn(),
+            getJson: jest.fn(),
+            setJson: jest.fn(),
             del: jest.fn(),
           },
         },
@@ -27,16 +27,13 @@ describe('CartService', () => {
             product: {
               findUnique: jest.fn(),
             },
-            productVariation: {
-              findUnique: jest.fn(),
-            },
           },
         },
       ],
     }).compile();
 
     service = module.get<CartService>(CartService);
-    cacheManager = module.get(CACHE_MANAGER);
+    redis = module.get<RedisService>(RedisService);
     prisma = module.get<PrismaService>(PrismaService);
   });
 
@@ -49,8 +46,8 @@ describe('CartService', () => {
   };
 
   describe('getCart', () => {
-    it('should return empty cart when nothing in cache', async () => {
-      cacheManager.get.mockResolvedValue(null);
+    it('should return empty cart when nothing in Redis', async () => {
+      (redis.getJson as jest.Mock).mockResolvedValue(null);
 
       const result = await service.getCart(userId);
 
@@ -58,13 +55,13 @@ describe('CartService', () => {
       expect(result.subtotal).toBe(0);
     });
 
-    it('should return cart from cache', async () => {
+    it('should return cart from Redis', async () => {
       const cartData = {
         items: [
           { productId: 'prod1', quantity: 2, price: 49.9, name: 'Warrior' },
         ],
       };
-      cacheManager.get.mockResolvedValue(JSON.stringify(cartData));
+      (redis.getJson as jest.Mock).mockResolvedValue(cartData);
 
       const result = await service.getCart(userId);
 
@@ -74,10 +71,9 @@ describe('CartService', () => {
   });
 
   describe('addItem', () => {
-    it('should add item to empty cart', async () => {
-      cacheManager.get.mockResolvedValue(null);
+    it('should add item to empty cart and save to Redis with TTL', async () => {
+      (redis.getJson as jest.Mock).mockResolvedValue(null);
       (prisma.product.findUnique as jest.Mock).mockResolvedValue(mockProduct);
-      cacheManager.set.mockResolvedValue(undefined);
 
       const result = await service.addItem(userId, {
         productId: 'prod1',
@@ -86,7 +82,11 @@ describe('CartService', () => {
 
       expect(result.items).toHaveLength(1);
       expect(result.items[0].productId).toBe('prod1');
-      expect(cacheManager.set).toHaveBeenCalled();
+      expect(redis.setJson).toHaveBeenCalledWith(
+        'cart:user1',
+        expect.objectContaining({ items: expect.any(Array) }),
+        7 * 24 * 60 * 60, // 7 days in seconds
+      );
     });
 
     it('should increase quantity if product already in cart', async () => {
@@ -95,9 +95,8 @@ describe('CartService', () => {
           { productId: 'prod1', quantity: 1, price: 49.9, name: 'Warrior' },
         ],
       };
-      cacheManager.get.mockResolvedValue(JSON.stringify(existingCart));
+      (redis.getJson as jest.Mock).mockResolvedValue(existingCart);
       (prisma.product.findUnique as jest.Mock).mockResolvedValue(mockProduct);
-      cacheManager.set.mockResolvedValue(undefined);
 
       const result = await service.addItem(userId, {
         productId: 'prod1',
@@ -108,7 +107,7 @@ describe('CartService', () => {
     });
 
     it('should throw NotFoundException for non-existent product', async () => {
-      cacheManager.get.mockResolvedValue(null);
+      (redis.getJson as jest.Mock).mockResolvedValue(null);
       (prisma.product.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(
@@ -117,7 +116,7 @@ describe('CartService', () => {
     });
 
     it('should throw BadRequestException for inactive product', async () => {
-      cacheManager.get.mockResolvedValue(null);
+      (redis.getJson as jest.Mock).mockResolvedValue(null);
       (prisma.product.findUnique as jest.Mock).mockResolvedValue({
         ...mockProduct,
         isActive: false,
@@ -137,8 +136,7 @@ describe('CartService', () => {
           { productId: 'prod2', quantity: 1, price: 29.9, name: 'Mage' },
         ],
       };
-      cacheManager.get.mockResolvedValue(JSON.stringify(cart));
-      cacheManager.set.mockResolvedValue(undefined);
+      (redis.getJson as jest.Mock).mockResolvedValue(cart);
 
       const result = await service.removeItem(userId, 'prod1');
 
@@ -148,12 +146,10 @@ describe('CartService', () => {
   });
 
   describe('clear', () => {
-    it('should delete cart from cache', async () => {
-      cacheManager.del.mockResolvedValue(undefined);
-
+    it('should delete cart from Redis', async () => {
       await service.clear(userId);
 
-      expect(cacheManager.del).toHaveBeenCalledWith(`cart:${userId}`);
+      expect(redis.del).toHaveBeenCalledWith('cart:user1');
     });
   });
 });

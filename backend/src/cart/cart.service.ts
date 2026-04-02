@@ -1,11 +1,9 @@
 import {
   Injectable,
-  Inject,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import type { Cache } from 'cache-manager';
+import { RedisService } from '../redis/redis.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface CartItem {
@@ -20,31 +18,27 @@ interface CartData {
   items: CartItem[];
 }
 
-const CART_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
+const CART_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
+const CART_PREFIX = 'cart:';
 
 @Injectable()
 export class CartService {
   constructor(
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private redis: RedisService,
     private prisma: PrismaService,
   ) {}
 
   private cartKey(userId: string): string {
-    return `cart:${userId}`;
+    return `${CART_PREFIX}${userId}`;
   }
 
   private async getCartData(userId: string): Promise<CartData> {
-    const cached = await this.cacheManager.get<string>(this.cartKey(userId));
-    if (!cached) return { items: [] };
-    return JSON.parse(cached);
+    const data = await this.redis.getJson<CartData>(this.cartKey(userId));
+    return data ?? { items: [] };
   }
 
   private async saveCartData(userId: string, cart: CartData): Promise<void> {
-    await this.cacheManager.set(
-      this.cartKey(userId),
-      JSON.stringify(cart),
-      CART_TTL,
-    );
+    await this.redis.setJson(this.cartKey(userId), cart, CART_TTL_SECONDS);
   }
 
   private calculateSubtotal(items: CartItem[]): number {
@@ -142,6 +136,6 @@ export class CartService {
   }
 
   async clear(userId: string) {
-    await this.cacheManager.del(this.cartKey(userId));
+    await this.redis.del(this.cartKey(userId));
   }
 }
