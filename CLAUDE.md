@@ -209,7 +209,7 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 
 ### Fase 0 — Setup do Projeto ✅
 - [x] Criar estrutura de pastas
-- [x] Configurar Docker Compose (dev, test)
+- [x] Configurar Docker Compose (dev, test, prod)
 - [x] Inicializar NestJS 11 com TypeScript strict
 - [x] Inicializar Next.js 16.2 com App Router + shadcn/ui
 - [x] Criar Prisma 7 schema inicial (todos os models)
@@ -293,6 +293,9 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 - [x] SEO module — upsertMeta por entidade, getMeta, generateSitemap (produtos + categorias + blog + estáticas) (TDD: 5 testes)
 - [x] Blog module — CRUD posts com auto-slug, publish/unpublish, paginação (TDD: 7 testes)
 - [x] Frontend: /blog (listagem SSR), /blog/[slug] (post completo), /admin/blog (publicar/despublicar)
+- [x] Docker prod: multi-stage Dockerfiles (backend + frontend), docker-compose.prod.yml, nginx reverse proxy
+- [x] Nginx: security headers, gzip, rate limiting (API 10r/s, login 5r/m), static cache, proxy pass
+- [x] GitHub Actions: deploy.yml (SSH + docker compose)
 - [ ] Cache (Redis + Cloudflare)
 - [ ] Testes de carga
 
