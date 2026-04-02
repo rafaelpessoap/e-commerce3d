@@ -1,11 +1,11 @@
 # ---- Dependencies ----
-FROM node:22-alpine AS deps
+FROM node:25-alpine AS deps
 WORKDIR /app
 COPY backend/package.json backend/package-lock.json ./
 RUN npm ci --ignore-scripts
 
 # ---- Build ----
-FROM node:22-alpine AS build
+FROM node:25-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY backend/ ./
@@ -15,7 +15,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # ---- Production ----
-FROM node:22-alpine AS production
+FROM node:25-alpine AS production
 WORKDIR /app
 
 ENV NODE_ENV=production
