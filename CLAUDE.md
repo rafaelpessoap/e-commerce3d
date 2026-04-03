@@ -333,17 +333,41 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [x] ProductForm agora tem 6 abas: Geral, Imagens, Categorização, Inventário, Atributos, Variações (se variável)
 - [x] Total: 35 test suites, 231 testes, 37 rotas frontend
 
+### Sprint 2.5 — Galeria de Mídia Centralizada + Pipeline de Imagens ✅ (03/04/2026)
+
+**Backend (TDD RED→GREEN: 7 novos testes, 11 total no media):**
+- [x] Schema: model MediaFile (filename, mimeType, size, thumb/card/gallery/full WebP URLs, alt/title/description SEO, width/height)
+- [x] Schema: ProductImage atualizado (mediaFileId FK para MediaFile)
+- [x] TDD RED: 7 testes escritos PRIMEIRO, confirmados RED (falhando)
+- [x] TDD GREEN: processAndUpload (Sharp → WebP 4 tamanhos → R2 paralelo → DB), deleteMediaFile, updateMediaMeta, findAllMedia
+- [x] Controller: POST upload, GET listar (paginado+busca), GET /:id, PUT /:id (SEO), DELETE /:id
+
+**Frontend:**
+- [x] `/admin/galeria`: grid de imagens, busca, modal de detalhes (preview, editar alt/title/description, info, deletar)
+- [x] ImageUpload atualizado: dois modos "Upload novo" + "Escolher da galeria" (modal picker)
+- [x] Cada imagem mostra: card preview + alt + marcar principal + remover
+- [x] Total: 35 test suites, 230 testes, 38 rotas frontend
+
+**Passo 7 — Usar variantes corretas no site público:**
+- [ ] ProductCard: `mediaFile.card` (400px)
+- [ ] Página produto: gallery (800px), thumb (150px), full (1600px zoom)
+
+**Passo 8 — Validação + CLAUDE.md:**
+- [ ] TypeScript OK, testes passando, build OK
+- [ ] Atualizar CLAUDE.md com checkboxes marcados
+- [ ] Commit + push + deploy
+
 ### Sprint 3 — Entrega + Relacionados + Página pública completa
-- [x] Backend: resolveExtraDays(productId) — prioridade: produto > tag > categoria (já implementado na Sprint 1)
+- [x] Backend: resolveExtraDays(productId) — prioridade: produto > tag > categoria (implementado Sprint 1)
 - [ ] Frontend: aba Entrega (admin) — dias adicionais, preview prazo
 - [ ] Frontend: aba Relacionados — produtos específicos (busca) + regras dinâmicas (tag/categoria/atributo)
 - [ ] Frontend: `/p/[slug]` atualizada — galeria com thumbnails, preço promo riscado, atributos (tabela), variações com imagem, prazo de entrega, produtos relacionados
 
 ### Sprint 4 — Avaliações + Filtros por Atributos
-- [ ] Backend: Reviews CRUD (TDD) — criar (só DELIVERED), listar, média estrelas, aprovar, gerar cupom recompensa
+- [ ] Backend: Reviews CRUD (TDD RED→GREEN) — criar (só DELIVERED), listar, média estrelas, aprovar, gerar cupom recompensa
 - [ ] Frontend: avaliações na página do produto — estrelas, comentários, imagens
 - [ ] Frontend: "Avaliar" no minha-conta/pedidos (só se DELIVERED), upload imagens
-- [ ] Backend: filtro por atributos na listagem de produtos
+- [ ] Backend: filtro por atributos na listagem (TDD RED→GREEN)
 - [ ] Frontend: sidebar de filtros (atributos, preço, marca) em /produtos e /c/[slug]
 
 ### Integrações Externas (quando Rafael tiver os tokens)
@@ -394,6 +418,9 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | 2026-04-03 | Dias adicionais de entrega | Prioridade: produto > tag > categoria. Campo extraDays em cada nível |
 | 2026-04-03 | Atributos como modelo separado | Attribute → AttributeValue → ProductAttribute. Reutilizáveis para filtros na listagem |
 | 2026-04-03 | Avaliações com recompensa | Só pode avaliar produto de pedido DELIVERED. Cupom de desconto gerado como recompensa |
+| 2026-04-03 | Pipeline de imagens local (Sharp) | Converter para WebP + 4 tamanhos (thumb 150px, card 400px, gallery 800px, full 1600px). Processamento local no servidor (32GB RAM). Não usar serviços externos |
+| 2026-04-03 | Galeria de mídia centralizada (MediaFile) | Imagens são entidades independentes com SEO (alt, title, description). Reutilizáveis em produtos, blog, variações. Uma imagem pode estar em vários produtos |
+| 2026-04-03 | 4 variantes de tamanho por imagem | thumb (150px, q75), card (400px, q80), gallery (800px, q85), full (1600px, q90). Não amplia se original menor. Tudo WebP |
 
 ---
 
