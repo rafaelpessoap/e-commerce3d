@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,9 +22,19 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { items, subtotal, clear } = useCartStore();
   const [paymentMethod, setPaymentMethod] = useState('pix');
-  const [zipCode, setZipCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Address fields
+  const [zipCode, setZipCode] = useState('');
+  const [street, setStreet] = useState('');
+  const [number, setNumber] = useState('');
+  const [complement, setComplement] = useState('');
+  const [neighborhood, setNeighborhood] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [cepLoading, setCepLoading] = useState(false);
+  const [cepError, setCepError] = useState('');
 
   const discount =
     paymentMethod === 'pix'
@@ -33,12 +44,52 @@ export default function CheckoutPage() {
         : 0;
   const total = Math.round((subtotal - discount) * 100) / 100;
 
+  async function handleCepLookup(cep: string) {
+    const cleaned = cep.replace(/\D/g, '');
+    setZipCode(cleaned);
+
+    if (cleaned.length !== 8) {
+      setCepError('');
+      return;
+    }
+
+    setCepLoading(true);
+    setCepError('');
+
+    try {
+      const { data } = await api.get(`/addresses/cep/${cleaned}`);
+      const addr = data.data ?? data;
+      if (addr?.street) setStreet(addr.street);
+      if (addr?.neighborhood) setNeighborhood(addr.neighborhood);
+      if (addr?.city) setCity(addr.city);
+      if (addr?.state) setState(addr.state);
+    } catch {
+      setCepError('CEP não encontrado. Preencha manualmente.');
+    } finally {
+      setCepLoading(false);
+    }
+  }
+
   async function handlePlaceOrder() {
+    if (!zipCode || !street || !number || !neighborhood || !city || !state) {
+      setError('Preencha todos os campos do endereço.');
+      return;
+    }
+
     setError('');
     setLoading(true);
 
+    const shippingAddress = JSON.stringify({
+      zipCode,
+      street,
+      number,
+      complement,
+      neighborhood,
+      city,
+      state,
+    });
+
     try {
-      // Criar pedido
       const { data: orderData } = await api.post('/orders', {
         items: items.map((i) => ({
           productId: i.productId,
@@ -50,21 +101,21 @@ export default function CheckoutPage() {
         discount,
         total,
         paymentMethod,
+        shippingAddress,
       });
 
-      // Criar pagamento
       await api.post('/payments/create', {
         orderId: orderData.data.id,
         method: paymentMethod,
       });
 
-      // Limpar carrinho
       await api.delete('/cart');
       clear();
 
       router.push(`/pedido/confirmacao/${orderData.data.id}`);
     } catch (err) {
-      setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Erro ao finalizar pedido');
+      const resp = (err as { response?: { data?: { error?: { message?: string }; message?: string } } })?.response?.data;
+      setError(resp?.error?.message ?? resp?.message ?? 'Erro ao finalizar pedido');
     } finally {
       setLoading(false);
     }
@@ -83,7 +134,6 @@ export default function CheckoutPage() {
       <h1 className="text-3xl font-bold mb-8">Checkout</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Form */}
         <div className="lg:col-span-2 space-y-6">
           {/* Endereço */}
           <Card>
@@ -91,19 +141,85 @@ export default function CheckoutPage() {
               <CardTitle className="text-lg">Endereço de Entrega</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* CEP */}
               <div className="space-y-2">
                 <Label htmlFor="zipCode">CEP</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="zipCode"
+                    placeholder="00000-000"
+                    value={zipCode}
+                    onChange={(e) => handleCepLookup(e.target.value)}
+                    maxLength={9}
+                    className="max-w-[160px]"
+                  />
+                  {cepLoading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground self-center" />}
+                </div>
+                {cepError && <p className="text-xs text-destructive">{cepError}</p>}
+              </div>
+
+              {/* Rua + Número */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2 space-y-2">
+                  <Label htmlFor="street">Rua</Label>
+                  <Input
+                    id="street"
+                    value={street}
+                    onChange={(e) => setStreet(e.target.value)}
+                    placeholder="Rua, Avenida..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="number">Número</Label>
+                  <Input
+                    id="number"
+                    value={number}
+                    onChange={(e) => setNumber(e.target.value)}
+                    placeholder="123"
+                  />
+                </div>
+              </div>
+
+              {/* Complemento */}
+              <div className="space-y-2">
+                <Label htmlFor="complement">Complemento <span className="text-muted-foreground">(opcional)</span></Label>
                 <Input
-                  id="zipCode"
-                  placeholder="00000000"
-                  value={zipCode}
-                  onChange={(e) => setZipCode(e.target.value.replace(/\D/g, ''))}
-                  maxLength={8}
+                  id="complement"
+                  value={complement}
+                  onChange={(e) => setComplement(e.target.value)}
+                  placeholder="Apto, bloco..."
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
-                Selecione um endereço cadastrado ou adicione um novo na sua conta.
-              </p>
+
+              {/* Bairro + Cidade + Estado */}
+              <div className="grid grid-cols-5 gap-3">
+                <div className="col-span-2 space-y-2">
+                  <Label htmlFor="neighborhood">Bairro</Label>
+                  <Input
+                    id="neighborhood"
+                    value={neighborhood}
+                    onChange={(e) => setNeighborhood(e.target.value)}
+                  />
+                </div>
+                <div className="col-span-2 space-y-2">
+                  <Label htmlFor="city">Cidade</Label>
+                  <Input
+                    id="city"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="state">UF</Label>
+                  <Input
+                    id="state"
+                    value={state}
+                    onChange={(e) => setState(e.target.value.toUpperCase())}
+                    maxLength={2}
+                    placeholder="SP"
+                  />
+                </div>
+              </div>
             </CardContent>
           </Card>
 
@@ -152,10 +268,7 @@ export default function CheckoutPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {items.map((item) => (
-                <div
-                  key={item.productId}
-                  className="flex justify-between text-sm"
-                >
+                <div key={item.productId} className="flex justify-between text-sm">
                   <span className="text-muted-foreground truncate max-w-[60%]">
                     {item.name} x{item.quantity}
                   </span>
@@ -184,15 +297,13 @@ export default function CheckoutPage() {
                 <span>{formatCurrency(total)}</span>
               </div>
 
-              {error && (
-                <p className="text-sm text-destructive">{error}</p>
-              )}
+              {error && <p className="text-sm text-destructive">{error}</p>}
 
               <Button
                 size="lg"
                 className="w-full mt-4"
                 onClick={handlePlaceOrder}
-                disabled={loading}
+                disabled={loading || !zipCode}
               >
                 {loading ? 'Finalizando...' : 'Confirmar Pedido'}
               </Button>
