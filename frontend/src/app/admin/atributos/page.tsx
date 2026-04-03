@@ -32,9 +32,9 @@ export default function AdminAttributesPage() {
 
   const createAttr = useMutation({
     mutationFn: (name: string) => api.post('/attributes', { name }),
-    onSuccess: () => {
+    onSuccess: async () => {
       setError('');
-      queryClient.invalidateQueries({ queryKey: ['admin', 'attributes'] });
+      await queryClient.refetchQueries({ queryKey: ['admin', 'attributes'] });
       setNewAttrName('');
     },
     onError: (err) => { setError(extractError(err)); },
@@ -42,25 +42,24 @@ export default function AdminAttributesPage() {
 
   const deleteAttr = useMutation({
     mutationFn: (id: string) => api.delete(`/attributes/${id}`),
-    onSuccess: () => { setError(''); queryClient.invalidateQueries({ queryKey: ['admin', 'attributes'] }); },
+    onSuccess: async () => { setError(''); await queryClient.refetchQueries({ queryKey: ['admin', 'attributes'] }); },
     onError: (err) => { setError(extractError(err)); },
   });
 
   const createValue = useMutation({
     mutationFn: ({ attrId, value }: { attrId: string; value: string }) =>
       api.post(`/attributes/${attrId}/values`, { value }),
-    onSuccess: () => {
+    onSuccess: async () => {
       setError('');
-      queryClient.invalidateQueries({ queryKey: ['admin', 'attributes'] });
       setNewValueText('');
-      setNewValueFor(null);
+      await queryClient.refetchQueries({ queryKey: ['admin', 'attributes'] });
     },
     onError: (err) => { setError(extractError(err)); },
   });
 
   const deleteValue = useMutation({
     mutationFn: (valueId: string) => api.delete(`/attributes/values/${valueId}`),
-    onSuccess: () => { setError(''); queryClient.invalidateQueries({ queryKey: ['admin', 'attributes'] }); },
+    onSuccess: async () => { setError(''); await queryClient.refetchQueries({ queryKey: ['admin', 'attributes'] }); },
     onError: (err) => { setError(extractError(err)); },
   });
 
