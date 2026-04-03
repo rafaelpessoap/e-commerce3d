@@ -239,15 +239,44 @@ model ProductVariation {
   @@map("product_variations")
 }
 
-model ProductImage {
-  id        String  @id @default(cuid())
-  productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+model MediaFile {
+  id       String @id @default(cuid())
+  filename String // nome original do arquivo
+  mimeType String // image/jpeg, image/png, etc.
+  size     Int // bytes do original
 
-  url     String // URL em R2/S3
-  altText String?
-  order   Int     @default(0)
-  isMain  Boolean @default(false)
+  // URLs das variantes WebP
+  thumb   String // 150px — thumbnails, admin
+  card    String // 400px — product cards
+  gallery String // 800px — galeria principal
+  full    String // 1600px — zoom/lightbox
+
+  // SEO
+  alt         String? // texto alternativo (acessibilidade + SEO)
+  title       String? // titulo da imagem (hover)
+  description String? // descricao longa (SEO)
+
+  // Metadata original
+  width  Int? // largura original
+  height Int? // altura original
+
+  productImages ProductImage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("media_files")
+}
+
+model ProductImage {
+  id          String    @id @default(cuid())
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  mediaFileId String
+  mediaFile   MediaFile @relation(fields: [mediaFileId], references: [id])
+
+  order  Int     @default(0)
+  isMain Boolean @default(false)
 
   createdAt DateTime @default(now())
 
