@@ -4,9 +4,13 @@ import {
   IsPositive,
   IsOptional,
   IsBoolean,
+  IsArray,
   IsUUID,
+  IsInt,
+  Min,
   MinLength,
   MaxLength,
+  IsIn,
 } from 'class-validator';
 
 export class UpdateProductDto {
@@ -18,17 +22,73 @@ export class UpdateProductDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(10)
+  slug?: string;
+
+  @IsOptional()
+  @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  shortDescription?: string;
 
   @IsOptional()
   @IsString()
   content?: string;
 
   @IsOptional()
+  @IsString()
+  @IsIn(['simple', 'variable'])
+  type?: string;
+
+  @IsOptional()
   @IsNumber()
   @IsPositive()
   basePrice?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  salePrice?: number | null;
+
+  @IsOptional()
+  @IsString()
+  sku?: string;
+
+  @IsOptional()
+  @IsString()
+  gtin?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  manageStock?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  stock?: number;
+
+  @IsOptional()
+  @IsNumber()
+  weight?: number;
+
+  @IsOptional()
+  @IsNumber()
+  width?: number;
+
+  @IsOptional()
+  @IsNumber()
+  height?: number;
+
+  @IsOptional()
+  @IsNumber()
+  length?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  extraDays?: number | null;
 
   @IsOptional()
   @IsUUID()
@@ -37,6 +97,20 @@ export class UpdateProductDto {
   @IsOptional()
   @IsUUID()
   brandId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  tagIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  attributeValueIds?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 
   @IsOptional()
   @IsBoolean()

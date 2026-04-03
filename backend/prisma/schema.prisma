@@ -33,6 +33,7 @@ model User {
   orders        Order[]
   wishlist      WishlistItem[]
   refreshTokens RefreshToken[]
+  reviews       Review[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -153,11 +154,13 @@ model OrderItem {
 }
 
 model Product {
-  id          String  @id @default(cuid())
-  name        String
-  slug        String  @unique
-  description String
-  content     String? // descricao longa, HTML
+  id               String  @id @default(cuid())
+  name             String
+  slug             String  @unique
+  description      String
+  shortDescription String?
+  content          String? // descricao longa, HTML
+  type             String  @default("simple") // "simple" ou "variable"
 
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -166,17 +169,35 @@ model Product {
   brand   Brand? @relation(fields: [brandId], references: [id], onDelete: SetNull)
 
   basePrice Float // preco base, sem escala
+  salePrice Float? // preco promocional
 
-  tags       Tag[]              @relation("ProductToTag")
-  variations ProductVariation[]
-  images     ProductImage[]
+  // Inventario
+  sku         String?  @unique
+  gtin        String?
+  manageStock Boolean  @default(true)
+  stock       Int      @default(0)
+  weight      Float? // kg
+  width       Float? // cm
+  height      Float? // cm
+  length      Float? // cm
+
+  // Entrega
+  extraDays Int? // dias adicionais (override categoria/tag)
+
+  // Status
+  isActive Boolean @default(true)
+  featured Boolean @default(false)
+
+  // Relacoes
+  tags              Tag[]              @relation("ProductToTag")
+  variations        ProductVariation[]
+  images            ProductImage[]
+  attributes        ProductAttribute[]
+  relatedProducts   RelatedProduct[]   @relation("ProductRelated")
+  reviews           Review[]
 
   orderItems    OrderItem[]
   wishlistItems WishlistItem[]
-
-  sku      String?  @unique
-  isActive Boolean  @default(true)
-  featured Boolean  @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -192,13 +213,21 @@ model ProductVariation {
   productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  name    String // ex: "Heroic Scale (28mm)"
-  scaleId String
-  scale   Scale  @relation(fields: [scaleId], references: [id])
+  name      String // ex: "Heroic Scale (28mm)"
+  scaleId   String
+  scale     Scale  @relation(fields: [scaleId], references: [id])
 
-  sku   String
-  price Float // preco com ajuste de escala
-  stock Int   @default(0)
+  sku       String
+  gtin      String?
+  price     Float // preco com ajuste de escala
+  salePrice Float?
+  stock     Int   @default(0)
+  image     String? // URL imagem da variacao
+
+  weight Float? // kg
+  width  Float? // cm
+  height Float? // cm
+  length Float? // cm
 
   orderItems OrderItem[]
 
@@ -239,7 +268,8 @@ model Category {
 
   products Product[]
 
-  isActive Boolean @default(true)
+  isActive  Boolean @default(true)
+  extraDays Int? // dias adicionais de entrega padrao
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -256,7 +286,8 @@ model Tag {
 
   products Product[] @relation("ProductToTag")
 
-  isActive Boolean @default(true)
+  isActive  Boolean @default(true)
+  extraDays Int? // dias adicionais de entrega
 
   createdAt DateTime @default(now())
 
@@ -342,7 +373,8 @@ model Coupon {
   isFirstPurchaseOnly Boolean @default(false)
   isActive            Boolean @default(true)
 
-  usages CouponUsage[]
+  usages        CouponUsage[]
+  reviewRewards ReviewReward[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -503,6 +535,95 @@ model Page {
 
   @@index([slug])
   @@map("pages")
+}
+
+// ─── Atributos ──────────────────────────────────────────
+
+model Attribute {
+  id     String           @id @default(cuid())
+  name   String           @unique
+  slug   String           @unique
+  values AttributeValue[]
+
+  createdAt DateTime @default(now())
+
+  @@index([slug])
+  @@map("attributes")
+}
+
+model AttributeValue {
+  id          String    @id @default(cuid())
+  attributeId String
+  attribute   Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  value       String
+  slug        String
+
+  productAttributes ProductAttribute[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([attributeId, slug])
+  @@map("attribute_values")
+}
+
+model ProductAttribute {
+  id               String         @id @default(cuid())
+  productId        String
+  product          Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attributeValueId String
+  attributeValue   AttributeValue @relation(fields: [attributeValueId], references: [id])
+
+  @@unique([productId, attributeValueId])
+  @@index([productId])
+  @@map("product_attributes")
+}
+
+// ─── Produtos Relacionados ──────────────────────────────
+
+model RelatedProduct {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation("ProductRelated", fields: [productId], references: [id], onDelete: Cascade)
+  type      String // "product", "tag", "category", "attribute"
+  targetId  String // ID do produto/tag/categoria/atributo
+
+  @@index([productId])
+  @@map("related_products")
+}
+
+// ─── Avaliacoes ─────────────────────────────────────────
+
+model Review {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+  orderId   String
+  rating    Int // 1-5
+  comment   String?
+  images    String? // JSON array de URLs
+
+  isApproved Boolean      @default(false)
+  reward     ReviewReward?
+
+  createdAt DateTime @default(now())
+
+  @@unique([productId, userId, orderId])
+  @@index([productId])
+  @@map("reviews")
+}
+
+model ReviewReward {
+  id       String @id @default(cuid())
+  reviewId String @unique
+  review   Review @relation(fields: [reviewId], references: [id])
+  couponId String
+  coupon   Coupon @relation(fields: [couponId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@map("review_rewards")
 }
 
 model WishlistItem {

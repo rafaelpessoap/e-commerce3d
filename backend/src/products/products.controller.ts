@@ -37,9 +37,20 @@ export class ProductsController {
   }
 
   @Public()
-  @Get(':slug')
-  async findBySlug(@Param('slug') slug: string) {
-    return await this.productsService.findBySlug(slug);
+  @Get(':slugOrId')
+  async findBySlugOrId(@Param('slugOrId') slugOrId: string) {
+    // Se parece com cuid (começa com c + 24 chars), busca por ID
+    if (/^c[a-z0-9]{24,}$/.test(slugOrId)) {
+      return await this.productsService.findById(slugOrId);
+    }
+    return await this.productsService.findBySlug(slugOrId);
+  }
+
+  @Public()
+  @Get(':id/delivery-info')
+  async getDeliveryInfo(@Param('id') id: string) {
+    const extraDays = await this.productsService.resolveExtraDays(id);
+    return { baseDays: 3, extraDays, totalDays: 3 + extraDays };
   }
 
   @Roles('ADMIN')
