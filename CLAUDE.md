@@ -468,44 +468,49 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [x] Atributos: refetchQueries para atualização imediata, form fica aberto após adicionar valor
 - [x] Total: 40 test suites, 293 testes passando, 0 lint errors
 
-### Pendências — Próximo Plano (admin UX + clientes + cupons avançados)
+### Admin UX Overhaul + Clientes + Cupons Avançados ✅ (04/04/2026)
 
-**Plano detalhado em:** `~/.claude/plans/memoized-riding-platypus.md`
+**Backend (TDD: 300 testes passando):**
+- [x] Schema: User +cpf (unique) +phone, Coupon +categoryId +tagId +userId
+- [x] UsersService.findAll: paginado com busca por nome/email/cpf (TDD: 3 testes novos)
+- [x] UsersController: GET /users (@Roles ADMIN) com paginação e search
+- [x] CouponsService: validação por userId exclusivo, retorna categoryId/tagId no resultado (TDD: 4 testes novos)
+- [x] Coupons findAll inclui relations category/tag/user, update aceita todos os campos
+- [x] Tags/Categories DTOs: extraDays em create e update
+- [x] MelhorEnvio: syncServicesFromApi() — cotação fictícia para descobrir serviços disponíveis, upsert no DB
+- [x] Settings endpoint genérico: GET retorna todos, PUT aceita qualquer key-value
+- [x] Schema aplicado em produção (prisma db push)
 
-#### Passo 1 — Schema: User (cpf, phone) + Coupon (categoryId, tagId, userId)
-- [ ] User: adicionar campos cpf (unique), phone
-- [ ] Coupon: adicionar categoryId, tagId, userId para regras avançadas (desconto por categoria/tag, cupom exclusivo por cliente)
+**Frontend:**
+- [x] /admin/clientes: tabela paginada (nome, email, CPF, telefone, pedidos, cadastro), busca, dialog detalhes
+- [x] /admin/galeria: reescrita como lista (thumb+info+ações), editar inline, ampliar em modal, excluir
+- [x] /admin/tags: campo "Dias de produção" no criar/editar/tabela
+- [x] /admin/categorias: campo "Dias de produção" no criar/editar/tabela
+- [x] /admin/cupons: restrições por categoria (select), tag (select), cliente exclusivo (busca por email)
+- [x] /admin/configuracoes: cards editáveis (nome loja, email, desconto PIX/Boleto %, prazo produção)
+- [x] /admin/frete: botão "Sincronizar Transportadoras" (POST /methods/sync)
+- [x] Checkout: seção "Dados Pessoais" (nome, CPF com máscara, telefone com máscara, email read-only)
+- [x] Checkout: salva cpf/phone no perfil do user após pedido
+- [x] Total: 40 test suites, 300 testes passando, 0 lint errors
 
-#### Passo 2 — Backend: Users findAll, Coupons regras avançadas, Shipping sync, Tags/Categories extraDays
-- [ ] UsersService: findAll paginado (admin) com busca por nome/email/cpf
-- [ ] CouponsService: validação por categoria/tag/userId
-- [ ] MelhorEnvioService: fetchServicesFromApi() (GET /me/shipment/services em vez de lista hardcoded)
-- [ ] Tags/Categories DTOs: aceitar extraDays
+### Pendências — Próxima Sessão (05/04/2026)
 
-#### Passo 3 — Frontend: Galeria em lista (não grid)
-- [ ] Reescrever galeria: lista com thumbnail à esquerda, info à direita, editar inline, ampliar, excluir
+#### Bugs encontrados pelo Rafael (prioridade alta):
+- [ ] Botão "Sincronizar Transportadoras" no frete não funciona (verificar API Melhor Envio + erro no sync)
+- [ ] /admin/clientes: não é possível editar ou excluir clientes (falta endpoint admin PUT /users/:id)
+- [ ] /admin/clientes: sem cadastro de endereço (exibir endereços do cliente nos detalhes)
+- [ ] /admin/galeria: imagem amplia muito pequena — clicar na imagem deve ampliar grande (sem botão separado)
+- [ ] /admin/emails: página de edição de layout de email não carrega
+- [ ] /admin/escalas: escalas não são editáveis na tela (inline edit pode estar quebrado)
+- [ ] Sidebar admin: quando conteúdo fica muito alto, sidebar cresce junto e "Voltar à loja" + versão desaparecem — sidebar deve ter scroll próprio e footer fixo
 
-#### Passo 4 — Frontend: Tags e Categorias com extraDays
-- [ ] Tags: campo "Dias de produção" na edição e criação
-- [ ] Categorias: campo "Dias de produção" na edição e criação
+#### Melhorias na página pública do produto /p/[slug]:
+- [ ] Calcular frete na página do produto (componente ShippingCalculator)
+- [ ] Descrição principal (longa) abaixo da imagem
+- [ ] Descrição curta abaixo do nome do produto
+- [ ] Botão "Editar produto" visível quando logado como ADMIN (link para /admin/produtos/[id])
 
-#### Passo 5 — Frontend: Cupons com regras avançadas
-- [ ] Restrição por categoria (select), por tag (select), cupom exclusivo por cliente (busca)
-
-#### Passo 6 — Frontend: /admin/configuracoes editável
-- [ ] Cards editáveis: nome da loja, desconto PIX/Boleto (%), prazo base produção
-
-#### Passo 7 — Frontend: /admin/clientes (gestão de clientes)
-- [ ] Tabela: nome, email, CPF, telefone, pedidos, data cadastro. Busca, editar, detalhes
-
-#### Passo 8 — Frontend: Checkout com dados do cliente
-- [ ] Seção "Dados Pessoais": nome, CPF (máscara), telefone (máscara), email (read-only)
-- [ ] Ao salvar pedido, atualizar perfil do user com cpf/phone
-
-#### Passo 9 — Frontend: Frete — botão sincronizar transportadoras
-- [ ] Botão "Sincronizar" chama POST /shipping/methods/sync para obter lista real do Melhor Envio
-
-### Outras Pendências
+#### Outras Pendências:
 - [ ] Blog admin: criar/editar posts (TipTap)
 - [ ] Cache Redis por rota (CacheInterceptor)
 - [ ] Testes de carga (k6/Artillery)
@@ -571,6 +576,12 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | 2026-04-04 | OLS noCacheUrl para admin | LiteSpeed cache cacheava rotas do admin causando binário corrompido. Adicionado noCacheUrl para /admin, /api, /login, /minha-conta, /checkout |
 | 2026-04-04 | Cupons com regras por categoria/tag/cliente | Cupom pode restringir desconto a uma categoria ou tag específica. Cupom exclusivo para um cliente. Desconto aplicado apenas nos items que encaixam |
 | 2026-04-04 | User precisa de CPF e telefone | Dados obrigatórios para e-commerce brasileiro. CPF com validação, telefone com máscara. Coletados no checkout e editáveis no perfil |
+| 2026-04-04 | Galeria em lista (não grid) | Cada imagem como linha: thumb 60x60 + info + ações (ampliar, editar, excluir). Mais prático para gerenciar metadados SEO |
+| 2026-04-04 | Tags/Categories extraDays no frontend | Campo "Dias de produção" editável na criação e edição de tags e categorias. Completa a hierarquia produto > tag > categoria |
+| 2026-04-04 | Settings genérico key-value | Endpoint GET/PUT /shipping/settings agora aceita qualquer chave. Usado para: shop_cep, store_name, contact_email, pix_discount, boleto_discount, base_production_days |
+| 2026-04-04 | Cupons com restrições de categoria/tag/cliente | Cada cupom pode ter categoryId (desconto só nessa categoria), tagId (só nessa tag), userId (exclusivo para um cliente). Validação no backend impede uso por outro user |
+| 2026-04-04 | Melhor Envio sync via cotação fictícia | Para descobrir serviços disponíveis, faz cotação com dados dummy e extrai os serviços retornados. Upsert no banco sem alterar isActive de existentes |
+| 2026-04-04 | Checkout coleta dados pessoais | Nome, CPF (máscara 000.000.000-00), telefone (máscara (00) 00000-0000) obrigatórios. Email read-only do perfil. Após pedido, salva cpf/phone no perfil do user |
 
 ---
 
