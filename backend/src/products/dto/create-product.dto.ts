@@ -44,7 +44,7 @@ export class CreateProductDto {
 
   // Precos
   @IsNumber()
-  @IsPositive()
+  @Min(0)
   basePrice!: number;
 
   @IsOptional()

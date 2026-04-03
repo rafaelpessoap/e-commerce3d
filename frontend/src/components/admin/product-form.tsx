@@ -241,7 +241,7 @@ export function ProductForm({ productId }: ProductFormProps) {
       shortDescription: shortDescription || undefined,
       content: description || undefined,
       type,
-      basePrice: parseFloat(basePrice),
+      basePrice: type === 'variable' ? 0 : parseFloat(basePrice),
       salePrice: salePrice ? parseFloat(salePrice) : undefined,
       sku: sku || undefined,
       gtin: gtin || undefined,
@@ -344,6 +344,17 @@ export function ProductForm({ productId }: ProductFormProps) {
                     placeholder="guerreira-elfica"
                   />
                 </div>
+                {isEdit && slug && (
+                  <a
+                    href={`/p/${slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary hover:underline inline-flex items-center gap-1 mt-1"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    Ver produto: /p/{slug}
+                  </a>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -399,6 +410,11 @@ export function ProductForm({ productId }: ProductFormProps) {
                     <div className="p-6 space-y-6">
                       <div>
                         <h3 className="text-sm font-medium mb-3">Preço e Identificação</h3>
+                        {type === 'variable' ? (
+                          <p className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-3 mb-4">
+                            Produto variável — os preços são definidos em cada variação na aba Variações.
+                          </p>
+                        ) : (
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label className="text-sm font-medium">Preço Base (R$)</Label>
@@ -409,6 +425,7 @@ export function ProductForm({ productId }: ProductFormProps) {
                             <Input type="number" step="0.01" min="0.01" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} placeholder="39.90" />
                           </div>
                         </div>
+                        )}
                         <div className="grid grid-cols-2 gap-4 mt-4">
                           <div className="space-y-2">
                             <Label className="text-sm font-medium">SKU</Label>
@@ -569,7 +586,7 @@ export function ProductForm({ productId }: ProductFormProps) {
 
               <hr />
 
-              <Button onClick={handleSubmit} disabled={saving || !name || !basePrice} className="w-full">
+              <Button onClick={handleSubmit} disabled={saving || !name || (type !== 'variable' && !basePrice)} className="w-full">
                 <Save className="h-4 w-4 mr-2" />
                 {saving ? 'Salvando...' : 'Salvar'}
               </Button>

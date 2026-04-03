@@ -2,11 +2,13 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Trash2, ChevronDown, ChevronUp, Wand2 } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, Wand2, Upload, ImageIcon, X } from 'lucide-react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { api } from '@/lib/api-client';
 
 export interface VariationData {
@@ -47,6 +49,38 @@ export function VariationEditor({ variations, onChange }: VariationEditorProps) 
   const [selectedAttributeId, setSelectedAttributeId] = useState<string>('');
   const [checkedValueIds, setCheckedValueIds] = useState<Set<string>>(new Set());
   const [collapsedCards, setCollapsedCards] = useState<Set<number>>(new Set());
+  const [galleryOpenFor, setGalleryOpenFor] = useState<number | null>(null);
+  const [gallerySearch, setGallerySearch] = useState('');
+
+  const { data: galleryData } = useQuery({
+    queryKey: ['variation-gallery', gallerySearch],
+    queryFn: async () => {
+      const params: Record<string, string | number> = { perPage: 24 };
+      if (gallerySearch) params.search = gallerySearch;
+      const { data } = await api.get('/media', { params });
+      return (data.data ?? data) as Array<{ id: string; thumb: string; card: string; filename: string; alt?: string }>;
+    },
+    enabled: galleryOpenFor !== null,
+  });
+
+  async function handleVariationImageUpload(index: number, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const { data } = await api.post('/media/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const media = data.data ?? data;
+      updateVariation(index, 'image', media.card);
+    } catch {
+      // silently fail — gallery approach is preferred
+    }
+  }
+
+  function selectGalleryImage(index: number, imageUrl: string) {
+    updateVariation(index, 'image', imageUrl);
+    setGalleryOpenFor(null);
+  }
 
   const { data: attributes } = useQuery({
     queryKey: ['attributes'],
@@ -414,15 +448,38 @@ export function VariationEditor({ variations, onChange }: VariationEditorProps) 
 
                 {/* Row 4: Image */}
                 <div className="space-y-1">
-                  <Label className="text-xs">URL da imagem (opcional)</Label>
-                  <Input
-                    value={v.image || ''}
-                    onChange={(e) =>
-                      updateVariation(i, 'image', e.target.value || undefined)
-                    }
-                    placeholder="https://cdn.../imagem.jpg"
-                    className="h-9"
-                  />
+                  <Label className="text-xs">Imagem da variação</Label>
+                  {v.image ? (
+                    <div className="flex items-center gap-3">
+                      <div className="relative w-16 h-16 rounded border overflow-hidden">
+                        <Image src={v.image} alt={v.name} fill className="object-cover" sizes="64px" />
+                      </div>
+                      <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => updateVariation(i, 'image', undefined)}>
+                        <X className="h-3 w-3 mr-1" />Remover
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <label className="cursor-pointer">
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleVariationImageUpload(i, file);
+                            e.target.value = '';
+                          }}
+                        />
+                        <span className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs hover:bg-muted transition-colors">
+                          <Upload className="h-3 w-3" />Upload
+                        </span>
+                      </label>
+                      <Button type="button" variant="outline" size="sm" className="text-xs" onClick={() => { setGalleryOpenFor(i); setGallerySearch(''); }}>
+                        <ImageIcon className="h-3 w-3 mr-1" />Galeria
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             )}
@@ -433,8 +490,38 @@ export function VariationEditor({ variations, onChange }: VariationEditorProps) 
       {/* Manual add button */}
       <Button type="button" variant="outline" onClick={addManualVariation}>
         <Plus className="h-4 w-4 mr-2" />
-        Adicionar Variacao Manualmente
+        Adicionar Variação Manualmente
       </Button>
+
+      {/* Gallery picker dialog */}
+      <Dialog open={galleryOpenFor !== null} onOpenChange={(open) => !open && setGalleryOpenFor(null)}>
+        <DialogContent className="max-w-2xl max-h-[70vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Escolher imagem da galeria</DialogTitle>
+          </DialogHeader>
+          <Input
+            placeholder="Buscar por nome..."
+            value={gallerySearch}
+            onChange={(e) => setGallerySearch(e.target.value)}
+            className="mb-3"
+          />
+          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+            {(galleryData ?? []).map((media) => (
+              <button
+                key={media.id}
+                type="button"
+                onClick={() => galleryOpenFor !== null && selectGalleryImage(galleryOpenFor, media.card)}
+                className="relative aspect-square rounded border overflow-hidden hover:ring-2 hover:ring-primary"
+              >
+                <Image src={media.thumb || media.card} alt={media.alt ?? media.filename} fill className="object-cover" sizes="100px" />
+              </button>
+            ))}
+            {(galleryData ?? []).length === 0 && (
+              <p className="col-span-full text-sm text-muted-foreground text-center py-4">Nenhuma imagem encontrada.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
