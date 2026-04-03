@@ -27,7 +27,7 @@
 | UI | React | 19.2.x |
 | Componentes | shadcn/ui + Tailwind CSS | CLI v4 |
 | Banco de dados | PostgreSQL | 18 (já instalado no servidor) |
-| ORM | Prisma | 7.x |
+| ORM | Prisma | 6.x |
 | Cache | Redis | Já instalado no servidor |
 | Busca | Elasticsearch | 9.3 (já instalado no servidor) |
 | Fila | BullMQ | 5.71.x |
@@ -180,10 +180,15 @@ Aplicado automaticamente no checkout.
 ## Servidor de Produção
 
 - **Hardware:** AMD Ryzen 5 2600, 32GB DDR4, NVMe 2TB
-- **OS:** Ubuntu 24
-- **Já rodando:** MariaDB (Arsenal Craft), PostgreSQL 18, Redis, Elasticsearch 9.3
-- **Deploy:** Docker containers via GitHub Actions (SSH + docker compose)
-- **Proxy:** Cloudflare → Nginx → App
+- **OS:** Ubuntu 24.04 LTS
+- **IP:** 24.152.39.104 (SSH porta 2222, usuário masterdaweb)
+- **Domínio:** elitepinup3d.com.br (DNS via Cloudflare)
+- **Reverse Proxy:** OpenLiteSpeed 1.8.4 via CyberPanel (NÃO usar Nginx)
+- **Já rodando:** MariaDB, Redis 7.0.15 (local), Elasticsearch 9.3.2 (local)
+- **Containers existentes (NÃO mexer):** arsenal_app (:3001), arsenal_db (PG18), n8n (:5678)
+- **Nosso projeto:** elitepinup_backend (:3002), elitepinup_frontend (:3003), elitepinup_db (PG18 interno)
+- **Deploy:** GitHub Actions → GHCR (build+push images) → SSH (pull+restart)
+- **Storage:** Cloudflare R2 (bucket: elitepinup, CDN: cdn.elitepinup3d.com.br)
 
 ---
 
@@ -212,7 +217,7 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 - [x] Configurar Docker Compose (dev, test, prod)
 - [x] Inicializar NestJS 11 com TypeScript strict
 - [x] Inicializar Next.js 16.2 com App Router + shadcn/ui
-- [x] Criar Prisma 7 schema inicial (todos os models)
+- [x] Criar Prisma schema inicial (todos os models)
 - [x] Configurar Jest (backend), Vitest + Playwright (frontend)
 - [x] Configurar GitHub Actions CI
 - [x] Primeiro teste passando — health check TDD (RED → GREEN)
@@ -287,46 +292,61 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 - [x] `/admin/categorias`: lista + criar inline
 - [x] `/admin/cupons`: tabela com código, tipo, valor, usos, status
 - [x] `/admin/escalas`: lista + criar inline (nome, código, tamanho)
-- [x] Build passing (22 rotas, TypeScript OK)
+- [x] `/admin/marcas`: marcas table + criar inline
+- [x] `/admin/tags`: tags table com color + criar inline
+- [x] `/admin/frete`: free shipping rules + criar
+- [x] `/admin/configuracoes`: settings display
+- [x] `/admin/blog`: publicar/despublicar posts
+- [x] Proteção de rotas: /admin requer login+ADMIN, /minha-conta requer login
+- [x] Build passing (41 rotas, TypeScript OK)
 
-### Fase 6 — SEO e Performance (em andamento)
-- [x] SEO module — upsertMeta por entidade, getMeta, generateSitemap (produtos + categorias + blog + estáticas) (TDD: 5 testes)
+### Fase 6 — SEO, Performance e Infra ✅
+- [x] SEO module — upsertMeta por entidade, getMeta, generateSitemap (TDD: 5 testes)
 - [x] Blog module — CRUD posts com auto-slug, publish/unpublish, paginação (TDD: 7 testes)
-- [x] Frontend: /blog (listagem SSR), /blog/[slug] (post completo), /admin/blog (publicar/despublicar)
-- [x] Docker prod: multi-stage Dockerfiles (backend + frontend), docker-compose.prod.yml, nginx reverse proxy
-- [x] Nginx: security headers, gzip, rate limiting (API 10r/s, login 5r/m), static cache, proxy pass
-- [x] GitHub Actions: deploy.yml (SSH + docker compose)
-- [ ] Cache (Redis + Cloudflare) — pós-deploy, baseado em métricas reais de tráfego
-- [ ] Testes de carga (k6/Artillery) — pós-deploy, com seed de dados e infra rodando
+- [x] Frontend: /blog, /blog/[slug], /admin/blog
+- [x] Docker prod: multi-stage Dockerfiles, docker-compose.prod.yml (GHCR images, sem nginx)
+- [x] OLS vhost: proxy para backend:3002 e frontend:3003, SSL, config protegida com chattr +i
+- [x] GitHub Actions: CI (lint+test+build) + Security (CodeQL+audit) + Deploy (GHCR build+push, SSH pull)
+- [x] Dependabot: npm weekly, Docker monthly, Actions weekly
+- [x] Branch protection: main requer CI verde
+- [x] RedisModule: ioredis wrapper reutilizável (15 testes), CartService refatorado
+- [ ] Cache por rota (Redis + Cloudflare) — pós-deploy, baseado em métricas
+- [ ] Testes de carga (k6/Artillery) — pós-deploy
+
+### Deploy em Produção ✅ (03/04/2026)
+- [x] Servidor configurado: /opt/elitepinup/.env + docker-compose.yml
+- [x] OLS vhost criado via CyberPanel, customizado com proxy reverso
+- [x] SSL: certificado Let's Encrypt gerado via CyberPanel
+- [x] Containers rodando: elitepinup_db (healthy), elitepinup_backend (healthy), elitepinup_frontend (up)
+- [x] API respondendo: https://elitepinup3d.com.br/api/health → {"data":{"status":"ok"}}
+- [x] Frontend servindo: https://elitepinup3d.com.br/ → 200
+- [x] Prisma db push executado (tabelas criadas)
+- [x] Admin criado: rafaelzezao@gmail.com / Admin@2026!
+- [x] Deploy automático funcionando (push para main → build → deploy via SSH)
+- [x] R2 testado e funcionando (upload OK)
+- [x] Proteção de rotas: /admin exige login + ADMIN, /minha-conta exige login
 
 ---
 
 ## Pendências Restantes
 
-### PRÉ-DEPLOY — Fazer antes de subir para produção
-- [ ] **Prisma seed** — dados iniciais: admin user, categorias, escalas padrão, cupom WELCOME10
-- [ ] **GitHub Secrets** — DEPLOY_HOST, DEPLOY_USER, DEPLOY_KEY, JWT_SECRET, DATABASE_URL, REDIS_PASSWORD
-- [ ] **Backend .env prod** — criar no servidor com todas as variáveis reais
-- [ ] **Primeiro deploy** — `make prod-build && make prod` + `prisma migrate deploy`
-- [ ] **Teste manual** — fluxo completo: registro → login → carrinho → checkout → pedido → rastreamento
+### PRÓXIMA SESSÃO — Prioridade alta
+- [ ] **Prisma seed** — dados iniciais: categorias, escalas padrão (28mm, 32mm, 75mm), cupom WELCOME10
+- [ ] **Teste manual end-to-end** — registro → login → admin → criar produto → carrinho → checkout → pedido
+- [ ] **Configurar Mercado Pago** — obter tokens, atualizar .env no servidor
+- [ ] **Configurar Melhor Envio** — obter token, atualizar .env no servidor
+- [ ] **Prisma migrations** — criar migration inicial a partir do schema atual (`prisma migrate dev --name init`)
 
-### PÓS-DEPLOY — Melhorias baseadas em uso real
-- [ ] **Cache Redis por rota** — CacheInterceptor em /products, /categories (quando houver tráfego)
-- [ ] **Cloudflare cache rules** — configurar no dashboard para assets estáticos e API GET
-- [ ] **Testes de carga** — k6/Artillery contra infra prod com seed de dados
+### MELHORIAS PÓS-LAUNCH
+- [ ] **Cache Redis por rota** — CacheInterceptor em /products, /categories
+- [ ] **Cloudflare cache rules** — assets estáticos e API GET
+- [ ] **Testes de carga** — k6/Artillery
 - [ ] **Test infrastructure** — test/helpers/, test/fixtures/, jest configs de integração
 - [ ] **Testes E2E** — supertest + banco real, testes de segurança (IDOR, 401, 403)
-
-### REFINAMENTOS DE UX — Podem ser feitos incrementalmente
-- [ ] **Componentes frontend** — scale-selector, variation-selector, shipping-simulator, mini-cart, breadcrumb, loading skeletons, search-filters sidebar
-- [ ] **Email templates** — React Email: welcome, order-confirmation, status-change, password-reset (hoje usa HTML inline)
-- [ ] **BullMQ email processor** — fila assíncrona para envio de emails (hoje é síncrono, funciona mas pode travar request)
-
-### CONCLUÍDO (referência)
-- [x] OwnershipGuard, HttpExceptionFilter, PrismaExceptionFilter, TransformInterceptor, LoggingInterceptor
-- [x] DTOs completos, ValidationPipe global, Config module, ThrottleGuard
-- [x] Forgot/Reset Password, ViaCEP, ScalesController, Product Variations
-- [x] Todas as 41 rotas frontend, todos os 22 módulos backend, 203 testes passando
+- [ ] **Componentes frontend** — scale-selector, variation-selector, shipping-simulator, mini-cart, breadcrumb, loading skeletons
+- [ ] **Email templates** — React Email (hoje usa HTML inline)
+- [ ] **BullMQ email processor** — fila assíncrona (hoje síncrono)
+- [ ] **Cloudflare Origin Certificate** — substituir Let's Encrypt para evitar renovação manual (dura 15 anos)
 
 ---
 
@@ -343,12 +363,30 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 | 2026-04-02 | Sem Go por enquanto | Reavaliar após migração do Arsenal Craft se houver gargalo |
 | 2026-04-02 | Segurança integrada ao TDD | Não é fase separada, cada módulo tem testes de segurança |
 | 2026-04-02 | Node.js 22 (não 24) | v24 não disponível na máquina, v22 é LTS compatível |
-| 2026-04-02 | Prisma 7 (não 6) | Prisma 7 é a versão atual, mudou API: URL vai no prisma.config.ts, provider é "prisma-client" |
+| 2026-04-03 | Prisma 6 (não 7) | Prisma 7 prisma-client-js não aceita URL no constructor nem no schema (com prisma.config.ts). Incompatível com deploy Docker. Prisma 6 funciona igual ao ERP |
 | 2026-04-02 | Elasticsearch 8.17 (não 9.3) | ES 9.3 não existe ainda no Docker Hub, usando 8.17 (última estável) |
 | 2026-04-02 | Backend na porta 4000 (não 3000) | Porta 3000 já em uso ou reservada, backend roda em 4000 |
-| 2026-04-02 | prisma-client-js (não prisma-client) | Prisma 7 com prisma-client gera ESM incompatível com NestJS CJS. prisma-client-js funciona. URL fica no prisma.config.ts |
 | 2026-04-02 | bcrypt salt rounds = 12 | Recomendação do doc de segurança para 2026+, mais seguro que 10 |
 | 2026-04-02 | Access token 15min, refresh 7d | Spec do módulo de auth. Refresh é JWT armazenado no banco com rotação |
+| 2026-04-03 | OLS (não Nginx) como proxy | Servidor usa CyberPanel/OLS. Nginx no Docker seria redundante e conflitaria |
+| 2026-04-03 | Portas 3002/3003 (não 4000/3000) | 3000 ocupada por nghttpx, 3001 pelo ERP. Backend:3002, Frontend:3003 |
+| 2026-04-03 | Redis/ES no host (não containers) | Redis 7.0.15 e ES 9.3.2 já rodam no host. Containers acessam via extra_hosts host.docker.internal |
+| 2026-04-03 | GHCR (não build local) | Imagens Docker buildadas no GitHub Actions e pushadas para ghcr.io. Servidor só faz pull |
+| 2026-04-03 | chattr +i no vhost.conf | CyberPanel esvazia vhost.conf em cada restart do OLS. chattr +i protege contra overwrite |
+| 2026-04-03 | Cloudflare R2 bucket: elitepinup | CDN: cdn.elitepinup3d.com.br. Token S3 API testado e funcionando |
+
+---
+
+## Problemas Encontrados e Soluções
+
+| Problema | Causa | Solução |
+|----------|-------|---------|
+| Prisma 7 `prisma-client-js` rejeita URL no constructor | Prisma 7 mudou API: `datasourceUrl` e `datasources` são "unknown property" | Downgrade para Prisma 6 que aceita `url = env("DATABASE_URL")` no schema |
+| CyberPanel esvazia vhost.conf no restart do OLS | CyberPanel regenera configs a partir do SQLite, sobrescrevendo edições manuais | Proteger arquivo com `chattr +i` (flag imutable do filesystem) |
+| ACME challenge 404 com vhost proxy | O `context /` (proxy) captura todas as rotas antes do `/.well-known/acme-challenge` | Gerar SSL via `cyberpanel issueSSL` antes de configurar o proxy |
+| SSL issueSSL falha com Cloudflare proxy ativo | ACME HTTP-01 challenge não chega ao servidor com Cloudflare proxy | Desativar proxy temporariamente no Cloudflare, emitir cert, reativar |
+| Frontend /admin visível sem login | Rota client-side não verificava auth antes de renderizar | Adicionado guard no layout: verifica `isAuthenticated` + `role === 'ADMIN'`, redireciona para /login |
+| Listener map do OLS fora do bloco | sed inseriu map fora do listener, OLS não roteava para o vhost | Corrigido posicionamento do map dentro do listener Default e SSL |
 
 ---
 
