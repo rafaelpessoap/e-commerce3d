@@ -6,16 +6,87 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
-  build-and-push:
-    name: Build & Push Docker Images
+  test:
+    name: Tests
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: miniatures_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
 
     steps:
       - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Backend — install, generate, test
+        run: |
+          cd backend
+          npm ci
+          npx prisma generate
+          npx tsc --noEmit
+          npm test -- --no-coverage
+        env:
+          DATABASE_URL: postgresql://test:testpass@localhost:5432/miniatures_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: ci-test-secret-key-minimum-64-characters-long-for-security
+
+      - name: Frontend — install, lint, build
+        run: |
+          cd frontend
+          npm ci
+          npm run lint
+          npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    needs: [test]
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Generate version
+        id: version
+        run: |
+          VERSION="$(date +%Y%m%d)-$(echo $GITHUB_SHA | cut -c1-7)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
 
       - name: Login to GHCR
         uses: docker/login-action@v4
@@ -30,7 +101,9 @@ jobs:
           context: ./backend
           file: ./docker/backend.Dockerfile
           push: true
-          tags: ghcr.io/rafaelpessoap/e-commerce3d-backend:latest
+          tags: |
+            ghcr.io/rafaelpessoap/e-commerce3d-backend:latest
+            ghcr.io/rafaelpessoap/e-commerce3d-backend:${{ steps.version.outputs.version }}
 
       - name: Build and push frontend
         uses: docker/build-push-action@v7
@@ -38,9 +111,37 @@ jobs:
           context: ./frontend
           file: ./docker/frontend.Dockerfile
           push: true
-          tags: ghcr.io/rafaelpessoap/e-commerce3d-frontend:latest
+          tags: |
+            ghcr.io/rafaelpessoap/e-commerce3d-frontend:latest
+            ghcr.io/rafaelpessoap/e-commerce3d-frontend:${{ steps.version.outputs.version }}
           build-args: |
             NEXT_PUBLIC_API_URL=https://elitepinup3d.com.br
+            NEXT_PUBLIC_APP_VERSION=${{ steps.version.outputs.version }}
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build-and-push]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.build-and-push.outputs.version }}"
+          COMMIT_MSG=$(git log -1 --pretty=%s)
+          gh release create "v$VERSION" \
+            --title "v$VERSION" \
+            --notes "**Commit:** $COMMIT_MSG
+
+          **Images:**
+          - \`ghcr.io/rafaelpessoap/e-commerce3d-backend:$VERSION\`
+          - \`ghcr.io/rafaelpessoap/e-commerce3d-frontend:$VERSION\`
+
+          **Deploy:** Automático para produção" \
+            --latest
 
   deploy:
     name: Deploy to Server
@@ -58,9 +159,9 @@ jobs:
           script: |
             cd /opt/elitepinup
             docker compose pull
-            docker compose up -d
-            # Wait for backend to be healthy
+            docker compose up -d --force-recreate
+            # Wait for health
             sleep 15
             curl -sf http://127.0.0.1:3002/api/health || (docker compose logs --tail=50 && exit 1)
             curl -sf http://127.0.0.1:3003 || (docker compose logs --tail=50 && exit 1)
-            echo "Deploy OK at $(date)"
+            echo "Deploy v${{ needs.build-and-push.outputs.version }} OK at $(date)"

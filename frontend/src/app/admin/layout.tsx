@@ -99,7 +99,7 @@ export default function AdminLayout({
           })}
         </nav>
 
-        <div className="p-3 border-t">
+        <div className="p-3 border-t space-y-1">
           <Link
             href={ROUTES.home}
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2"
@@ -107,6 +107,9 @@ export default function AdminLayout({
             <ArrowLeft className="h-4 w-4" />
             Voltar à loja
           </Link>
+          <p className="text-[10px] text-muted-foreground/50 px-3">
+            v{process.env.NEXT_PUBLIC_APP_VERSION ?? 'dev'}
+          </p>
         </div>
       </aside>
 
