@@ -3,7 +3,7 @@ import type { ApiRecord } from '@/types/api';
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,6 +29,11 @@ export default function AdminScalesPage() {
   const [code, setCode] = useState('');
   const [baseSize, setBaseSize] = useState('');
   const [error, setError] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editCode, setEditCode] = useState('');
+  const [editBaseSize, setEditBaseSize] = useState('');
+  const [editMultiplier, setEditMultiplier] = useState('');
 
   const { data: scales, isLoading } = useQuery({
     queryKey: ['admin', 'scales'],
@@ -55,9 +60,56 @@ export default function AdminScalesPage() {
     onError: (err) => { setError(extractError(err)); },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, ...dto }: { id: string; name: string; code: string; baseSize: number; multiplier: number }) =>
+      api.put(`/scales/${id}`, dto),
+    onSuccess: () => {
+      setError('');
+      setEditingId(null);
+      queryClient.invalidateQueries({ queryKey: ['admin', 'scales'] });
+    },
+    onError: (err) => { setError(extractError(err)); },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/scales/${id}`),
+    onSuccess: () => { setError(''); queryClient.invalidateQueries({ queryKey: ['admin', 'scales'] }); },
+    onError: (err) => { setError(extractError(err)); },
+  });
+
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     createMutation.mutate();
+  }
+
+  function startEdit(scale: ApiRecord) {
+    setEditingId(scale.id as string);
+    setEditName(scale.name as string);
+    setEditCode(scale.code as string);
+    setEditBaseSize(String(scale.baseSize));
+    setEditMultiplier(String(scale.multiplier));
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  function saveEdit() {
+    if (editingId && editName.trim() && editCode.trim()) {
+      updateMutation.mutate({
+        id: editingId,
+        name: editName,
+        code: editCode,
+        baseSize: parseFloat(editBaseSize),
+        multiplier: parseFloat(editMultiplier),
+      });
+    }
+  }
+
+  function handleDelete(scale: ApiRecord) {
+    if (confirm(`Excluir escala "${scale.name}"?`)) {
+      deleteMutation.mutate(scale.id as string);
+    }
   }
 
   return (
@@ -116,15 +168,79 @@ export default function AdminScalesPage() {
                 <TableHead>Código</TableHead>
                 <TableHead>Tamanho</TableHead>
                 <TableHead>Multiplicador</TableHead>
+                <TableHead className="w-[80px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {scales?.map((scale: ApiRecord) => (
                 <TableRow key={scale.id}>
-                  <TableCell className="font-medium">{scale.name}</TableCell>
-                  <TableCell className="font-mono text-xs">{scale.code}</TableCell>
-                  <TableCell>{scale.baseSize}mm</TableCell>
-                  <TableCell>{scale.multiplier}x</TableCell>
+                  <TableCell className="font-medium">
+                    {editingId === scale.id ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                          className="h-8"
+                          autoFocus
+                        />
+                      </div>
+                    ) : (
+                      <span className="cursor-pointer hover:text-primary hover:underline" onClick={() => startEdit(scale)}>{scale.name as string}</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {editingId === scale.id ? (
+                      <Input
+                        value={editCode}
+                        onChange={(e) => setEditCode(e.target.value.toUpperCase())}
+                        onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                        className="h-8"
+                      />
+                    ) : (
+                      scale.code as string
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {editingId === scale.id ? (
+                      <Input
+                        type="number"
+                        value={editBaseSize}
+                        onChange={(e) => setEditBaseSize(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                        className="h-8 w-24"
+                      />
+                    ) : (
+                      `${scale.baseSize}mm`
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {editingId === scale.id ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={editMultiplier}
+                          onChange={(e) => setEditMultiplier(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                          className="h-8 w-24"
+                        />
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={saveEdit} disabled={updateMutation.isPending}>
+                          <Check className="h-4 w-4 text-green-600" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={cancelEdit}>
+                          <X className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </div>
+                    ) : (
+                      `${scale.multiplier}x`
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(scale)} disabled={deleteMutation.isPending}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

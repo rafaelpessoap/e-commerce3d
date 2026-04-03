@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
 import { ScalesService } from './scales.service';
 import { CreateScaleDto } from './dto/create-scale.dto';
+import { UpdateScaleDto } from './dto/update-scale.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 
@@ -18,6 +19,19 @@ export class ScalesController {
   @Post()
   async create(@Body() dto: CreateScaleDto) {
     return await this.scalesService.create(dto);
+  }
+
+  @Roles('ADMIN')
+  @Put(':id')
+  async update(@Param('id') id: string, @Body() dto: UpdateScaleDto) {
+    return await this.scalesService.update(id, dto);
+  }
+
+  @Roles('ADMIN')
+  @Delete(':id')
+  async remove(@Param('id') id: string) {
+    await this.scalesService.remove(id);
+    return { data: { message: 'Scale deactivated successfully' } };
   }
 
   @Roles('ADMIN')

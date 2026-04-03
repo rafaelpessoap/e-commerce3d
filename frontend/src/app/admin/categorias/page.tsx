@@ -3,7 +3,7 @@ import type { ApiRecord } from '@/types/api';
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -26,6 +26,8 @@ export default function AdminCategoriesPage() {
   const queryClient = useQueryClient();
   const [newName, setNewName] = useState('');
   const [error, setError] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
 
   const { data: categories, isLoading } = useQuery({
     queryKey: ['admin', 'categories'],
@@ -47,9 +49,50 @@ export default function AdminCategoriesPage() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      api.put(`/categories/${id}`, { name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'categories'] });
+      setEditingId(null);
+      setError('');
+    },
+    onError: (err) => {
+      setError(extractError(err));
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/categories/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'categories'] });
+      setError('');
+    },
+    onError: (err) => {
+      setError(extractError(err));
+    },
+  });
+
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (newName.trim()) createMutation.mutate(newName);
+  }
+
+  function startEditing(cat: ApiRecord) {
+    setEditingId(cat.id as string);
+    setEditName(cat.name as string);
+  }
+
+  function handleUpdate() {
+    if (editingId && editName.trim()) {
+      updateMutation.mutate({ id: editingId, name: editName });
+    }
+  }
+
+  function handleDelete(cat: ApiRecord) {
+    if (confirm(`Excluir a categoria "${cat.name}"?`)) {
+      deleteMutation.mutate(cat.id as string);
+    }
   }
 
   return (
@@ -84,16 +127,56 @@ export default function AdminCategoriesPage() {
                 <TableHead>Nome</TableHead>
                 <TableHead>Slug</TableHead>
                 <TableHead>Produtos</TableHead>
+                <TableHead className="w-24">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {categories?.map((cat: ApiRecord) => (
                 <TableRow key={cat.id}>
-                  <TableCell className="font-medium">{cat.name}</TableCell>
+                  <TableCell className="font-medium">
+                    {editingId === cat.id ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          className="h-8"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleUpdate();
+                            if (e.key === 'Escape') setEditingId(null);
+                          }}
+                          autoFocus
+                        />
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleUpdate} disabled={updateMutation.isPending}>
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditingId(null)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="hover:underline cursor-pointer text-left"
+                        onClick={() => startEditing(cat)}
+                      >
+                        {cat.name as string}
+                      </button>
+                    )}
+                  </TableCell>
                   <TableCell className="text-muted-foreground font-mono text-xs">
                     {cat.slug}
                   </TableCell>
                   <TableCell>{cat._count?.products ?? 0}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => startEditing(cat)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(cat)} disabled={deleteMutation.isPending}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

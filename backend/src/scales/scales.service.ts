@@ -63,6 +63,38 @@ export class ScalesService {
     return Math.round(basePrice * applicableRule.priceMultiplier * 100) / 100;
   }
 
+  async update(
+    id: string,
+    dto: {
+      name?: string;
+      code?: string;
+      baseSize?: number;
+      multiplier?: number;
+      priority?: number;
+    },
+  ) {
+    const existing = await this.prisma.scale.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException('Scale not found');
+    }
+    const data: Record<string, any> = { ...dto };
+    if (dto.code) {
+      data.code = dto.code.toUpperCase();
+    }
+    return this.prisma.scale.update({ where: { id }, data });
+  }
+
+  async remove(id: string) {
+    const existing = await this.prisma.scale.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException('Scale not found');
+    }
+    return this.prisma.scale.update({
+      where: { id },
+      data: { isActive: false },
+    });
+  }
+
   async createRule(dto: {
     scaleId: string;
     appliesTo: 'GLOBAL' | 'CATEGORY' | 'TAG' | 'PRODUCT';
