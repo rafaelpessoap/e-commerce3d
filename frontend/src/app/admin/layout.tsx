@@ -46,9 +46,9 @@ export default function AdminLayout({
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== 'ADMIN') {
-      router.push('/login');
+      router.push(`/login?returnTo=${encodeURIComponent(pathname)}`);
     }
-  }, [isAuthenticated, user, router]);
+  }, [isAuthenticated, user, router, pathname]);
 
   if (!isAuthenticated || user?.role !== 'ADMIN') {
     return (

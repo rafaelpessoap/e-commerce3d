@@ -28,9 +28,9 @@ export default function AccountLayout({
 
   useEffect(() => {
     if (!isAuthenticated) {
-      router.push('/login');
+      router.push(`/login?returnTo=${encodeURIComponent(pathname)}`);
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, router, pathname]);
 
   if (!isAuthenticated) {
     return (
