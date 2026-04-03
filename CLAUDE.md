@@ -311,17 +311,19 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 
 Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 
-### Sprint 1 — Schema + Atributos + Admin Produto (Geral/Categorização/Inventário)
-- [ ] Prisma schema: adicionar campos em Product (salePrice, shortDescription, weight, dimensions, gtin, extraDays, manageStock, type), ProductVariation (image, gtin, salePrice, dimensions), Category/Tag (extraDays)
-- [ ] Prisma schema: novos models Attribute, AttributeValue, ProductAttribute, RelatedProduct, Review, ReviewReward
-- [ ] Backend: Attributes CRUD (TDD) — create, findAll, createValue, deleteValue
-- [ ] Frontend: `/admin/atributos` — gerenciar atributos e valores
-- [ ] Backend: atualizar Product DTOs e Service com campos novos
-- [ ] Frontend: `/admin/produtos/[id]` — página de edição (CRIAR, hoje 404)
-- [ ] Frontend: componente `ProductForm` com abas (Geral, Categorização, Inventário)
-- [ ] Aba Geral: nome, slug editável (/p/slug), descrição curta, descrição longa, preço + preço promocional, SKU + GTIN, tipo (simples/variável), status, destaque
-- [ ] Aba Categorização: categoria/marca (select + criar nova inline), tags (multi-select + criar inline)
-- [ ] Aba Inventário: toggle gerenciar estoque, quantidade, peso, dimensões (largura × altura × comprimento)
+### Sprint 1 — Schema + Atributos + Admin Produto ✅ (03/04/2026)
+- [x] Prisma schema: +salePrice, shortDescription, weight, dimensions, gtin, extraDays, manageStock, type em Product. +image, gtin, salePrice, dimensions em ProductVariation. +extraDays em Category/Tag
+- [x] Prisma schema: novos models Attribute, AttributeValue, ProductAttribute, RelatedProduct, Review, ReviewReward
+- [x] Backend: Attributes CRUD (TDD: 7 testes) — create auto-slug, findAll com values, createValue, deleteValue
+- [x] Backend: Product DTOs completos (CreateProductDto + UpdateProductDto com todos os campos)
+- [x] Backend: ProductsService atualizado — create/update com tags+atributos, findById, resolveExtraDays (TDD: 14 testes)
+- [x] Frontend: `/admin/atributos` — gerenciar atributos e valores (cards com badges, criar/deletar inline)
+- [x] Frontend: `/admin/produtos/[id]` — página de edição (era 404, agora funciona)
+- [x] Frontend: `ProductForm` com 3 abas (Geral, Categorização, Inventário)
+- [x] Aba Geral: nome, slug editável (/p/slug), descrição curta, descrição longa, HTML content, preço + promo, SKU + GTIN, tipo, status, destaque, dias adicionais
+- [x] Aba Categorização: categoria/marca (select + criar inline), tags (multi-select + criar inline)
+- [x] Aba Inventário: toggle gerenciar estoque, quantidade, peso, dimensões
+- [x] Total: 35 test suites, 231 testes passando, 37 rotas frontend
 
 ### Sprint 2 — Imagens + Variações + Editor Rich Text + Atributos no produto
 - [ ] Frontend: aba Imagens — upload R2, imagem principal, galeria múltipla, reordenar drag-and-drop
@@ -330,7 +332,7 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [ ] Frontend: aba Atributos — selecionar atributos existentes, multi-select valores, criar novo inline
 
 ### Sprint 3 — Entrega + Relacionados + Página pública completa
-- [ ] Backend: resolveExtraDays(productId) — prioridade: produto > tag > categoria
+- [x] Backend: resolveExtraDays(productId) — prioridade: produto > tag > categoria (já implementado na Sprint 1)
 - [ ] Frontend: aba Entrega (admin) — dias adicionais, preview prazo
 - [ ] Frontend: aba Relacionados — produtos específicos (busca) + regras dinâmicas (tag/categoria/atributo)
 - [ ] Frontend: `/p/[slug]` atualizada — galeria com thumbnails, preço promo riscado, atributos (tabela), variações com imagem, prazo de entrega, produtos relacionados
