@@ -24,18 +24,18 @@ export default function AccountLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, isHydrated } = useAuthStore();
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (isHydrated && !isAuthenticated) {
       router.push(`/login?returnTo=${encodeURIComponent(pathname)}`);
     }
-  }, [isAuthenticated, router, pathname]);
+  }, [isAuthenticated, isHydrated, router, pathname]);
 
-  if (!isAuthenticated) {
+  if (!isHydrated || !isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Redirecionando para login...</p>
+        <p className="text-muted-foreground">Verificando acesso...</p>
       </div>
     );
   }

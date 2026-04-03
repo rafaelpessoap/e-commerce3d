@@ -48,15 +48,15 @@ export default function AdminLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, isHydrated } = useAuthStore();
 
   useEffect(() => {
-    if (!isAuthenticated || user?.role !== 'ADMIN') {
+    if (isHydrated && (!isAuthenticated || user?.role !== 'ADMIN')) {
       router.push(`/login?returnTo=${encodeURIComponent(pathname)}`);
     }
-  }, [isAuthenticated, user, router, pathname]);
+  }, [isAuthenticated, isHydrated, user, router, pathname]);
 
-  if (!isAuthenticated || user?.role !== 'ADMIN') {
+  if (!isHydrated || !isAuthenticated || user?.role !== 'ADMIN') {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-muted-foreground">Verificando acesso...</p>
