@@ -86,7 +86,7 @@ export default function AdminGalleryPage() {
       }
     }
 
-    queryClient.invalidateQueries({ queryKey: ['admin', 'gallery'] });
+    await queryClient.refetchQueries({ queryKey: ['admin', 'gallery'] });
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }

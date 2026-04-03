@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "cdn.miniatures3d.com",
+        hostname: "cdn.elitepinup3d.com.br",
       },
     ],
   },
