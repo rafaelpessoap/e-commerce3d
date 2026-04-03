@@ -1,7 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { useAuthStore } from '@/store/auth-store';
 import {
   LayoutDashboard,
   Package,
@@ -39,6 +41,22 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuthStore();
+
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== 'ADMIN') {
+      router.push('/login');
+    }
+  }, [isAuthenticated, user, router]);
+
+  if (!isAuthenticated || user?.role !== 'ADMIN') {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-muted-foreground">Verificando acesso...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen">

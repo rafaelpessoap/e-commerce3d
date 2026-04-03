@@ -1,7 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { useAuthStore } from '@/store/auth-store';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { User, Package, Heart, Settings, MapPin } from 'lucide-react';
@@ -21,6 +23,22 @@ export default function AccountLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { isAuthenticated } = useAuthStore();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/login');
+    }
+  }, [isAuthenticated, router]);
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-muted-foreground">Redirecionando para login...</p>
+      </div>
+    );
+  }
 
   return (
     <>
