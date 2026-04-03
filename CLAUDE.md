@@ -325,11 +325,13 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [x] Aba Inventário: toggle gerenciar estoque, quantidade, peso, dimensões
 - [x] Total: 35 test suites, 231 testes passando, 37 rotas frontend
 
-### Sprint 2 — Imagens + Variações + Editor Rich Text + Atributos no produto
-- [ ] Frontend: aba Imagens — upload R2, imagem principal, galeria múltipla, reordenar drag-and-drop
-- [ ] Frontend: aba Variações — lista editável (escala, preço, preço promo, SKU, GTIN, estoque, imagem própria)
-- [ ] Frontend: editor rich text (TipTap) — negrito, itálico, listas, headings, links, imagens inline, toggle HTML
-- [ ] Frontend: aba Atributos — selecionar atributos existentes, multi-select valores, criar novo inline
+### Sprint 2 — Imagens + Variações + Editor Rich Text + Atributos ✅ (03/04/2026)
+- [x] RichTextEditor (TipTap): toolbar (bold, italic, headings, lists, link, image), toggle HTML mode
+- [x] ImageUpload: upload para R2, imagem principal (star), galeria grid, remover
+- [x] VariationEditor: CRUD inline (escala, preço, promo, SKU, GTIN, estoque, imagem URL)
+- [x] AttributeSelector: multi-select valores por atributo, criar atributo/valor inline
+- [x] ProductForm agora tem 6 abas: Geral, Imagens, Categorização, Inventário, Atributos, Variações (se variável)
+- [x] Total: 35 test suites, 231 testes, 37 rotas frontend
 
 ### Sprint 3 — Entrega + Relacionados + Página pública completa
 - [x] Backend: resolveExtraDays(productId) — prioridade: produto > tag > categoria (já implementado na Sprint 1)

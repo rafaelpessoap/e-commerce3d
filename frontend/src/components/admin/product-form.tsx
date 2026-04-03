@@ -13,6 +13,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { api } from '@/lib/api-client';
+import { RichTextEditor } from './rich-text-editor';
+import { ImageUpload, type ProductImageData } from './image-upload';
+import { VariationEditor, type VariationData } from './variation-editor';
+import { AttributeSelector } from './attribute-selector';
 import slugify from 'slug';
 
 interface ProductFormProps {
@@ -42,6 +46,9 @@ export function ProductForm({ productId }: ProductFormProps) {
   const [height, setHeight] = useState('');
   const [length, setLength] = useState('');
   const [extraDays, setExtraDays] = useState('');
+  const [productImages, setProductImages] = useState<ProductImageData[]>([]);
+  const [variations, setVariations] = useState<VariationData[]>([]);
+  const [attributeValueIds, setAttributeValueIds] = useState<string[]>([]);
   const [categoryId, setCategoryId] = useState('');
   const [brandId, setBrandId] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
@@ -116,6 +123,22 @@ export function ProductForm({ productId }: ProductFormProps) {
       setSelectedTagIds(existingProduct.tags?.map((t: { id: string }) => t.id) ?? []);
       setIsActive(existingProduct.isActive ?? true);
       setFeatured(existingProduct.featured ?? false);
+      // Images
+      setProductImages(
+        existingProduct.images?.map((img: { id: string; url: string; altText?: string; isMain: boolean; order: number }) => ({
+          id: img.id, url: img.url, altText: img.altText, isMain: img.isMain, order: img.order,
+        })) ?? [],
+      );
+      // Variations
+      setVariations(
+        existingProduct.variations?.map((v: { id: string; scaleId: string; name: string; sku: string; gtin?: string; price: number; salePrice?: number; stock: number; image?: string }) => ({
+          id: v.id, scaleId: v.scaleId, name: v.name, sku: v.sku, gtin: v.gtin, price: v.price, salePrice: v.salePrice, stock: v.stock, image: v.image,
+        })) ?? [],
+      );
+      // Attributes
+      setAttributeValueIds(
+        existingProduct.attributes?.map((pa: { attributeValueId: string }) => pa.attributeValueId) ?? [],
+      );
     }
   }, [existingProduct]);
 
@@ -180,6 +203,7 @@ export function ProductForm({ productId }: ProductFormProps) {
       categoryId: categoryId || undefined,
       brandId: brandId || undefined,
       tagIds: selectedTagIds,
+      attributeValueIds,
       isActive,
       featured,
     };
@@ -216,8 +240,11 @@ export function ProductForm({ productId }: ProductFormProps) {
       <Tabs defaultValue="general">
         <TabsList className="mb-6">
           <TabsTrigger value="general">Geral</TabsTrigger>
+          <TabsTrigger value="images">Imagens</TabsTrigger>
           <TabsTrigger value="categorization">Categorização</TabsTrigger>
           <TabsTrigger value="inventory">Inventário</TabsTrigger>
+          <TabsTrigger value="attributes">Atributos</TabsTrigger>
+          {type === 'variable' && <TabsTrigger value="variations">Variações</TabsTrigger>}
         </TabsList>
 
         {/* ─── Aba Geral ─── */}
@@ -254,9 +281,12 @@ export function ProductForm({ productId }: ProductFormProps) {
               </div>
 
               <div className="space-y-2">
-                <Label>Conteúdo HTML (descrição longa)</Label>
-                <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="<p>Texto rico com HTML...</p>" rows={6} className="font-mono text-sm" />
-                <p className="text-xs text-muted-foreground">Aceita HTML. Editor visual será adicionado na Sprint 2.</p>
+                <Label>Conteúdo (descrição longa)</Label>
+                <RichTextEditor
+                  value={content}
+                  onChange={setContent}
+                  placeholder="Descrição detalhada com formatação..."
+                />
               </div>
             </CardContent>
           </Card>
@@ -454,6 +484,44 @@ export function ProductForm({ productId }: ProductFormProps) {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ─── Aba Imagens ─── */}
+        <TabsContent value="images">
+          <Card>
+            <CardHeader><CardTitle className="text-lg">Imagens do Produto</CardTitle></CardHeader>
+            <CardContent>
+              <ImageUpload images={productImages} onChange={setProductImages} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ─── Aba Atributos ─── */}
+        <TabsContent value="attributes">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Atributos</CardTitle>
+              <p className="text-sm text-muted-foreground">Selecione os atributos que se aplicam a este produto. Usados para filtros na loja.</p>
+            </CardHeader>
+            <CardContent>
+              <AttributeSelector selectedValueIds={attributeValueIds} onChange={setAttributeValueIds} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ─── Aba Variações ─── */}
+        {type === 'variable' && (
+          <TabsContent value="variations">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Variações</CardTitle>
+                <p className="text-sm text-muted-foreground">Cada variação tem sua própria escala, preço, SKU e estoque.</p>
+              </CardHeader>
+              <CardContent>
+                <VariationEditor productId={productId} variations={variations} onChange={setVariations} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
