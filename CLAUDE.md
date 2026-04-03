@@ -255,11 +255,11 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 - [x] Shipping module — FreeShippingRules CRUD, checkFreeShipping (zipCode range + minValue) (TDD: 6 testes)
 - [x] Payments module — createPayment (desconto PIX 10%, boleto 5%), processWebhook (idempotente) (TDD: 8 testes)
 - [x] Bundles module — CRUD, calculateBundlePrice = soma × (1 - desconto), findBySlug com preço calculado (TDD: 5 testes)
-- [x] Emails transacionais — EmailService com Nodemailer (TDD: 4 testes)
+- [x] Emails transacionais — EmailService com Nodemailer + React Email templates + BullMQ queue (TDD: 38 testes email)
 
 ### Fase 4 — Pós-venda ✅
 - [x] Wishlist module — add, remove, findAll com deduplicação (TDD: 4 testes)
-- [x] Email module — sendMail, orderConfirmation, statusChange, welcome, passwordReset (TDD: 4 testes)
+- [x] Email module — React Email templates + BullMQ fila assíncrona (TDD: 38 testes)
 - [x] Minha Conta: Users/Addresses/Orders — implementados nas fases anteriores
 
 ### Fase 5 — Admin ✅
@@ -392,18 +392,40 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [x] /produtos: layout com sidebar + grid filtrado
 - [x] Total: 36 test suites, 241 testes, 38 rotas frontend
 
-### Integrações Externas (quando Rafael tiver os tokens)
-- [ ] Mercado Pago — ACCESS_TOKEN + WEBHOOK_SECRET → atualizar .env no servidor
-- [ ] Melhor Envio — token API → simulação de frete real no checkout
-- [ ] SMTP — verificar se Postfix do servidor envia, configurar SMTP_USER/SMTP_PASS
+### Email Templates + Fila Assíncrona ✅ (03/04/2026)
+- [x] React Email: 5 templates profissionais (welcome, order-confirmation, status-change, password-reset, review-reward)
+- [x] Layout compartilhado com branding ElitePinup3D (header dourado, footer)
+- [x] EmailQueueService: fila BullMQ com retry (3 tentativas, backoff exponencial), concorrência 5
+- [x] Worker BullMQ: processa jobs assincronamente (completed/failed logging)
+- [x] AuthService atualizado para usar fila (enqueuePasswordReset em vez de chamada direta)
+- [x] TDD: 20 testes templates + 7 testes EmailService + 11 testes EmailQueueService = 38 testes email
+- [x] Jest config: --experimental-vm-modules (React Email render), moduleNameMapper para slug ESM
 
-### Melhorias Futuras (pós-launch)
+### Sistema de Email Templates Editáveis ✅ (03/04/2026)
+- [x] Prisma model: EmailTemplate (type unique, subject, htmlBody, availableTags JSON, isActive)
+- [x] EmailTemplateService: findAll, findByType, update, renderTemplate com sistema de tags {{tag}} (TDD: 9 testes)
+- [x] Segurança: escape HTML nos valores das tags (previne XSS), tags HTML confiáveis (itens_pedido, rastreio_secao) não escapadas
+- [x] EmailService integrado: busca template do DB → renderiza tags → envia. Fallback para React Email se template não existir
+- [x] EmailTemplateController: GET /email-templates, GET /:id, PUT /:id — @Roles('ADMIN')
+- [x] Seed: 5 templates padrão com layout profissional e tags em português
+- [x] Frontend: /admin/emails — lista templates, editor HTML, preview iframe ao vivo, sidebar de tags com copy/insert
+- [x] Inserir imagens da galeria de mídia no corpo do email
+- [x] Tags disponíveis: {{nome_cliente}}, {{email_cliente}}, {{numero_pedido}}, {{itens_pedido}}, {{subtotal}}, {{frete}}, {{desconto}}, {{total}}, {{metodo_pagamento}}, {{status_label}}, {{status_descricao}}, {{rastreio_secao}}, {{codigo_rastreio}}, {{url_redefinicao}}, {{nome_produto}}, {{codigo_cupom}}, {{percentual_desconto}}, {{url_loja}}
+- [x] Total: 39 test suites, 285 testes passando, TypeScript OK, frontend build OK, 39 rotas
+
+### Integrações Externas
+- [x] Melhor Envio — token JWT configurado em /opt/elitepinup/.env
+- [x] SMTP — mail.cyberpersons.com:587, testado e funcionando (email enviado com sucesso)
+- [ ] Mercado Pago — ACCESS_TOKEN + WEBHOOK_SECRET (adiado por decisão do Rafael)
+
+### Pendências Restantes
+- [ ] Push schema Sprint 1-4 para prod (prisma db push no servidor — tabelas Attribute, MediaFile, Review etc.)
+- [ ] Deploy dos email templates + BullMQ para produção
 - [ ] Cache Redis por rota (CacheInterceptor)
 - [ ] Testes de carga (k6/Artillery)
 - [ ] Test infrastructure (helpers, fixtures, E2E com supertest)
-- [ ] Email templates (React Email, hoje usa HTML inline)
-- [ ] BullMQ email processor (fila assíncrona, hoje síncrono)
 - [ ] Cloudflare Origin Certificate (15 anos, substituir Let's Encrypt)
+- [ ] Mercado Pago integration (adiado)
 
 ---
 
@@ -443,6 +465,10 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | 2026-04-03 | Pipeline de imagens local (Sharp) | Converter para WebP + 4 tamanhos (thumb 150px, card 400px, gallery 800px, full 1600px). Processamento local no servidor (32GB RAM). Não usar serviços externos |
 | 2026-04-03 | Galeria de mídia centralizada (MediaFile) | Imagens são entidades independentes com SEO (alt, title, description). Reutilizáveis em produtos, blog, variações. Uma imagem pode estar em vários produtos |
 | 2026-04-03 | 4 variantes de tamanho por imagem | thumb (150px, q75), card (400px, q80), gallery (800px, q85), full (1600px, q90). Não amplia se original menor. Tudo WebP |
+| 2026-04-02 | React Email para templates | Templates como componentes React renderizados no servidor. Mais manuteníveis que HTML inline. 5 templates: welcome, order-confirmation, status-change, password-reset, review-reward |
+| 2026-04-02 | BullMQ para fila de emails | Emails enviados assincronamente via fila Redis. 3 tentativas com backoff exponencial. Worker com concorrência 5. Evita timeout em requests |
+| 2026-04-02 | Jest --experimental-vm-modules | React Email render v2 usa dynamic import que requer essa flag. slug ESM resolvido com moduleNameMapper para mock CJS |
+| 2026-04-03 | Email templates editáveis no admin | Templates HTML no banco (EmailTemplate model) com sistema de tags {{tag}}. Admin edita subject + body + preview. React Email como fallback se template não existir no DB. Imagens da galeria inseríveis no corpo |
 
 ---
 

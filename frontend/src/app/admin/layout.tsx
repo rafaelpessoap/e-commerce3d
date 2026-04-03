@@ -18,6 +18,7 @@ import {
   Settings,
   Layers,
   ImageIcon,
+  Mail,
   ArrowLeft,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -35,6 +36,7 @@ const NAV_ITEMS = [
   { href: '/admin/atributos', label: 'Atributos', icon: Layers },
   { href: '/admin/escalas', label: 'Escalas', icon: Ruler },
   { href: '/admin/frete', label: 'Frete', icon: Truck },
+  { href: '/admin/emails', label: 'Emails', icon: Mail },
   { href: '/admin/blog', label: 'Blog', icon: FileText },
   { href: '/admin/configuracoes', label: 'Config', icon: Settings },
 ];

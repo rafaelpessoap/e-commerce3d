@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
-import { EmailService } from '../email/email.service';
+import { EmailQueueService } from '../email/email-queue.service';
 import { RegisterDto } from './dto/register.dto';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
@@ -19,7 +19,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
-    private emailService: EmailService,
+    private emailQueueService: EmailQueueService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -156,8 +156,9 @@ export class AuthService {
 
     const resetUrl = `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000'}/reset-password?token=${token}`;
 
-    await this.emailService.sendPasswordReset({
+    await this.emailQueueService.enqueuePasswordReset({
       to: user.email,
+      name: user.name ?? 'Cliente',
       resetUrl,
     });
   }

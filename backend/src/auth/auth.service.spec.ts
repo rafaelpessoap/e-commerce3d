@@ -8,7 +8,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { EmailService } from '../email/email.service';
+import { EmailQueueService } from '../email/email-queue.service';
 
 jest.mock('bcrypt');
 
@@ -45,9 +45,9 @@ describe('AuthService', () => {
           },
         },
         {
-          provide: EmailService,
+          provide: EmailQueueService,
           useValue: {
-            sendPasswordReset: jest.fn().mockResolvedValue({}),
+            enqueuePasswordReset: jest.fn().mockResolvedValue({ id: 'job-1' }),
           },
         },
       ],
@@ -311,7 +311,7 @@ describe('AuthService', () => {
       });
       (prisma.user.update as jest.Mock).mockResolvedValue({});
 
-      const emailService = module.get<EmailService>(EmailService);
+      const emailQueueService = module.get<EmailQueueService>(EmailQueueService);
 
       await service.forgotPassword('test@example.com');
 
@@ -324,9 +324,10 @@ describe('AuthService', () => {
           }),
         }),
       );
-      expect(emailService.sendPasswordReset).toHaveBeenCalledWith(
+      expect(emailQueueService.enqueuePasswordReset).toHaveBeenCalledWith(
         expect.objectContaining({
           to: 'test@example.com',
+          name: 'Test',
           resetUrl: expect.stringContaining('reset-password'),
         }),
       );

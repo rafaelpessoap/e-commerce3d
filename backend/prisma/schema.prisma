@@ -668,3 +668,21 @@ model WishlistItem {
   @@unique([userId, productId])
   @@map("wishlist_items")
 }
+
+model EmailTemplate {
+  id   String @id @default(cuid())
+  type String @unique // welcome, order-confirmation, status-change, password-reset, review-reward
+
+  subject String // Assunto do email (suporta tags: {{nome_cliente}})
+  htmlBody String @db.Text // Corpo HTML com tags: {{nome_cliente}}, {{numero_pedido}}, etc.
+
+  // Tags disponíveis para este tipo (JSON array para referência no admin)
+  availableTags String @db.Text // JSON: ["nome_cliente", "numero_pedido", ...]
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("email_templates")
+}
