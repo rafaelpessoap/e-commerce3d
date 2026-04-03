@@ -27,9 +27,11 @@ export default function RegisterPage() {
       await api.post('/auth/register', { name, email, password });
       router.push(ROUTES.login + '?registered=1');
     } catch (err) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      if (Array.isArray(msg)) {
-        setError(msg.join('. '));
+      const resp = (err as { response?: { data?: { error?: { message?: string; details?: string[] }; message?: string } } })?.response?.data;
+      const details = resp?.error?.details;
+      const msg = resp?.error?.message ?? resp?.message;
+      if (Array.isArray(details)) {
+        setError(details.join('. '));
       } else {
         setError(msg ?? 'Erro ao criar conta');
       }

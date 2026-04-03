@@ -8,7 +8,9 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  const mainImage = product.images.find((img) => img.isMain) ?? product.images[0];
+  const images = product.images ?? [];
+  const variations = product.variations ?? [];
+  const mainImage = images.find((img) => img.isMain) ?? images[0];
 
   return (
     <Link
@@ -54,9 +56,9 @@ export function ProductCard({ product }: ProductCardProps) {
           {formatCurrency(product.basePrice)}
         </p>
 
-        {product.variations.length > 0 && (
+        {variations.length > 0 && (
           <p className="text-xs text-muted-foreground mt-1">
-            {product.variations.length} escala{product.variations.length > 1 ? 's' : ''}
+            {variations.length} escala{variations.length > 1 ? 's' : ''}
           </p>
         )}
       </div>

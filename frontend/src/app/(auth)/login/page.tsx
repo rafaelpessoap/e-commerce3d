@@ -29,7 +29,8 @@ export default function LoginPage() {
       login(data.data.user, data.data.accessToken, data.data.refreshToken);
       router.push(ROUTES.account);
     } catch (err) {
-      setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Email ou senha inválidos');
+      const resp = (err as { response?: { data?: { error?: { message?: string }; message?: string } } })?.response?.data;
+      setError(resp?.error?.message ?? resp?.message ?? 'Email ou senha inválidos');
     } finally {
       setLoading(false);
     }
