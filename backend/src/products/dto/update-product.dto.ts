@@ -107,6 +107,15 @@ export class UpdateProductDto {
   @IsString({ each: true })
   attributeValueIds?: string[];
 
+  // Imagens
+  @IsOptional()
+  @IsArray()
+  images?: Array<{
+    mediaFileId: string;
+    isMain: boolean;
+    order: number;
+  }>;
+
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;

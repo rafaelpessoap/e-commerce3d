@@ -120,10 +120,17 @@ export function ProductForm({ productId }: ProductFormProps) {
       setSelectedTagIds(existingProduct.tags?.map((t: { id: string }) => t.id) ?? []);
       setIsActive(existingProduct.isActive ?? true);
       setFeatured(existingProduct.featured ?? false);
-      // Images
+      // Images (with mediaFile relation)
       setProductImages(
-        existingProduct.images?.map((img: { id: string; url: string; altText?: string; isMain: boolean; order: number }) => ({
-          id: img.id, url: img.url, altText: img.altText, isMain: img.isMain, order: img.order,
+        existingProduct.images?.map((img: { id: string; mediaFileId: string; isMain: boolean; order: number; mediaFile?: { id: string; thumb: string; card: string; gallery: string; full: string; alt?: string } }) => ({
+          mediaFileId: img.mediaFileId,
+          thumb: img.mediaFile?.thumb ?? '',
+          card: img.mediaFile?.card ?? '',
+          gallery: img.mediaFile?.gallery ?? '',
+          full: img.mediaFile?.full ?? '',
+          alt: img.mediaFile?.alt ?? undefined,
+          isMain: img.isMain,
+          order: img.order,
         })) ?? [],
       );
       // Variations
@@ -201,6 +208,11 @@ export function ProductForm({ productId }: ProductFormProps) {
       brandId: brandId || undefined,
       tagIds: selectedTagIds,
       attributeValueIds,
+      images: productImages.map((img, i) => ({
+        mediaFileId: img.mediaFileId,
+        isMain: img.isMain,
+        order: i,
+      })),
       isActive,
       featured,
     };

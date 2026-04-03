@@ -20,9 +20,9 @@ export class ProductsService {
       throw new ConflictException('Product slug already exists');
     }
 
-    const { tagIds, attributeValueIds, ...productData } = dto;
+    const { tagIds, attributeValueIds, images, ...productData } = dto;
 
-    return this.prisma.product.create({
+    const product = await this.prisma.product.create({
       data: {
         ...productData,
         slug,
@@ -36,14 +36,26 @@ export class ProductsService {
             })),
           },
         }),
+        ...(images?.length && {
+          images: {
+            create: images.map((img) => ({
+              mediaFileId: img.mediaFileId,
+              isMain: img.isMain,
+              order: img.order,
+            })),
+          },
+        }),
       },
       include: {
         category: true,
         brand: true,
         tags: true,
+        images: { include: { mediaFile: true }, orderBy: { order: 'asc' } },
         attributes: { include: { attributeValue: { include: { attribute: true } } } },
       },
     });
+
+    return product;
   }
 
   async findById(id: string) {
@@ -53,7 +65,7 @@ export class ProductsService {
         category: true,
         brand: true,
         tags: true,
-        images: { orderBy: { order: 'asc' } },
+        images: { include: { mediaFile: true }, orderBy: { order: 'asc' } },
         variations: { include: { scale: true } },
         attributes: { include: { attributeValue: { include: { attribute: true } } } },
         relatedProducts: true,
@@ -71,7 +83,7 @@ export class ProductsService {
         category: true,
         brand: true,
         tags: true,
-        images: { orderBy: { order: 'asc' } },
+        images: { include: { mediaFile: true }, orderBy: { order: 'asc' } },
         variations: { include: { scale: true } },
         attributes: { include: { attributeValue: { include: { attribute: true } } } },
         relatedProducts: true,
@@ -122,7 +134,7 @@ export class ProductsService {
         include: {
           category: true,
           brand: true,
-          images: { where: { isMain: true }, take: 1 },
+          images: { include: { mediaFile: true }, where: { isMain: true }, take: 1 },
         },
         skip,
         take: perPage,
@@ -143,7 +155,7 @@ export class ProductsService {
   }
 
   async update(id: string, dto: UpdateProductDto) {
-    const { tagIds, attributeValueIds, ...updateData } = dto;
+    const { tagIds, attributeValueIds, images, ...updateData } = dto;
 
     // Se nome mudou e slug não foi enviado, auto-gera
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -172,6 +184,21 @@ export class ProductsService {
       }
     }
 
+    // Atualiza imagens (delete all, recreate)
+    if (images !== undefined) {
+      await this.prisma.productImage.deleteMany({ where: { productId: id } });
+      if (images.length > 0) {
+        await this.prisma.productImage.createMany({
+          data: images.map((img) => ({
+            productId: id,
+            mediaFileId: img.mediaFileId,
+            isMain: img.isMain,
+            order: img.order,
+          })),
+        });
+      }
+    }
+
     return this.prisma.product.update({
       where: { id },
       data,
@@ -179,6 +206,7 @@ export class ProductsService {
         category: true,
         brand: true,
         tags: true,
+        images: { include: { mediaFile: true }, orderBy: { order: 'asc' } },
         attributes: { include: { attributeValue: { include: { attribute: true } } } },
       },
     });
