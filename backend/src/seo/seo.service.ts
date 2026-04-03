@@ -80,7 +80,7 @@ export class SeoService {
     for (const p of products) {
       urls.push(
         `  <url>
-    <loc>${baseUrl}/produto/${p.slug}</loc>
+    <loc>${baseUrl}/p/${p.slug}</loc>
     <lastmod>${p.updatedAt.toISOString().split('T')[0]}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -92,7 +92,7 @@ export class SeoService {
     for (const c of categories) {
       urls.push(
         `  <url>
-    <loc>${baseUrl}/categoria/${c.slug}</loc>
+    <loc>${baseUrl}/c/${c.slug}</loc>
     <lastmod>${c.updatedAt.toISOString().split('T')[0]}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>

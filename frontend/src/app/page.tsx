@@ -50,7 +50,7 @@ export default function HomePage() {
             ].map((cat) => (
               <Link
                 key={cat.slug}
-                href={`/categoria/${cat.slug}`}
+                href={`/c/${cat.slug}`}
                 className="group flex flex-col items-center p-8 rounded-lg border bg-card hover:shadow-md transition-shadow text-center"
               >
                 <cat.icon className="h-10 w-10 text-primary mb-4 group-hover:scale-110 transition-transform" />

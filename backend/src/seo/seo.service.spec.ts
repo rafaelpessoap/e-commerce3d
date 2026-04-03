@@ -99,8 +99,8 @@ describe('SeoService', () => {
 
       expect(xml).toContain('<?xml version="1.0" encoding="UTF-8"?>');
       expect(xml).toContain('<urlset');
-      expect(xml).toContain('https://miniatures3d.com/produto/warrior');
-      expect(xml).toContain('https://miniatures3d.com/categoria/fantasy');
+      expect(xml).toContain('https://miniatures3d.com/p/warrior');
+      expect(xml).toContain('https://miniatures3d.com/c/fantasy');
       expect(xml).toContain('https://miniatures3d.com/blog/how-to-paint');
     });
 

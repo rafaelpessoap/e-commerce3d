@@ -27,10 +27,10 @@ export function Header() {
             <Link href={ROUTES.products} className="text-muted-foreground hover:text-foreground transition-colors">
               Produtos
             </Link>
-            <Link href="/categoria/fantasy" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link href="/c/fantasy" className="text-muted-foreground hover:text-foreground transition-colors">
               Categorias
             </Link>
-            <Link href="/marca/arsenal-craft" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link href="/m/arsenal-craft" className="text-muted-foreground hover:text-foreground transition-colors">
               Marcas
             </Link>
           </nav>
@@ -79,10 +79,10 @@ export function Header() {
             <Link href={ROUTES.products} className="text-muted-foreground hover:text-foreground" onClick={() => setMobileMenuOpen(false)}>
               Produtos
             </Link>
-            <Link href="/categoria/fantasy" className="text-muted-foreground hover:text-foreground" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/c/fantasy" className="text-muted-foreground hover:text-foreground" onClick={() => setMobileMenuOpen(false)}>
               Categorias
             </Link>
-            <Link href="/marca/arsenal-craft" className="text-muted-foreground hover:text-foreground" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/m/arsenal-craft" className="text-muted-foreground hover:text-foreground" onClick={() => setMobileMenuOpen(false)}>
               Marcas
             </Link>
           </nav>
