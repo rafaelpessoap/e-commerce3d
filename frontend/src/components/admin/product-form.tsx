@@ -1,14 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { Save, Plus } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Save, Plus, Package, Clock, Layers, GitBranch, CheckCircle, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { api } from '@/lib/api-client';
@@ -22,8 +21,17 @@ interface ProductFormProps {
   productId?: string; // undefined = create, string = edit
 }
 
+const DATA_TABS = [
+  { id: 'inventory', label: 'Inventário', icon: Package },
+  { id: 'delivery', label: 'Produção', icon: Clock },
+  { id: 'attributes', label: 'Atributos', icon: Layers },
+] as const;
+
+type DataTabId = (typeof DATA_TABS)[number]['id'] | 'variations';
+
 export function ProductForm({ productId }: ProductFormProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const isEdit = !!productId;
 
   // Form state
@@ -54,11 +62,16 @@ export function ProductForm({ productId }: ProductFormProps) {
   const [featured, setFeatured] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [createdProductId, setCreatedProductId] = useState<string | null>(null);
 
   // Inline create states
   const [newCatName, setNewCatName] = useState('');
   const [newBrandName, setNewBrandName] = useState('');
   const [newTagName, setNewTagName] = useState('');
+
+  // Data tabs
+  const [activeDataTab, setActiveDataTab] = useState<DataTabId>('inventory');
 
   // Load existing product for edit
   const { data: existingProduct } = useQuery({
@@ -161,6 +174,7 @@ export function ProductForm({ productId }: ProductFormProps) {
       const created = res.data.data ?? res.data;
       setCategoryId(created.id);
       setNewCatName('');
+      queryClient.invalidateQueries({ queryKey: ['admin', 'categories'] });
     },
   });
 
@@ -170,6 +184,7 @@ export function ProductForm({ productId }: ProductFormProps) {
       const created = res.data.data ?? res.data;
       setBrandId(created.id);
       setNewBrandName('');
+      queryClient.invalidateQueries({ queryKey: ['admin', 'brands'] });
     },
   });
 
@@ -179,11 +194,44 @@ export function ProductForm({ productId }: ProductFormProps) {
       const created = res.data.data ?? res.data;
       setSelectedTagIds((prev) => [...prev, created.id]);
       setNewTagName('');
+      queryClient.invalidateQueries({ queryKey: ['admin', 'tags'] });
     },
   });
 
+  const resetForm = useCallback(() => {
+    setName('');
+    setSlug('');
+    setSlugManual(false);
+    setDescription('');
+    setShortDescription('');
+    setType('simple');
+    setBasePrice('');
+    setSalePrice('');
+    setSku('');
+    setGtin('');
+    setManageStock(true);
+    setStock('0');
+    setWeight('');
+    setWidth('');
+    setHeight('');
+    setLength('');
+    setExtraDays('');
+    setProductImages([]);
+    setVariations([]);
+    setAttributeValueIds([]);
+    setCategoryId('');
+    setBrandId('');
+    setSelectedTagIds([]);
+    setIsActive(true);
+    setFeatured(false);
+    setSuccessMsg('');
+    setCreatedProductId(null);
+    setError('');
+  }, []);
+
   async function handleSubmit() {
     setError('');
+    setSuccessMsg('');
     setSaving(true);
 
     const body: Record<string, unknown> = {
@@ -220,10 +268,13 @@ export function ProductForm({ productId }: ProductFormProps) {
     try {
       if (isEdit) {
         await api.put(`/products/${productId}`, body);
+        setSuccessMsg('Produto salvo com sucesso!');
       } else {
-        await api.post('/products', body);
+        const res = await api.post('/products', body);
+        const created = res.data.data ?? res.data;
+        setCreatedProductId(created.id);
+        setSuccessMsg('Produto salvo com sucesso!');
       }
-      router.push('/admin/produtos');
     } catch (err) {
       const resp = (err as { response?: { data?: { error?: { message?: string; details?: string[] } } } })?.response?.data;
       setError(resp?.error?.details?.join('. ') ?? resp?.error?.message ?? 'Erro ao salvar');
@@ -232,44 +283,59 @@ export function ProductForm({ productId }: ProductFormProps) {
     }
   }
 
+  const allDataTabs: Array<{ id: DataTabId; label: string; icon: typeof Package }> = [
+    ...DATA_TABS,
+    ...(type === 'variable' ? [{ id: 'variations' as DataTabId, label: 'Variações', icon: GitBranch }] : []),
+  ];
+
   return (
-    <div className="max-w-4xl">
-      <div className="flex items-center justify-between mb-6">
+    <div className="text-base">
+      {/* Header */}
+      <div className="mb-6">
         <h1 className="text-3xl font-bold">
           {isEdit ? 'Editar Produto' : 'Novo Produto'}
         </h1>
-        <Button onClick={handleSubmit} disabled={saving || !name || !basePrice}>
-          <Save className="h-4 w-4 mr-2" />
-          {saving ? 'Salvando...' : 'Salvar'}
-        </Button>
       </div>
 
-      {error && <p className="text-sm text-destructive mb-4">{error}</p>}
+      {/* Error */}
+      {error && <p className="text-sm text-destructive mb-4 p-3 bg-destructive/10 rounded-md">{error}</p>}
 
-      <Tabs defaultValue="general">
-        <TabsList className="mb-6">
-          <TabsTrigger value="general">Geral</TabsTrigger>
-          <TabsTrigger value="images">Imagens</TabsTrigger>
-          <TabsTrigger value="categorization">Categorização</TabsTrigger>
-          <TabsTrigger value="inventory">Inventário</TabsTrigger>
-          <TabsTrigger value="attributes">Atributos</TabsTrigger>
-          {type === 'variable' && <TabsTrigger value="variations">Variações</TabsTrigger>}
-          <TabsTrigger value="delivery">Produção</TabsTrigger>
-          <TabsTrigger value="related">Relacionados</TabsTrigger>
-        </TabsList>
+      {/* Success */}
+      {successMsg && (
+        <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-md flex items-center gap-3">
+          <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0" />
+          <span className="text-sm text-green-700 dark:text-green-300 font-medium">{successMsg}</span>
+          {!isEdit && createdProductId && (
+            <div className="ml-auto flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={resetForm}>
+                <Plus className="h-3 w-3 mr-1" />Cadastrar novo
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => router.push('/admin/produtos')}>
+                <ExternalLink className="h-3 w-3 mr-1" />Ver na lista
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
-        {/* ─── Aba Geral ─── */}
-        <TabsContent value="general" className="space-y-6">
+      {/* 2-column layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-6">
+        {/* ═══════════ LEFT COLUMN ═══════════ */}
+        <div className="space-y-6 min-w-0">
+          {/* ── Nome + Slug ── */}
           <Card>
-            <CardHeader><CardTitle className="text-lg">Informações Básicas</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="pt-6 space-y-3">
               <div className="space-y-2">
-                <Label>Nome do Produto</Label>
-                <Input value={name} onChange={(e) => handleNameChange(e.target.value)} placeholder="Ex: Guerreira Élfica" />
+                <Label className="text-sm font-medium">Nome do Produto</Label>
+                <Input
+                  value={name}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  placeholder="Ex: Guerreira Elfica"
+                  className="text-lg h-12"
+                />
               </div>
-
-              <div className="space-y-2">
-                <Label>URL (slug)</Label>
+              <div className="space-y-1">
+                <Label className="text-sm font-medium">URL (slug)</Label>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground whitespace-nowrap">/p/</span>
                   <Input
@@ -279,90 +345,252 @@ export function ProductForm({ productId }: ProductFormProps) {
                   />
                 </div>
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="space-y-2">
-                <Label>Descrição Curta</Label>
-                <RichTextEditor
-                  value={shortDescription}
-                  onChange={setShortDescription}
-                  placeholder="Resumo do produto (sem imagens). Usada como meta description para SEO."
-                  simple
-                />
-              </div>
+          {/* ── Descrição Completa ── */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Descrição Completa</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <RichTextEditor
+                value={description}
+                onChange={setDescription}
+                placeholder="Descrição detalhada com formatação. Pode inserir imagens."
+              />
+            </CardContent>
+          </Card>
 
-              <div className="space-y-2">
-                <Label>Descrição Completa</Label>
-                <RichTextEditor
-                  value={description}
-                  onChange={setDescription}
-                  placeholder="Descrição detalhada com formatação. Pode inserir imagens."
-                />
+          {/* ── Dados do Produto (vertical tabs) ── */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Dados do Produto</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="flex border-t">
+                {/* Tab buttons (left side) */}
+                <div className="w-[180px] shrink-0 border-r bg-muted/30">
+                  {allDataTabs.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActiveTab = activeDataTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setActiveDataTab(tab.id)}
+                        className={`w-full flex items-center gap-2 px-4 py-3 text-sm font-medium text-left border-b transition-colors ${
+                          isActiveTab
+                            ? 'bg-background text-foreground border-l-2 border-l-primary'
+                            : 'text-muted-foreground hover:bg-muted/50 border-l-2 border-l-transparent'
+                        }`}
+                      >
+                        <Icon className="h-4 w-4 shrink-0" />
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Tab content (right side) — all panels rendered, toggle with display */}
+                <div className="flex-1 min-w-0">
+                  {/* Inventário */}
+                  <div className={activeDataTab === 'inventory' ? 'block' : 'hidden'}>
+                    <div className="p-6 space-y-6">
+                      <div>
+                        <h3 className="text-sm font-medium mb-3">Preço e Identificação</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Preço Base (R$)</Label>
+                            <Input type="number" step="0.01" min="0.01" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} placeholder="49.90" />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Preço Promocional (R$)</Label>
+                            <Input type="number" step="0.01" min="0.01" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} placeholder="39.90" />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 mt-4">
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">SKU</Label>
+                            <Input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="ELF-WAR-001" />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">GTIN / EAN</Label>
+                            <Input value={gtin} onChange={(e) => setGtin(e.target.value)} placeholder="7890123456789" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <hr />
+
+                      <div>
+                        <h3 className="text-sm font-medium mb-3">Estoque</h3>
+                        <div className="flex items-center gap-2 mb-3">
+                          <Switch checked={manageStock} onCheckedChange={setManageStock} />
+                          <Label className="text-sm font-medium">Gerenciar estoque</Label>
+                        </div>
+                        {manageStock && (
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Quantidade em estoque</Label>
+                            <Input type="number" min="0" value={stock} onChange={(e) => setStock(e.target.value)} className="max-w-[160px]" />
+                          </div>
+                        )}
+                      </div>
+
+                      <hr />
+
+                      <div>
+                        <h3 className="text-sm font-medium mb-3">Peso e Dimensões</h3>
+                        <div className="space-y-2 mb-4">
+                          <Label className="text-sm font-medium">Peso (kg)</Label>
+                          <Input type="number" step="0.01" min="0" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="0.10" className="max-w-[160px]" />
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Largura (cm)</Label>
+                            <Input type="number" step="0.1" min="0" value={width} onChange={(e) => setWidth(e.target.value)} placeholder="5.0" />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Altura (cm)</Label>
+                            <Input type="number" step="0.1" min="0" value={height} onChange={(e) => setHeight(e.target.value)} placeholder="8.0" />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Comprimento (cm)</Label>
+                            <Input type="number" step="0.1" min="0" value={length} onChange={(e) => setLength(e.target.value)} placeholder="3.0" />
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">Usado para calculo de frete.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Produção */}
+                  <div className={activeDataTab === 'delivery' ? 'block' : 'hidden'}>
+                    <div className="p-6 space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        Miniaturas impressas precisam de tempo para producao. Este prazo e somado ao prazo de entrega da transportadora.
+                        Prioridade: produto {'>'} tag {'>'} categoria.
+                      </p>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Dias necessarios para producao</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={extraDays}
+                          onChange={(e) => setExtraDays(e.target.value)}
+                          placeholder="Deixe vazio para usar padrao da tag/categoria"
+                          className="max-w-[200px]"
+                        />
+                      </div>
+                      <div className="bg-muted/50 rounded-lg p-4 text-sm">
+                        <p className="font-medium mb-2">Como funciona:</p>
+                        <p>{extraDays ? `${extraDays} dias para producao` : 'Usando padrao da tag/categoria'} + prazo da transportadora (calculado pelo CEP do cliente)</p>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          O prazo de entrega total so e calculado no checkout, apos o cliente informar o CEP.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Atributos */}
+                  <div className={activeDataTab === 'attributes' ? 'block' : 'hidden'}>
+                    <div className="p-6 space-y-4">
+                      <p className="text-sm text-muted-foreground">Selecione os atributos que se aplicam a este produto. Usados para filtros na loja.</p>
+                      <AttributeSelector selectedValueIds={attributeValueIds} onChange={setAttributeValueIds} />
+                    </div>
+                  </div>
+
+                  {/* Variações */}
+                  <div className={activeDataTab === 'variations' && type === 'variable' ? 'block' : 'hidden'}>
+                    <div className="p-6 space-y-4">
+                      <p className="text-sm text-muted-foreground">Cada variacao tem sua propria escala, preco, SKU e estoque.</p>
+                      <VariationEditor variations={variations} onChange={setVariations} />
+                    </div>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
 
+          {/* ── Descrição Curta ── */}
           <Card>
-            <CardHeader><CardTitle className="text-lg">Preço e Identificação</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Preço Base (R$)</Label>
-                  <Input type="number" step="0.01" min="0.01" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} placeholder="49.90" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Preço Promocional (R$) <span className="text-muted-foreground">(opcional)</span></Label>
-                  <Input type="number" step="0.01" min="0.01" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} placeholder="39.90" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>SKU</Label>
-                  <Input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="ELF-WAR-001" />
-                </div>
-                <div className="space-y-2">
-                  <Label>GTIN / EAN</Label>
-                  <Input value={gtin} onChange={(e) => setGtin(e.target.value)} placeholder="7890123456789" />
-                </div>
-              </div>
+            <CardHeader>
+              <CardTitle className="text-lg">Descricao Curta</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <RichTextEditor
+                value={shortDescription}
+                onChange={setShortDescription}
+                placeholder="Resumo do produto (sem imagens). Usada como meta description para SEO."
+                simple
+              />
             </CardContent>
           </Card>
+        </div>
 
+        {/* ═══════════ RIGHT COLUMN (sticky sidebar) ═══════════ */}
+        <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
+          {/* ── Publicar ── */}
           <Card>
-            <CardHeader><CardTitle className="text-lg">Tipo e Status</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-lg">Publicar</CardTitle>
+            </CardHeader>
             <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Status</Label>
+                <div className="flex items-center gap-2">
+                  <Switch checked={isActive} onCheckedChange={setIsActive} />
+                  <span className="text-sm">{isActive ? 'Ativo' : 'Inativo'}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Destaque</Label>
+                <div className="flex items-center gap-2">
+                  <Switch checked={featured} onCheckedChange={setFeatured} />
+                  <span className="text-sm">{featured ? 'Sim' : 'Nao'}</span>
+                </div>
+              </div>
+
+              <hr />
+
               <div className="space-y-2">
-                <Label>Tipo do Produto</Label>
-                <div className="flex gap-4">
+                <Label className="text-sm font-medium">Tipo do Produto</Label>
+                <div className="flex gap-3">
                   {['simple', 'variable'].map((t) => (
-                    <label key={t} className={`flex items-center gap-2 border rounded-lg px-4 py-2 cursor-pointer ${type === t ? 'border-primary bg-primary/5' : ''}`}>
+                    <label key={t} className={`flex items-center gap-2 border rounded-lg px-3 py-2 cursor-pointer text-sm ${type === t ? 'border-primary bg-primary/5' : ''}`}>
                       <input type="radio" name="type" value={t} checked={type === t} onChange={() => setType(t)} className="accent-primary" />
-                      <span className="text-sm font-medium">{t === 'simple' ? 'Simples' : 'Variável'}</span>
+                      {t === 'simple' ? 'Simples' : 'Variavel'}
                     </label>
                   ))}
                 </div>
-                {type === 'variable' && <p className="text-xs text-muted-foreground">Configure as variações na aba Variações.</p>}
+                {type === 'variable' && <p className="text-xs text-muted-foreground">Configure as variacoes em Dados do Produto.</p>}
               </div>
 
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2">
-                  <Switch checked={isActive} onCheckedChange={setIsActive} />
-                  <Label>Ativo</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch checked={featured} onCheckedChange={setFeatured} />
-                  <Label>Destaque</Label>
-                </div>
-              </div>
+              <hr />
 
+              <Button onClick={handleSubmit} disabled={saving || !name || !basePrice} className="w-full">
+                <Save className="h-4 w-4 mr-2" />
+                {saving ? 'Salvando...' : 'Salvar'}
+              </Button>
             </CardContent>
           </Card>
-        </TabsContent>
 
-        {/* ─── Aba Categorização ─── */}
-        <TabsContent value="categorization" className="space-y-6">
+          {/* ── Imagem do Produto ── */}
           <Card>
-            <CardHeader><CardTitle className="text-lg">Categoria</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-lg">Imagens do Produto</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ImageUpload images={productImages} onChange={setProductImages} />
+            </CardContent>
+          </Card>
+
+          {/* ── Categorias ── */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Categoria</CardTitle>
+            </CardHeader>
             <CardContent className="space-y-3">
               <select
                 value={categoryId}
@@ -375,7 +603,7 @@ export function ProductForm({ productId }: ProductFormProps) {
                 ))}
               </select>
               <div className="flex gap-2">
-                <Input placeholder="Nova categoria" value={newCatName} onChange={(e) => setNewCatName(e.target.value)} className="max-w-xs" />
+                <Input placeholder="Nova categoria" value={newCatName} onChange={(e) => setNewCatName(e.target.value)} className="text-sm" />
                 <Button size="sm" variant="outline" disabled={!newCatName.trim()} onClick={() => createCat.mutate(newCatName)}>
                   <Plus className="h-3 w-3 mr-1" />Criar
                 </Button>
@@ -383,8 +611,11 @@ export function ProductForm({ productId }: ProductFormProps) {
             </CardContent>
           </Card>
 
+          {/* ── Marca ── */}
           <Card>
-            <CardHeader><CardTitle className="text-lg">Marca</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-lg">Marca</CardTitle>
+            </CardHeader>
             <CardContent className="space-y-3">
               <select
                 value={brandId}
@@ -397,7 +628,7 @@ export function ProductForm({ productId }: ProductFormProps) {
                 ))}
               </select>
               <div className="flex gap-2">
-                <Input placeholder="Nova marca" value={newBrandName} onChange={(e) => setNewBrandName(e.target.value)} className="max-w-xs" />
+                <Input placeholder="Nova marca" value={newBrandName} onChange={(e) => setNewBrandName(e.target.value)} className="text-sm" />
                 <Button size="sm" variant="outline" disabled={!newBrandName.trim()} onClick={() => createBrand.mutate(newBrandName)}>
                   <Plus className="h-3 w-3 mr-1" />Criar
                 </Button>
@@ -405,19 +636,24 @@ export function ProductForm({ productId }: ProductFormProps) {
             </CardContent>
           </Card>
 
+          {/* ── Tags ── */}
           <Card>
-            <CardHeader><CardTitle className="text-lg">Tags</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-lg">Tags</CardTitle>
+            </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex flex-wrap gap-2 mb-2">
-                {selectedTagIds.map((tagId) => {
-                  const tag = (tags as Array<{ id: string; name: string }>)?.find((t) => t.id === tagId);
-                  return tag ? (
-                    <Badge key={tagId} variant="secondary" className="gap-1 pr-1 cursor-pointer" onClick={() => setSelectedTagIds((prev) => prev.filter((id) => id !== tagId))}>
-                      {tag.name} ✕
-                    </Badge>
-                  ) : null;
-                })}
-              </div>
+              {selectedTagIds.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {selectedTagIds.map((tagId) => {
+                    const tag = (tags as Array<{ id: string; name: string }>)?.find((t) => t.id === tagId);
+                    return tag ? (
+                      <Badge key={tagId} variant="secondary" className="gap-1 pr-1 cursor-pointer" onClick={() => setSelectedTagIds((prev) => prev.filter((id) => id !== tagId))}>
+                        {tag.name} ✕
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
+              )}
               <select
                 value=""
                 onChange={(e) => {
@@ -433,152 +669,15 @@ export function ProductForm({ productId }: ProductFormProps) {
                 ))}
               </select>
               <div className="flex gap-2">
-                <Input placeholder="Nova tag" value={newTagName} onChange={(e) => setNewTagName(e.target.value)} className="max-w-xs" />
+                <Input placeholder="Nova tag" value={newTagName} onChange={(e) => setNewTagName(e.target.value)} className="text-sm" />
                 <Button size="sm" variant="outline" disabled={!newTagName.trim()} onClick={() => createTag.mutate(newTagName)}>
                   <Plus className="h-3 w-3 mr-1" />Criar
                 </Button>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        {/* ─── Aba Inventário ─── */}
-        <TabsContent value="inventory" className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-lg">Estoque</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Switch checked={manageStock} onCheckedChange={setManageStock} />
-                <Label>Gerenciar estoque</Label>
-              </div>
-
-              {manageStock && (
-                <div className="space-y-2">
-                  <Label>Quantidade em estoque</Label>
-                  <Input type="number" min="0" value={stock} onChange={(e) => setStock(e.target.value)} className="max-w-[160px]" />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle className="text-lg">Peso e Dimensões</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Peso (kg)</Label>
-                <Input type="number" step="0.01" min="0" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="0.10" className="max-w-[160px]" />
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Largura (cm)</Label>
-                  <Input type="number" step="0.1" min="0" value={width} onChange={(e) => setWidth(e.target.value)} placeholder="5.0" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Altura (cm)</Label>
-                  <Input type="number" step="0.1" min="0" value={height} onChange={(e) => setHeight(e.target.value)} placeholder="8.0" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Comprimento (cm)</Label>
-                  <Input type="number" step="0.1" min="0" value={length} onChange={(e) => setLength(e.target.value)} placeholder="3.0" />
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">Usado para cálculo de frete.</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ─── Aba Imagens ─── */}
-        <TabsContent value="images">
-          <Card>
-            <CardHeader><CardTitle className="text-lg">Imagens do Produto</CardTitle></CardHeader>
-            <CardContent>
-              <ImageUpload images={productImages} onChange={setProductImages} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ─── Aba Atributos ─── */}
-        <TabsContent value="attributes">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Atributos</CardTitle>
-              <p className="text-sm text-muted-foreground">Selecione os atributos que se aplicam a este produto. Usados para filtros na loja.</p>
-            </CardHeader>
-            <CardContent>
-              <AttributeSelector selectedValueIds={attributeValueIds} onChange={setAttributeValueIds} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ─── Aba Variações ─── */}
-        {type === 'variable' && (
-          <TabsContent value="variations">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Variações</CardTitle>
-                <p className="text-sm text-muted-foreground">Cada variação tem sua própria escala, preço, SKU e estoque.</p>
-              </CardHeader>
-              <CardContent>
-                <VariationEditor variations={variations} onChange={setVariations} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
-
-        {/* ─── Aba Produção ─── */}
-        <TabsContent value="delivery">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Dias para Produção</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Miniaturas impressas precisam de tempo para produção. Este prazo é somado ao prazo de entrega da transportadora.
-                Prioridade: produto {'>'} tag {'>'} categoria.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Dias necessários para produção</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={extraDays}
-                  onChange={(e) => setExtraDays(e.target.value)}
-                  placeholder="Deixe vazio para usar padrão da tag/categoria"
-                  className="max-w-[200px]"
-                />
-              </div>
-
-              <div className="bg-muted/50 rounded-lg p-4 text-sm">
-                <p className="font-medium mb-2">Como funciona:</p>
-                <p>{extraDays ? `${extraDays} dias para produção` : 'Usando padrão da tag/categoria'} + prazo da transportadora (calculado pelo CEP do cliente)</p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  O prazo de entrega total só é calculado no checkout, após o cliente informar o CEP.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ─── Aba Relacionados ─── */}
-        <TabsContent value="related">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Produtos Relacionados</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Produtos que aparecerão na seção &ldquo;Produtos Relacionados&rdquo; na página deste produto.
-                Pode adicionar produtos específicos ou regras dinâmicas por tag/categoria.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-xs text-muted-foreground border rounded p-3 bg-muted/30">
-                🚧 Editor de produtos relacionados será implementado na próxima iteração.
-                Por enquanto, produtos da mesma categoria aparecem automaticamente como relacionados.
-              </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
     </div>
   );
 }

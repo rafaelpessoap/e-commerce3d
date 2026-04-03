@@ -274,7 +274,7 @@ model ProductImage {
   productId   String
   product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
   mediaFileId String
-  mediaFile   MediaFile @relation(fields: [mediaFileId], references: [id])
+  mediaFile   MediaFile @relation(fields: [mediaFileId], references: [id], onDelete: Cascade)
 
   order  Int     @default(0)
   isMain Boolean @default(false)
