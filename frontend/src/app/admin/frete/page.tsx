@@ -3,7 +3,7 @@ import type { ApiRecord } from '@/types/api';
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Save, Truck } from 'lucide-react';
+import { Plus, Save, Truck, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,6 +28,23 @@ export default function AdminShippingPage() {
   const [zipEnd, setZipEnd] = useState('');
   const [minValue, setMinValue] = useState('');
   const [cepSaved, setCepSaved] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
+
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post('/shipping/methods/sync');
+      return data.data as { synced: number };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'shipping-methods'] });
+      setSyncMessage(`${result.synced} transportadoras sincronizadas`);
+      setTimeout(() => setSyncMessage(''), 4000);
+    },
+    onError: () => {
+      setSyncMessage('Erro ao sincronizar transportadoras');
+      setTimeout(() => setSyncMessage(''), 4000);
+    },
+  });
 
   // ─── CEP de origem ─────────────────────────────────────────
   const { data: settings } = useQuery({
@@ -146,9 +163,25 @@ export default function AdminShippingPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            Habilite os métodos que deseja oferecer. Edite o nome de exibição e dias adicionais por método.
-          </p>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-muted-foreground">
+              Habilite os métodos que deseja oferecer. Edite o nome de exibição e dias adicionais por método.
+            </p>
+            <div className="flex items-center gap-3">
+              {syncMessage && (
+                <span className="text-sm text-muted-foreground">{syncMessage}</span>
+              )}
+              <Button
+                onClick={() => syncMutation.mutate()}
+                disabled={syncMutation.isPending}
+                size="sm"
+                variant="outline"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+                {syncMutation.isPending ? 'Sincronizando...' : 'Sincronizar Transportadoras'}
+              </Button>
+            </div>
+          </div>
 
           {methodsLoading ? (
             <p className="text-muted-foreground">Carregando...</p>

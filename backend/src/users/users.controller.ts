@@ -1,12 +1,27 @@
-import { Controller, Get, Put, Body } from '@nestjs/common';
+import { Controller, Get, Put, Body, Query } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
 
 @Controller('api/v1/users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Roles('ADMIN')
+  @Get()
+  async findAll(
+    @Query('page') page = '1',
+    @Query('perPage') perPage = '20',
+    @Query('search') search?: string,
+  ) {
+    return await this.usersService.findAll({
+      page: parseInt(page, 10),
+      perPage: parseInt(perPage, 10),
+      search,
+    });
+  }
 
   @Get('me')
   async getProfile(@CurrentUser() user: { id: string }) {

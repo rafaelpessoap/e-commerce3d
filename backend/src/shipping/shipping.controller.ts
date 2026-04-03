@@ -140,6 +140,13 @@ export class ShippingController {
     return { data: result };
   }
 
+  @Roles('ADMIN')
+  @Post('methods/sync')
+  async syncMethods() {
+    const result = await this.melhorEnvioService.syncServicesFromApi();
+    return { data: result };
+  }
+
   // ─── Admin: Regras de frete grátis ──────────────────────────
 
   @Roles('ADMIN')
@@ -175,24 +182,38 @@ export class ShippingController {
   @Roles('ADMIN')
   @Get('settings')
   async getSettings() {
-    const cep = await this.prisma.setting
-      .findUnique({ where: { key: 'shop_cep' } })
-      .catch(() => null);
-    return {
-      data: {
-        shopCep: cep?.value ?? '',
-      },
-    };
+    const settings = await this.prisma.setting.findMany();
+    const result: Record<string, string> = {};
+    for (const s of settings) {
+      result[s.key] = s.value;
+      // Backward compat: expose shop_cep also as shopCep
+      if (s.key === 'shop_cep') {
+        result['shopCep'] = s.value;
+      }
+    }
+    return { data: result };
   }
 
   @Roles('ADMIN')
   @Put('settings')
-  async updateSettings(@Body() dto: { shopCep: string }) {
-    await this.prisma.setting.upsert({
-      where: { key: 'shop_cep' },
-      create: { key: 'shop_cep', value: dto.shopCep.replace(/\D/g, '') },
-      update: { value: dto.shopCep.replace(/\D/g, '') },
-    });
-    return { data: { shopCep: dto.shopCep.replace(/\D/g, '') } };
+  async updateSettings(@Body() dto: Record<string, string>) {
+    const result: Record<string, string> = {};
+
+    for (const [key, rawValue] of Object.entries(dto)) {
+      if (typeof rawValue !== 'string') continue;
+
+      // Map camelCase shopCep to snake_case shop_cep for backward compat
+      const dbKey = key === 'shopCep' ? 'shop_cep' : key;
+      const value = dbKey === 'shop_cep' ? rawValue.replace(/\D/g, '') : rawValue;
+
+      await this.prisma.setting.upsert({
+        where: { key: dbKey },
+        create: { key: dbKey, value },
+        update: { value },
+      });
+      result[key] = value;
+    }
+
+    return { data: result };
   }
 }

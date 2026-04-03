@@ -19,10 +19,12 @@ export default function AdminTagsPage() {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [color, setColor] = useState('');
+  const [extraDays, setExtraDays] = useState('');
   const [error, setError] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState('');
+  const [editExtraDays, setEditExtraDays] = useState('');
 
   const { data: tags, isLoading } = useQuery({
     queryKey: ['admin', 'tags'],
@@ -30,16 +32,20 @@ export default function AdminTagsPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: () => api.post('/tags', { name, color: color || undefined }),
-    onSuccess: () => { setError(''); queryClient.invalidateQueries({ queryKey: ['admin', 'tags'] }); setName(''); setColor(''); },
+    mutationFn: () => api.post('/tags', {
+      name,
+      color: color || undefined,
+      extraDays: extraDays ? parseInt(extraDays, 10) : undefined,
+    }),
+    onSuccess: () => { setError(''); queryClient.refetchQueries({ queryKey: ['admin', 'tags'] }); setName(''); setColor(''); setExtraDays(''); },
     onError: (err) => { setError(extractError(err)); },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: { name: string; color?: string } }) =>
+    mutationFn: ({ id, body }: { id: string; body: { name: string; color?: string; extraDays?: number } }) =>
       api.put(`/tags/${id}`, body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'tags'] });
+      queryClient.refetchQueries({ queryKey: ['admin', 'tags'] });
       setEditingId(null);
       setError('');
     },
@@ -49,7 +55,7 @@ export default function AdminTagsPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/tags/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'tags'] });
+      queryClient.refetchQueries({ queryKey: ['admin', 'tags'] });
       setError('');
     },
     onError: (err) => { setError(extractError(err)); },
@@ -59,11 +65,19 @@ export default function AdminTagsPage() {
     setEditingId(t.id as string);
     setEditName(t.name as string);
     setEditColor((t.color as string) ?? '');
+    setEditExtraDays(t.extraDays != null ? String(t.extraDays) : '');
   }
 
   function handleUpdate() {
     if (editingId && editName.trim()) {
-      updateMutation.mutate({ id: editingId, body: { name: editName, color: editColor || undefined } });
+      updateMutation.mutate({
+        id: editingId,
+        body: {
+          name: editName,
+          color: editColor || undefined,
+          extraDays: editExtraDays ? parseInt(editExtraDays, 10) : undefined,
+        },
+      });
     }
   }
 
@@ -81,9 +95,17 @@ export default function AdminTagsPage() {
           {error}
         </div>
       )}
-      <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) createMutation.mutate(); }} className="flex gap-2 mb-6 max-w-md">
+      <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) createMutation.mutate(); }} className="flex gap-2 mb-6 max-w-lg">
         <Input placeholder="Nova tag" value={name} onChange={(e) => setName(e.target.value)} />
         <Input placeholder="#cor" value={color} onChange={(e) => setColor(e.target.value)} className="w-28" />
+        <Input
+          type="number"
+          placeholder="Dias prod."
+          value={extraDays}
+          onChange={(e) => setExtraDays(e.target.value)}
+          className="w-28"
+          min={0}
+        />
         <Button type="submit" disabled={createMutation.isPending}><Plus className="h-4 w-4 mr-2" />Criar</Button>
       </form>
       {isLoading ? <p className="text-muted-foreground">Carregando...</p> : (
@@ -94,7 +116,8 @@ export default function AdminTagsPage() {
                 <TableHead>Nome</TableHead>
                 <TableHead>Slug</TableHead>
                 <TableHead>Cor</TableHead>
-                <TableHead className="w-24">Ações</TableHead>
+                <TableHead>Dias Producao</TableHead>
+                <TableHead className="w-24">Acoes</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -119,6 +142,14 @@ export default function AdminTagsPage() {
                           placeholder="#cor"
                           className="h-8 w-28"
                         />
+                        <Input
+                          type="number"
+                          value={editExtraDays}
+                          onChange={(e) => setEditExtraDays(e.target.value)}
+                          placeholder="Dias"
+                          className="h-8 w-20"
+                          min={0}
+                        />
                         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleUpdate} disabled={updateMutation.isPending}>
                           <Check className="h-4 w-4" />
                         </Button>
@@ -138,6 +169,7 @@ export default function AdminTagsPage() {
                   </TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">{t.slug}</TableCell>
                   <TableCell>{t.color ? <span className="inline-block w-4 h-4 rounded" style={{ backgroundColor: t.color as string }} /> : '-'}</TableCell>
+                  <TableCell>{t.extraDays != null ? String(t.extraDays) : '-'}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => startEditing(t)}>

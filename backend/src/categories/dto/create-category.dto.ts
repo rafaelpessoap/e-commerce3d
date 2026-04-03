@@ -2,7 +2,8 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUUID,
+  IsInt,
+  Min,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -20,10 +21,15 @@ export class CreateCategoryDto {
   description?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   parentId?: string;
 
   @IsOptional()
   @IsString()
   image?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  extraDays?: number;
 }

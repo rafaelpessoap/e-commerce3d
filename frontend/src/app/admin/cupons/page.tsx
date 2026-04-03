@@ -1,9 +1,9 @@
 'use client';
 import type { ApiRecord } from '@/types/api';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -50,6 +50,10 @@ interface CouponForm {
   validUntil: string;
   isFirstPurchaseOnly: boolean;
   isActive: boolean;
+  categoryId: string;
+  tagId: string;
+  userId: string;
+  userDisplay: string;
 }
 
 const emptyForm: CouponForm = {
@@ -63,6 +67,10 @@ const emptyForm: CouponForm = {
   validUntil: '',
   isFirstPurchaseOnly: false,
   isActive: true,
+  categoryId: '',
+  tagId: '',
+  userId: '',
+  userDisplay: '',
 };
 
 function formToPayload(form: CouponForm) {
@@ -77,6 +85,9 @@ function formToPayload(form: CouponForm) {
     validUntil: form.validUntil ? new Date(form.validUntil).toISOString() : undefined,
     isFirstPurchaseOnly: form.isFirstPurchaseOnly,
     isActive: form.isActive,
+    categoryId: form.categoryId || undefined,
+    tagId: form.tagId || undefined,
+    userId: form.userId || undefined,
   };
 }
 
@@ -91,6 +102,161 @@ function formatDateForInput(dateStr?: string): string {
   return new Date(dateStr).toISOString().slice(0, 16);
 }
 
+// ─── User Search Component ────────────────────────────────────
+
+function UserSearch({
+  selectedUserId,
+  selectedUserDisplay,
+  onSelect,
+}: {
+  selectedUserId: string;
+  selectedUserDisplay: string;
+  onSelect: (userId: string, display: string) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [showResults, setShowResults] = useState(false);
+
+  const { data: users } = useQuery({
+    queryKey: ['admin', 'users-search', search],
+    queryFn: async () => {
+      if (!search || search.length < 3) return [];
+      const { data } = await api.get(`/users?search=${encodeURIComponent(search)}&perPage=5`);
+      return (data.data ?? data) as ApiRecord[];
+    },
+    enabled: search.length >= 3,
+  });
+
+  const handleSelect = useCallback(
+    (user: ApiRecord) => {
+      onSelect(user.id as string, `${user.name} (${user.email})`);
+      setSearch('');
+      setShowResults(false);
+    },
+    [onSelect],
+  );
+
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">Cliente Exclusivo</Label>
+      {selectedUserId ? (
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="text-xs py-1">
+            {selectedUserDisplay}
+          </Badge>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={() => onSelect('', '')}
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
+      ) : (
+        <div className="relative">
+          <div className="relative">
+            <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por email..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setShowResults(true);
+              }}
+              onFocus={() => setShowResults(true)}
+              onBlur={() => setTimeout(() => setShowResults(false), 200)}
+              className="pl-8 h-9"
+            />
+          </div>
+          {showResults && users && users.length > 0 && (
+            <div className="absolute z-50 mt-1 w-full bg-popover border rounded-md shadow-md max-h-40 overflow-y-auto">
+              {users.map((user: ApiRecord) => (
+                <button
+                  key={user.id}
+                  type="button"
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-accent cursor-pointer"
+                  onMouseDown={() => handleSelect(user)}
+                >
+                  <span className="font-medium">{user.name}</span>
+                  <span className="text-muted-foreground ml-2">{user.email}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Restriction Fields (shared between create form and edit dialog) ──
+
+function RestrictionFields({
+  form,
+  updateField,
+  categories,
+  tags,
+}: {
+  form: CouponForm;
+  updateField: <K extends keyof CouponForm>(key: K, value: CouponForm[K]) => void;
+  categories: ApiRecord[];
+  tags: ApiRecord[];
+}) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="space-y-1">
+        <Label className="text-xs">Restringir por Categoria</Label>
+        <Select
+          value={form.categoryId || '_none'}
+          onValueChange={(v) => updateField('categoryId', !v || v === '_none' ? '' : v)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Todas" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_none">Todas as categorias</SelectItem>
+            {categories.map((cat) => (
+              <SelectItem key={cat.id} value={cat.id as string}>
+                {cat.name as string}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">Restringir por Tag</Label>
+        <Select
+          value={form.tagId || '_none'}
+          onValueChange={(v) => updateField('tagId', !v || v === '_none' ? '' : v)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Todas" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_none">Todas as tags</SelectItem>
+            {tags.map((tag) => (
+              <SelectItem key={tag.id} value={tag.id as string}>
+                {tag.name as string}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <UserSearch
+        selectedUserId={form.userId}
+        selectedUserDisplay={form.userDisplay}
+        onSelect={(userId, display) => {
+          updateField('userId', userId);
+          updateField('userDisplay', display);
+        }}
+      />
+    </div>
+  );
+}
+
+// ─── Main Page ─────────────────────────────────────────────────
+
 export default function AdminCouponsPage() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<CouponForm>({ ...emptyForm });
@@ -103,6 +269,22 @@ export default function AdminCouponsPage() {
     queryFn: async () => {
       const { data } = await api.get('/coupons');
       return data.data ?? data;
+    },
+  });
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ['admin', 'categories-list'],
+    queryFn: async () => {
+      const { data } = await api.get('/categories');
+      return (data.data ?? data) as ApiRecord[];
+    },
+  });
+
+  const { data: tags = [] } = useQuery({
+    queryKey: ['admin', 'tags-list'],
+    queryFn: async () => {
+      const { data } = await api.get('/tags');
+      return (data.data ?? data) as ApiRecord[];
     },
   });
 
@@ -155,6 +337,12 @@ export default function AdminCouponsPage() {
       validUntil: formatDateForInput(coupon.validUntil as string),
       isFirstPurchaseOnly: !!coupon.isFirstPurchaseOnly,
       isActive: coupon.isActive !== false,
+      categoryId: (coupon.categoryId as string) ?? '',
+      tagId: (coupon.tagId as string) ?? '',
+      userId: (coupon.userId as string) ?? '',
+      userDisplay: coupon.user
+        ? `${(coupon.user as ApiRecord).name} (${(coupon.user as ApiRecord).email})`
+        : '',
     });
     setError('');
     setDialogOpen(true);
@@ -279,6 +467,15 @@ export default function AdminCouponsPage() {
             />
           </div>
         </div>
+
+        {/* Restriction fields */}
+        <RestrictionFields
+          form={form}
+          updateField={updateField}
+          categories={categories}
+          tags={tags}
+        />
+
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <Switch
@@ -308,6 +505,7 @@ export default function AdminCouponsPage() {
                 <TableHead>Pedido min.</TableHead>
                 <TableHead>Usos</TableHead>
                 <TableHead>Validade</TableHead>
+                <TableHead>Restricoes</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-24">Acoes</TableHead>
               </TableRow>
@@ -315,7 +513,7 @@ export default function AdminCouponsPage() {
             <TableBody>
               {coupons?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                     Nenhum cupom cadastrado.
                   </TableCell>
                 </TableRow>
@@ -344,6 +542,25 @@ export default function AdminCouponsPage() {
                     {coupon.validUntil
                       ? new Date(coupon.validUntil as string).toLocaleDateString('pt-BR')
                       : 'Sem prazo'}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {coupon.category && (
+                        <Badge variant="outline" className="text-xs">
+                          Cat: {(coupon.category as ApiRecord).name}
+                        </Badge>
+                      )}
+                      {coupon.tag && (
+                        <Badge variant="outline" className="text-xs">
+                          Tag: {(coupon.tag as ApiRecord).name}
+                        </Badge>
+                      )}
+                      {coupon.user && (
+                        <Badge variant="outline" className="text-xs">
+                          {(coupon.user as ApiRecord).email}
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Badge variant={coupon.isActive ? 'default' : 'secondary'}>
@@ -378,7 +595,7 @@ export default function AdminCouponsPage() {
 
       {/* Edit dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Editar Cupom</DialogTitle>
           </DialogHeader>
@@ -474,6 +691,14 @@ export default function AdminCouponsPage() {
                 />
               </div>
             </div>
+
+            {/* Restriction fields in edit dialog */}
+            <RestrictionFields
+              form={form}
+              updateField={updateField}
+              categories={categories}
+              tags={tags}
+            />
 
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">

@@ -25,9 +25,11 @@ function extractError(err: unknown): string {
 export default function AdminCategoriesPage() {
   const queryClient = useQueryClient();
   const [newName, setNewName] = useState('');
+  const [newExtraDays, setNewExtraDays] = useState('');
   const [error, setError] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const [editExtraDays, setEditExtraDays] = useState('');
 
   const { data: categories, isLoading } = useQuery({
     queryKey: ['admin', 'categories'],
@@ -38,10 +40,11 @@ export default function AdminCategoriesPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (name: string) => api.post('/categories', { name }),
+    mutationFn: (body: { name: string; extraDays?: number }) => api.post('/categories', body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'categories'] });
+      queryClient.refetchQueries({ queryKey: ['admin', 'categories'] });
       setNewName('');
+      setNewExtraDays('');
       setError('');
     },
     onError: (err) => {
@@ -50,10 +53,10 @@ export default function AdminCategoriesPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) =>
-      api.put(`/categories/${id}`, { name }),
+    mutationFn: ({ id, body }: { id: string; body: { name: string; extraDays?: number } }) =>
+      api.put(`/categories/${id}`, body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'categories'] });
+      queryClient.refetchQueries({ queryKey: ['admin', 'categories'] });
       setEditingId(null);
       setError('');
     },
@@ -65,7 +68,7 @@ export default function AdminCategoriesPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/categories/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'categories'] });
+      queryClient.refetchQueries({ queryKey: ['admin', 'categories'] });
       setError('');
     },
     onError: (err) => {
@@ -75,17 +78,29 @@ export default function AdminCategoriesPage() {
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (newName.trim()) createMutation.mutate(newName);
+    if (newName.trim()) {
+      createMutation.mutate({
+        name: newName,
+        extraDays: newExtraDays ? parseInt(newExtraDays, 10) : undefined,
+      });
+    }
   }
 
   function startEditing(cat: ApiRecord) {
     setEditingId(cat.id as string);
     setEditName(cat.name as string);
+    setEditExtraDays(cat.extraDays != null ? String(cat.extraDays) : '');
   }
 
   function handleUpdate() {
     if (editingId && editName.trim()) {
-      updateMutation.mutate({ id: editingId, name: editName });
+      updateMutation.mutate({
+        id: editingId,
+        body: {
+          name: editName,
+          extraDays: editExtraDays ? parseInt(editExtraDays, 10) : undefined,
+        },
+      });
     }
   }
 
@@ -99,11 +114,19 @@ export default function AdminCategoriesPage() {
     <div>
       <h1 className="text-3xl font-bold mb-6">Categorias</h1>
 
-      <form onSubmit={handleCreate} className="flex gap-2 mb-4 max-w-md">
+      <form onSubmit={handleCreate} className="flex gap-2 mb-4 max-w-lg">
         <Input
           placeholder="Nova categoria"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
+        />
+        <Input
+          type="number"
+          placeholder="Dias prod."
+          value={newExtraDays}
+          onChange={(e) => setNewExtraDays(e.target.value)}
+          className="w-28"
+          min={0}
         />
         <Button type="submit" disabled={createMutation.isPending}>
           <Plus className="h-4 w-4 mr-2" />
@@ -127,7 +150,8 @@ export default function AdminCategoriesPage() {
                 <TableHead>Nome</TableHead>
                 <TableHead>Slug</TableHead>
                 <TableHead>Produtos</TableHead>
-                <TableHead className="w-24">Ações</TableHead>
+                <TableHead>Dias Producao</TableHead>
+                <TableHead className="w-24">Acoes</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -145,6 +169,14 @@ export default function AdminCategoriesPage() {
                             if (e.key === 'Escape') setEditingId(null);
                           }}
                           autoFocus
+                        />
+                        <Input
+                          type="number"
+                          value={editExtraDays}
+                          onChange={(e) => setEditExtraDays(e.target.value)}
+                          placeholder="Dias"
+                          className="h-8 w-20"
+                          min={0}
                         />
                         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleUpdate} disabled={updateMutation.isPending}>
                           <Check className="h-4 w-4" />
@@ -167,6 +199,7 @@ export default function AdminCategoriesPage() {
                     {cat.slug}
                   </TableCell>
                   <TableCell>{cat._count?.products ?? 0}</TableCell>
+                  <TableCell>{cat.extraDays != null ? String(cat.extraDays) : '-'}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => startEditing(cat)}>

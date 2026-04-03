@@ -19,6 +19,9 @@ export class CouponsService {
     validFrom?: Date;
     validUntil?: Date;
     isFirstPurchaseOnly?: boolean;
+    categoryId?: string;
+    tagId?: string;
+    userId?: string;
   }) {
     return this.prisma.coupon.create({
       data: {
@@ -31,13 +34,21 @@ export class CouponsService {
         validFrom: dto.validFrom,
         validUntil: dto.validUntil,
         isFirstPurchaseOnly: dto.isFirstPurchaseOnly ?? false,
+        categoryId: dto.categoryId,
+        tagId: dto.tagId,
+        userId: dto.userId,
       },
     });
   }
 
   async findAll() {
     return this.prisma.coupon.findMany({
-      include: { _count: { select: { usages: true } } },
+      include: {
+        _count: { select: { usages: true } },
+        category: { select: { id: true, name: true } },
+        tag: { select: { id: true, name: true } },
+        user: { select: { id: true, name: true, email: true } },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -46,7 +57,7 @@ export class CouponsService {
     code: string;
     cartValue: number;
     userId?: string;
-  }): Promise<{ discount: number; type: string; couponId: string }> {
+  }): Promise<{ discount: number; type: string; couponId: string; categoryId?: string | null; tagId?: string | null }> {
     const coupon = await this.prisma.coupon.findUnique({
       where: { code: params.code.toUpperCase() },
       include: { _count: { select: { usages: true } } },
@@ -89,6 +100,11 @@ export class CouponsService {
       }
     }
 
+    // Cupom exclusivo para um cliente
+    if (coupon.userId && coupon.userId !== params.userId) {
+      throw new BadRequestException('This coupon is not available for your account');
+    }
+
     if (params.userId && coupon.isFirstPurchaseOnly) {
       const orderCount = await this.prisma.order.count({
         where: { userId: params.userId },
@@ -111,17 +127,27 @@ export class CouponsService {
       discount,
       type: coupon.type,
       couponId: coupon.id,
+      categoryId: coupon.categoryId,
+      tagId: coupon.tagId,
     };
   }
 
   async update(
     id: string,
     dto: {
+      code?: string;
+      type?: 'PERCENTAGE' | 'FIXED' | 'FREE_SHIPPING';
       value?: number;
-      minOrderValue?: number;
-      maxUses?: number;
+      minOrderValue?: number | null;
+      maxUses?: number | null;
+      usesPerUser?: number | null;
+      validFrom?: Date | null;
+      validUntil?: Date | null;
+      isFirstPurchaseOnly?: boolean;
       isActive?: boolean;
-      validUntil?: Date;
+      categoryId?: string | null;
+      tagId?: string | null;
+      userId?: string | null;
     },
   ) {
     return this.prisma.coupon.update({ where: { id }, data: dto });

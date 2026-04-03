@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShippingCalculator, type ShippingQuote } from '@/components/shared/shipping-calculator';
 import { api } from '@/lib/api-client';
 import { useCartStore } from '@/store/cart-store';
+import { useAuthStore } from '@/store/auth-store';
 import { formatCurrency } from '@/lib/constants';
 
 const PAYMENT_METHODS = [
@@ -22,9 +23,23 @@ const PAYMENT_METHODS = [
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, subtotal, clear } = useCartStore();
+  const { user } = useAuthStore();
   const [paymentMethod, setPaymentMethod] = useState('pix');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Personal data
+  const [fullName, setFullName] = useState('');
+  const [cpf, setCpf] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+
+  useEffect(() => {
+    if (user) {
+      if (user.name) setFullName(user.name);
+      if (user.email) setEmail(user.email);
+    }
+  }, [user]);
 
   // Shipping
   const [selectedShipping, setSelectedShipping] = useState<ShippingQuote | null>(null);
@@ -77,6 +92,18 @@ export default function CheckoutPage() {
   }
 
   async function handlePlaceOrder() {
+    if (!fullName.trim()) {
+      setError('Preencha o nome completo.');
+      return;
+    }
+    if (!cpf.replace(/\D/g, '') || cpf.replace(/\D/g, '').length !== 11) {
+      setError('Preencha um CPF válido (11 dígitos).');
+      return;
+    }
+    if (!phone.replace(/\D/g, '') || phone.replace(/\D/g, '').length < 10) {
+      setError('Preencha um telefone válido.');
+      return;
+    }
     if (!zipCode || !street || !number || !neighborhood || !city || !state) {
       setError('Preencha todos os campos do endereço.');
       return;
@@ -121,6 +148,19 @@ export default function CheckoutPage() {
         method: paymentMethod,
       });
 
+      // Update user profile with cpf and phone
+      const cpfDigits = cpf.replace(/\D/g, '');
+      const phoneDigits = phone.replace(/\D/g, '');
+      try {
+        await api.put('/users/me', {
+          name: fullName.trim(),
+          cpf: cpfDigits,
+          phone: phoneDigits,
+        });
+      } catch {
+        // Non-blocking: profile update failure shouldn't prevent order completion
+      }
+
       await api.delete('/cart');
       clear();
 
@@ -152,6 +192,76 @@ export default function CheckoutPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
+          {/* Dados Pessoais */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Dados Pessoais</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Nome completo</Label>
+                  <Input
+                    id="fullName"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Seu nome completo"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    value={email}
+                    readOnly
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cpf">CPF</Label>
+                  <Input
+                    id="cpf"
+                    placeholder="000.000.000-00"
+                    value={cpf}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+                      let formatted = digits;
+                      if (digits.length > 9) {
+                        formatted = `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+                      } else if (digits.length > 6) {
+                        formatted = `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+                      } else if (digits.length > 3) {
+                        formatted = `${digits.slice(0, 3)}.${digits.slice(3)}`;
+                      }
+                      setCpf(formatted);
+                    }}
+                    maxLength={14}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Telefone</Label>
+                  <Input
+                    id="phone"
+                    placeholder="(00) 00000-0000"
+                    value={phone}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+                      let formatted = digits;
+                      if (digits.length > 6) {
+                        formatted = `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+                      } else if (digits.length > 2) {
+                        formatted = `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+                      }
+                      setPhone(formatted);
+                    }}
+                    maxLength={15}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Endereço */}
           <Card>
             <CardHeader>

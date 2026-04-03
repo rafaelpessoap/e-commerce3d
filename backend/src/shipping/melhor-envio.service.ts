@@ -55,10 +55,68 @@ export class MelhorEnvioService {
   }
 
   /**
-   * Lista de todos os serviços do Melhor Envio (para o admin habilitar/desabilitar)
+   * Lista de todos os serviços do Melhor Envio (fallback hardcoded)
    */
   getAvailableServices() {
     return MELHOR_ENVIO_SERVICES;
+  }
+
+  /**
+   * Busca a lista real de serviços disponíveis na API do Melhor Envio.
+   * Sincroniza com o banco (upsert para cada serviço encontrado).
+   */
+  async syncServicesFromApi(): Promise<{ synced: number; services: Array<{ id: number; name: string; company: string }> }> {
+    // Faz uma cotação com dados fictícios para descobrir os serviços disponíveis
+    const body = {
+      from: { postal_code: this.fromCep || '01001000' },
+      to: { postal_code: '30130000' },
+      products: [{ id: '1', width: 15, height: 10, length: 20, weight: 0.5, insurance_value: 50, quantity: 1 }],
+    };
+
+    const response = await fetch(
+      `${this.baseUrl}/api/v2/me/shipment/calculate`,
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.token}`,
+          'User-Agent': 'ElitePinup3D (rafaelzezao@gmail.com)',
+        },
+        body: JSON.stringify(body),
+      },
+    );
+
+    if (!response.ok) {
+      this.logger.error(`Melhor Envio sync error: ${response.status}`);
+      throw new BadRequestException('Não foi possível sincronizar transportadoras');
+    }
+
+    const data: any[] = await response.json();
+    const services: Array<{ id: number; name: string; company: string }> = [];
+
+    for (const item of data) {
+      if (!item.id || !item.company?.name) continue;
+      const svc = { id: item.id, name: item.name, company: item.company.name };
+      services.push(svc);
+
+      // Upsert no banco — cria se não existir, não altera isActive de existentes
+      const existing = await this.prisma.shippingMethod.findUnique({
+        where: { serviceId: item.id },
+      });
+      if (!existing) {
+        await this.prisma.shippingMethod.create({
+          data: {
+            serviceId: item.id,
+            name: item.name,
+            company: item.company.name,
+            isActive: false,
+          },
+        });
+      }
+    }
+
+    return { synced: services.length, services };
   }
 
   /**

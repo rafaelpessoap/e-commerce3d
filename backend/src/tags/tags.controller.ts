@@ -23,7 +23,7 @@ export class TagsController {
 
   @Roles('ADMIN')
   @Post()
-  async create(@Body() dto: { name: string; color?: string }) {
+  async create(@Body() dto: { name: string; color?: string; extraDays?: number }) {
     return { data: await this.tagsService.create(dto) };
   }
 
@@ -31,7 +31,7 @@ export class TagsController {
   @Put(':id')
   async update(
     @Param('id') id: string,
-    @Body() dto: { name?: string; color?: string },
+    @Body() dto: { name?: string; color?: string; extraDays?: number },
   ) {
     return { data: await this.tagsService.update(id, dto) };
   }

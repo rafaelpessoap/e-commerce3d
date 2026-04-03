@@ -185,6 +185,45 @@ describe('CouponsService', () => {
     });
   });
 
+  describe('validate — advanced rules', () => {
+    it('should reject coupon with userId restriction if user does not match', async () => {
+      const exclusiveCoupon = { ...mockCoupon, userId: 'vip-user', categoryId: null, tagId: null };
+      (prisma.coupon.findUnique as jest.Mock).mockResolvedValue(exclusiveCoupon);
+
+      await expect(
+        service.validate({ code: 'WELCOME10', cartValue: 100, userId: 'other-user' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should accept coupon with userId restriction when user matches', async () => {
+      const exclusiveCoupon = { ...mockCoupon, userId: 'vip-user', categoryId: null, tagId: null };
+      (prisma.coupon.findUnique as jest.Mock).mockResolvedValue(exclusiveCoupon);
+      (prisma.couponUsage.count as jest.Mock).mockResolvedValue(0);
+
+      const result = await service.validate({
+        code: 'WELCOME10',
+        cartValue: 100,
+        userId: 'vip-user',
+      });
+
+      expect(result.discount).toBe(10);
+    });
+
+    it('should return categoryId and tagId in validation result', async () => {
+      const restrictedCoupon = { ...mockCoupon, categoryId: 'cat1', tagId: null, userId: null };
+      (prisma.coupon.findUnique as jest.Mock).mockResolvedValue(restrictedCoupon);
+      (prisma.couponUsage.count as jest.Mock).mockResolvedValue(0);
+
+      const result = await service.validate({
+        code: 'WELCOME10',
+        cartValue: 100,
+        userId: 'user1',
+      });
+
+      expect(result.categoryId).toBe('cat1');
+    });
+  });
+
   describe('create', () => {
     it('should create coupon with uppercase code', async () => {
       (prisma.coupon.create as jest.Mock).mockResolvedValue({
@@ -200,6 +239,29 @@ describe('CouponsService', () => {
 
       expect(prisma.coupon.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ code: 'SUMMER20' }),
+      });
+    });
+
+    it('should create coupon with categoryId and userId restrictions', async () => {
+      (prisma.coupon.create as jest.Mock).mockResolvedValue({
+        ...mockCoupon,
+        categoryId: 'cat1',
+        userId: 'user1',
+      });
+
+      await service.create({
+        code: 'VIP10',
+        type: 'PERCENTAGE',
+        value: 10,
+        categoryId: 'cat1',
+        userId: 'user1',
+      });
+
+      expect(prisma.coupon.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          categoryId: 'cat1',
+          userId: 'user1',
+        }),
       });
     });
   });

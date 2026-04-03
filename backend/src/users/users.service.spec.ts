@@ -95,6 +95,66 @@ describe('UsersService', () => {
     });
   });
 
+  describe('findAll', () => {
+    it('should return paginated list of users', async () => {
+      const mockUsers = [
+        { id: 'u1', email: 'a@a.com', name: 'Alice', role: 'CUSTOMER', cpf: '12345678900', phone: '11999999999', createdAt: new Date(), _count: { orders: 2 } },
+        { id: 'u2', email: 'b@b.com', name: 'Bob', role: 'CUSTOMER', cpf: null, phone: null, createdAt: new Date(), _count: { orders: 0 } },
+      ];
+      (prisma.user.findMany as jest.Mock).mockResolvedValue(mockUsers);
+      (prisma.user.count as jest.Mock).mockResolvedValue(2);
+
+      const result = await service.findAll({ page: 1, perPage: 10 });
+
+      expect(result.data).toHaveLength(2);
+      expect(result.meta.total).toBe(2);
+      expect(result.meta.page).toBe(1);
+    });
+
+    it('should filter by search term (name, email or cpf)', async () => {
+      (prisma.user.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.user.count as jest.Mock).mockResolvedValue(0);
+
+      await service.findAll({ page: 1, perPage: 10, search: 'alice' });
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: expect.arrayContaining([
+              expect.objectContaining({ name: expect.any(Object) }),
+              expect.objectContaining({ email: expect.any(Object) }),
+              expect.objectContaining({ cpf: expect.any(Object) }),
+            ]),
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('updateProfile with cpf/phone', () => {
+    it('should update cpf and phone', async () => {
+      (prisma.user.update as jest.Mock).mockResolvedValue({
+        id: 'cuid1',
+        cpf: '12345678900',
+        phone: '11999999999',
+      });
+
+      const result = await service.updateProfile('cuid1', {
+        cpf: '12345678900',
+        phone: '11999999999',
+      });
+
+      expect(prisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            cpf: '12345678900',
+            phone: '11999999999',
+          }),
+        }),
+      );
+    });
+  });
+
   describe('changePassword', () => {
     it('should change password when current password is correct', async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({

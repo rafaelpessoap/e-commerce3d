@@ -51,4 +51,16 @@ export class CreateCouponDto {
   @IsOptional()
   @IsBoolean()
   isFirstPurchaseOnly?: boolean;
+
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  tagId?: string;
+
+  @IsOptional()
+  @IsString()
+  userId?: string;
 }

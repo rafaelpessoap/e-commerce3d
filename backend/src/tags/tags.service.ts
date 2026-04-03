@@ -6,7 +6,7 @@ import slugify from 'slug';
 export class TagsService {
   constructor(private prisma: PrismaService) {}
 
-  async create(dto: { name: string; color?: string }) {
+  async create(dto: { name: string; color?: string; extraDays?: number }) {
     const slug = slugify(dto.name, { lower: true });
 
     const existing = await this.prisma.tag.findUnique({ where: { slug } });
@@ -15,7 +15,7 @@ export class TagsService {
     }
 
     return this.prisma.tag.create({
-      data: { name: dto.name, slug, color: dto.color },
+      data: { name: dto.name, slug, color: dto.color, extraDays: dto.extraDays },
     });
   }
 
@@ -26,7 +26,8 @@ export class TagsService {
     });
   }
 
-  async update(id: string, dto: { name?: string; color?: string }) {
+  async update(id: string, dto: { name?: string; color?: string; extraDays?: number }) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: Record<string, any> = { ...dto };
     if (dto.name) {
       data.slug = slugify(dto.name, { lower: true });

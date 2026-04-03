@@ -27,13 +27,17 @@ model User {
 
   lastLoginAt DateTime?
 
+  cpf   String? @unique
+  phone String?
+
   isActive Boolean @default(true)
 
-  addresses     Address[]
-  orders        Order[]
-  wishlist      WishlistItem[]
-  refreshTokens RefreshToken[]
-  reviews       Review[]
+  addresses        Address[]
+  orders           Order[]
+  wishlist         WishlistItem[]
+  refreshTokens    RefreshToken[]
+  reviews          Review[]
+  exclusiveCoupons Coupon[] @relation("ExclusiveCoupons")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -297,9 +301,10 @@ model Category {
   children Category[] @relation("CategoryToCategory")
 
   products Product[]
+  coupons  Coupon[]
 
   isActive  Boolean @default(true)
-  extraDays Int? // dias adicionais de entrega padrao
+  extraDays Int? // dias adicionais de produção
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -315,9 +320,10 @@ model Tag {
   color String? // hex color
 
   products Product[] @relation("ProductToTag")
+  coupons  Coupon[]
 
   isActive  Boolean @default(true)
-  extraDays Int? // dias adicionais de entrega
+  extraDays Int? // dias adicionais de produção
 
   createdAt DateTime @default(now())
 
@@ -402,6 +408,14 @@ model Coupon {
 
   isFirstPurchaseOnly Boolean @default(false)
   isActive            Boolean @default(true)
+
+  // Regras avançadas: restrição por categoria, tag ou cliente
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+  tagId      String?
+  tag        Tag?      @relation(fields: [tagId], references: [id])
+  userId     String?
+  user       User?     @relation("ExclusiveCoupons", fields: [userId], references: [id])
 
   usages        CouponUsage[]
   reviewRewards ReviewReward[]
