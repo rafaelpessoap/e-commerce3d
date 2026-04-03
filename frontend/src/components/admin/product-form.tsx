@@ -245,6 +245,8 @@ export function ProductForm({ productId }: ProductFormProps) {
           <TabsTrigger value="inventory">Inventário</TabsTrigger>
           <TabsTrigger value="attributes">Atributos</TabsTrigger>
           {type === 'variable' && <TabsTrigger value="variations">Variações</TabsTrigger>}
+          <TabsTrigger value="delivery">Entrega</TabsTrigger>
+          <TabsTrigger value="related">Relacionados</TabsTrigger>
         </TabsList>
 
         {/* ─── Aba Geral ─── */}
@@ -345,13 +347,6 @@ export function ProductForm({ productId }: ProductFormProps) {
                 </div>
               </div>
 
-              {extraDays !== undefined && (
-                <div className="space-y-2">
-                  <Label>Dias Adicionais de Entrega <span className="text-muted-foreground">(opcional)</span></Label>
-                  <Input type="number" min="0" value={extraDays} onChange={(e) => setExtraDays(e.target.value)} placeholder="0" className="max-w-[120px]" />
-                  <p className="text-xs text-muted-foreground">Se vazio, usa o padrão da tag ou categoria. Prazo base: 3 dias úteis.</p>
-                </div>
-              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -522,6 +517,64 @@ export function ProductForm({ productId }: ProductFormProps) {
             </Card>
           </TabsContent>
         )}
+
+        {/* ─── Aba Entrega ─── */}
+        <TabsContent value="delivery">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Prazo de Entrega</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Prazo base: 3 dias úteis. Dias adicionais são somados ao prazo base.
+                Prioridade: produto {'>'} tag {'>'} categoria.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Dias Adicionais de Entrega</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={extraDays}
+                  onChange={(e) => setExtraDays(e.target.value)}
+                  placeholder="Deixe vazio para usar padrão da tag/categoria"
+                  className="max-w-[200px]"
+                />
+              </div>
+
+              <div className="bg-muted/50 rounded-lg p-4 text-sm">
+                <p className="font-medium mb-1">Preview do prazo:</p>
+                <p>
+                  3 dias úteis (base) + {extraDays || '0'} dias adicionais ={' '}
+                  <span className="font-bold">{3 + (parseInt(extraDays) || 0)} dias úteis</span>
+                </p>
+                {!extraDays && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Sem override — será usado o valor da tag ou categoria do produto.
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ─── Aba Relacionados ─── */}
+        <TabsContent value="related">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Produtos Relacionados</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Produtos que aparecerão na seção "Produtos Relacionados" na página deste produto.
+                Pode adicionar produtos específicos ou regras dinâmicas por tag/categoria.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-muted-foreground border rounded p-3 bg-muted/30">
+                🚧 Editor de produtos relacionados será implementado na próxima iteração.
+                Por enquanto, produtos da mesma categoria aparecem automaticamente como relacionados.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );

@@ -12,6 +12,7 @@ export function ProductCard({ product }: ProductCardProps) {
   const images = product.images ?? [];
   const variations = product.variations ?? [];
   const mainImage = images.find((img) => img.isMain) ?? images[0];
+  const mainImageUrl = mainImage?.mediaFile?.card ?? mainImage?.url ?? '';
 
   return (
     <Link
@@ -20,10 +21,10 @@ export function ProductCard({ product }: ProductCardProps) {
     >
       {/* Image */}
       <div className="relative aspect-square overflow-hidden bg-muted">
-        {mainImage ? (
+        {mainImage && mainImageUrl ? (
           <Image
-            src={mainImage.url}
-            alt={mainImage.altText ?? product.name}
+            src={mainImageUrl}
+            alt={mainImage.mediaFile?.alt ?? mainImage.altText ?? product.name}
             fill
             className="object-cover transition-transform group-hover:scale-105"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"

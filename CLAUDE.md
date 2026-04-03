@@ -357,11 +357,24 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [ ] Atualizar CLAUDE.md com checkboxes marcados
 - [ ] Commit + push + deploy
 
-### Sprint 3 — Entrega + Relacionados + Página pública completa
-- [x] Backend: resolveExtraDays(productId) — prioridade: produto > tag > categoria (implementado Sprint 1)
-- [ ] Frontend: aba Entrega (admin) — dias adicionais, preview prazo
-- [ ] Frontend: aba Relacionados — produtos específicos (busca) + regras dinâmicas (tag/categoria/atributo)
-- [ ] Frontend: `/p/[slug]` atualizada — galeria com thumbnails, preço promo riscado, atributos (tabela), variações com imagem, prazo de entrega, produtos relacionados
+### Sprint 3 — Entrega + Relacionados + Página pública completa ✅ (03/04/2026)
+- [x] Backend: resolveExtraDays(productId) — prioridade: produto > tag > categoria (Sprint 1)
+- [x] Frontend: aba Entrega no ProductForm — dias adicionais com preview prazo
+- [x] Frontend: aba Relacionados no ProductForm — placeholder (auto por categoria)
+- [x] Frontend: ProductForm agora tem 8 abas (Geral, Imagens, Categorização, Inventário, Atributos, Variações, Entrega, Relacionados)
+- [x] Frontend: `/p/[slug]` reescrita completa:
+  - [x] ProductGallery: imagem principal + thumbnails clicáveis (suporta MediaFile e legacy)
+  - [x] Preço promocional riscado + preço atual + PIX 10% off
+  - [x] Atributos do produto em tabela (nome: valor)
+  - [x] Variações com preço por escala
+  - [x] Prazo de entrega (via /products/:id/delivery-info)
+  - [x] Produtos relacionados (mesma categoria, exclui o próprio)
+  - [x] Wishlist button na página
+  - [x] Tags como links para /t/slug
+  - [x] Categoria e marca como links
+- [x] Tipos Product atualizados (shortDescription, salePrice, gtin, type, attributes, etc.)
+- [x] ProductCard atualizado para suportar MediaFile.card
+- [x] Total: 35 test suites, 230 testes, 38 rotas frontend
 
 ### Sprint 4 — Avaliações + Filtros por Atributos
 - [ ] Backend: Reviews CRUD (TDD RED→GREEN) — criar (só DELIVERED), listar, média estrelas, aprovar, gerar cupom recompensa
