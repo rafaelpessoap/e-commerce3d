@@ -25,7 +25,14 @@ export default function RegisterPage() {
 
     try {
       await api.post('/auth/register', { name, email, password });
-      router.push(ROUTES.login + '?registered=1');
+      // Preserve returnTo query param through to login
+      const params = new URLSearchParams(window.location.search);
+      const returnTo = params.get('returnTo');
+      const wishlist = params.get('wishlist');
+      let loginUrl = ROUTES.login + '?registered=1';
+      if (returnTo) loginUrl += `&returnTo=${encodeURIComponent(returnTo)}`;
+      if (wishlist) loginUrl += `&wishlist=${wishlist}`;
+      router.push(loginUrl);
     } catch (err) {
       const resp = (err as { response?: { data?: { error?: { message?: string; details?: string[] }; message?: string } } })?.response?.data;
       const details = resp?.error?.details;

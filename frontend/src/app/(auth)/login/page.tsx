@@ -7,13 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { api } from '@/lib/api-client';
+import { api, getSessionId } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth-store';
+import { useCartStore } from '@/store/cart-store';
 import { ROUTES } from '@/lib/constants';
 
 export default function LoginPage() {
   const router = useRouter();
   const login = useAuthStore((s) => s.login);
+  const setCart = useCartStore((s) => s.setCart);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -27,7 +29,28 @@ export default function LoginPage() {
     try {
       const { data } = await api.post('/auth/login', { email, password });
       login(data.data.user, data.data.accessToken, data.data.refreshToken);
-      router.push(ROUTES.account);
+
+      // Merge anonymous cart into user cart
+      try {
+        const sessionId = getSessionId();
+        const { data: mergeData } = await api.post('/cart/merge', { sessionId });
+        if (mergeData.data?.cart) {
+          setCart(mergeData.data.cart.items, mergeData.data.cart.subtotal);
+        }
+      } catch {}
+
+      // Add to wishlist if requested (from WishlistButton redirect)
+      const params = new URLSearchParams(window.location.search);
+      const wishlistProductId = params.get('wishlist');
+      if (wishlistProductId) {
+        try {
+          await api.post(`/wishlist/${wishlistProductId}`);
+        } catch {}
+      }
+
+      // Redirect to previous page or account
+      const returnTo = params.get('returnTo');
+      router.push(returnTo ?? ROUTES.account);
     } catch (err) {
       const resp = (err as { response?: { data?: { error?: { message?: string }; message?: string } } })?.response?.data;
       setError(resp?.error?.message ?? resp?.message ?? 'Email ou senha inválidos');

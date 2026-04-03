@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { ROUTES, formatCurrency } from '@/lib/constants';
+import { WishlistButton } from './wishlist-button';
 import type { Product } from '@/types/product';
 
 interface ProductCardProps {
@@ -38,6 +39,13 @@ export function ProductCard({ product }: ProductCardProps) {
             Destaque
           </span>
         )}
+
+        {/* Wishlist */}
+        <WishlistButton
+          productId={product.id}
+          productSlug={product.slug}
+          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+        />
       </div>
 
       {/* Info */}

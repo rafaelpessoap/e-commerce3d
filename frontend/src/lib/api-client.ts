@@ -7,13 +7,29 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Interceptor para adicionar token JWT
+/**
+ * Get or create a session ID for anonymous cart.
+ * Persisted in localStorage, synced to user on login.
+ */
+export function getSessionId(): string {
+  if (typeof window === 'undefined') return '';
+  let sid = localStorage.getItem('sessionId');
+  if (!sid) {
+    sid = crypto.randomUUID();
+    localStorage.setItem('sessionId', sid);
+  }
+  return sid;
+}
+
+// Interceptor para adicionar token JWT + sessionId
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // Always send sessionId for cart
+    config.headers['x-session-id'] = getSessionId();
   }
   return config;
 });
