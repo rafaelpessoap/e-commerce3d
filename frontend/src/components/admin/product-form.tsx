@@ -563,7 +563,7 @@ export function ProductForm({ productId }: ProductFormProps) {
             <CardHeader>
               <CardTitle className="text-lg">Produtos Relacionados</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Produtos que aparecerão na seção "Produtos Relacionados" na página deste produto.
+                Produtos que aparecerão na seção &ldquo;Produtos Relacionados&rdquo; na página deste produto.
                 Pode adicionar produtos específicos ou regras dinâmicas por tag/categoria.
               </p>
             </CardHeader>

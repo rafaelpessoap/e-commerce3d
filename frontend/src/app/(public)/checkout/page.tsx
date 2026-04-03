@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ShippingCalculator, type ShippingQuote } from '@/components/shared/shipping-calculator';
 import { api } from '@/lib/api-client';
 import { useCartStore } from '@/store/cart-store';
 import { formatCurrency } from '@/lib/constants';
@@ -25,6 +26,9 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Shipping
+  const [selectedShipping, setSelectedShipping] = useState<ShippingQuote | null>(null);
+
   // Address fields
   const [zipCode, setZipCode] = useState('');
   const [street, setStreet] = useState('');
@@ -36,13 +40,15 @@ export default function CheckoutPage() {
   const [cepLoading, setCepLoading] = useState(false);
   const [cepError, setCepError] = useState('');
 
-  const discount =
+  // Cálculo: desconto NUNCA se aplica ao frete
+  const shippingCost = selectedShipping?.price ?? 0;
+  const paymentDiscount =
     paymentMethod === 'pix'
       ? subtotal * 0.1
       : paymentMethod === 'boleto'
         ? subtotal * 0.05
         : 0;
-  const total = Math.round((subtotal - discount) * 100) / 100;
+  const total = Math.round((subtotal - paymentDiscount + shippingCost) * 100) / 100;
 
   async function handleCepLookup(cep: string) {
     const cleaned = cep.replace(/\D/g, '');
@@ -75,6 +81,10 @@ export default function CheckoutPage() {
       setError('Preencha todos os campos do endereço.');
       return;
     }
+    if (!selectedShipping) {
+      setError('Selecione uma opção de frete.');
+      return;
+    }
 
     setError('');
     setLoading(true);
@@ -98,21 +108,23 @@ export default function CheckoutPage() {
           price: i.price,
         })),
         subtotal,
-        discount,
+        shipping: shippingCost,
+        discount: paymentDiscount,
         total,
         paymentMethod,
         shippingAddress,
+        shippingServiceName: selectedShipping.name,
       });
 
       await api.post('/payments/create', {
-        orderId: orderData.data.id,
+        orderId: orderData.data?.id ?? orderData.id,
         method: paymentMethod,
       });
 
       await api.delete('/cart');
       clear();
 
-      router.push(`/pedido/confirmacao/${orderData.data.id}`);
+      router.push(`/pedido/confirmacao/${orderData.data?.id ?? orderData.id}`);
     } catch (err) {
       const resp = (err as { response?: { data?: { error?: { message?: string }; message?: string } } })?.response?.data;
       setError(resp?.error?.message ?? resp?.message ?? 'Erro ao finalizar pedido');
@@ -128,6 +140,11 @@ export default function CheckoutPage() {
       </div>
     );
   }
+
+  const cartProducts = items.map((i) => ({
+    productId: i.productId,
+    quantity: i.quantity,
+  }));
 
   return (
     <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-8">
@@ -223,6 +240,27 @@ export default function CheckoutPage() {
             </CardContent>
           </Card>
 
+          {/* Frete */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Opções de Frete</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {zipCode.length >= 8 ? (
+                <ShippingCalculator
+                  products={cartProducts}
+                  selectedQuote={selectedShipping}
+                  onSelectQuote={setSelectedShipping}
+                  compact
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Preencha o CEP acima para ver as opções de frete.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Pagamento */}
           <Card>
             <CardHeader>
@@ -268,7 +306,7 @@ export default function CheckoutPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {items.map((item) => (
-                <div key={item.productId} className="flex justify-between text-sm">
+                <div key={`${item.productId}-${item.variationId ?? ''}`} className="flex justify-between text-sm">
                   <span className="text-muted-foreground truncate max-w-[60%]">
                     {item.name} x{item.quantity}
                   </span>
@@ -283,10 +321,24 @@ export default function CheckoutPage() {
                 <span>{formatCurrency(subtotal)}</span>
               </div>
 
-              {discount > 0 && (
+              {/* Frete */}
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">
+                  Frete{selectedShipping ? ` (${selectedShipping.name})` : ''}
+                </span>
+                {selectedShipping ? (
+                  <span className={shippingCost === 0 ? 'text-green-600 font-medium' : ''}>
+                    {shippingCost === 0 ? 'Grátis' : formatCurrency(shippingCost)}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground text-xs">Calcule acima</span>
+                )}
+              </div>
+
+              {paymentDiscount > 0 && (
                 <div className="flex justify-between text-sm text-primary">
                   <span>Desconto ({paymentMethod.toUpperCase()})</span>
-                  <span>-{formatCurrency(discount)}</span>
+                  <span>-{formatCurrency(paymentDiscount)}</span>
                 </div>
               )}
 
@@ -297,13 +349,19 @@ export default function CheckoutPage() {
                 <span>{formatCurrency(total)}</span>
               </div>
 
+              {selectedShipping && selectedShipping.deliveryDays > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Prazo de entrega: {selectedShipping.deliveryRange?.min}-{selectedShipping.deliveryRange?.max} dias úteis
+                </p>
+              )}
+
               {error && <p className="text-sm text-destructive">{error}</p>}
 
               <Button
                 size="lg"
                 className="w-full mt-4"
                 onClick={handlePlaceOrder}
-                disabled={loading || !zipCode}
+                disabled={loading || !selectedShipping || !zipCode}
               >
                 {loading ? 'Finalizando...' : 'Confirmar Pedido'}
               </Button>

@@ -44,6 +44,7 @@ export class OrdersService {
     discount?: number;
     total: number;
     shippingAddress?: string;
+    shippingServiceName?: string;
     couponId?: string;
     paymentMethod?: string;
   }) {
@@ -57,6 +58,7 @@ export class OrdersService {
         discount: params.discount ?? 0,
         total: params.total,
         shippingAddress: params.shippingAddress,
+        shippingServiceName: params.shippingServiceName,
         couponId: params.couponId,
         paymentMethod: params.paymentMethod,
         items: {

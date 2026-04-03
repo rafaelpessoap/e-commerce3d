@@ -233,13 +233,13 @@ export default function AdminEmailsPage() {
                   </button>
                 </div>
                 <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-48 overflow-y-auto">
-                  {galleryData?.data?.map((img: any) => (
+                  {galleryData?.data?.map((img: { id: string; card?: string; gallery?: string; full?: string; thumb?: string; alt?: string; filename?: string }) => (
                     <button
                       key={img.id}
                       onClick={() =>
                         insertImage(
-                          img.card || img.gallery || img.full,
-                          img.alt || img.filename,
+                          img.card ?? img.gallery ?? img.full ?? '',
+                          img.alt ?? img.filename ?? '',
                         )
                       }
                       className="aspect-square rounded border overflow-hidden hover:ring-2 ring-primary"

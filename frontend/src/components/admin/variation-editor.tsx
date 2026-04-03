@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,7 +26,7 @@ interface VariationEditorProps {
   onChange: (variations: VariationData[]) => void;
 }
 
-export function VariationEditor({ productId, variations, onChange }: VariationEditorProps) {
+export function VariationEditor({ variations, onChange }: VariationEditorProps) {
   const { data: scales } = useQuery({
     queryKey: ['scales'],
     queryFn: async () => {

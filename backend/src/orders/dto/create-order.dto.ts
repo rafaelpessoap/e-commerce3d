@@ -38,6 +38,10 @@ export class CreateOrderDto {
   @IsPositive()
   subtotal!: number;
 
+  @IsNumber()
+  @Min(0)
+  shipping!: number;
+
   @IsOptional()
   @IsNumber()
   discount?: number;
@@ -53,6 +57,10 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   shippingAddress?: string;
+
+  @IsOptional()
+  @IsString()
+  shippingServiceName?: string;
 
   @IsOptional()
   @IsString()

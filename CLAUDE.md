@@ -413,14 +413,25 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [x] Tags disponíveis: {{nome_cliente}}, {{email_cliente}}, {{numero_pedido}}, {{itens_pedido}}, {{subtotal}}, {{frete}}, {{desconto}}, {{total}}, {{metodo_pagamento}}, {{status_label}}, {{status_descricao}}, {{rastreio_secao}}, {{codigo_rastreio}}, {{url_redefinicao}}, {{nome_produto}}, {{codigo_cupom}}, {{percentual_desconto}}, {{url_loja}}
 - [x] Total: 39 test suites, 285 testes passando, TypeScript OK, frontend build OK, 39 rotas
 
+### Integração Melhor Envio ✅ (03/04/2026)
+- [x] Prisma models: ShippingMethod (serviceId, name, displayName editável, company, extraDays por método, isActive), Setting (key-value para CEP origem)
+- [x] MelhorEnvioService: getQuotes (API Melhor Envio), getAvailableServices (lista completa), toggleMethod (habilitar/desabilitar), getEnabledMethods (TDD: 8 testes)
+- [x] Cotação real: POST /shipping/quote — recebe CEP + produtos, busca peso/dimensões do DB, resolve extraDays (MAX entre produtos), cota no Melhor Envio, filtra serviços habilitados, soma extraDays do método + dos produtos
+- [x] Frete grátis: verifica regras de frete grátis antes de retornar cotações, exibe preço riscado + "Grátis"
+- [x] Checkout reescrito: card de "Opções de Frete" obrigatório (selecionar antes de confirmar), frete somado ao total, desconto (PIX/Boleto) NUNCA se aplica ao frete
+- [x] ShippingCalculator: componente reutilizável — digita CEP → mostra opções com preço, prazo e transportadora
+- [x] Admin /admin/frete reescrito: (1) CEP de origem editável, (2) toggle de serviços do Melhor Envio com nome de exibição e dias extras por método, (3) regras de frete grátis
+- [x] OrderDTO atualizado: campos shipping (obrigatório), shippingServiceName no pedido
+- [x] Total: 40 test suites, 293 testes passando, TypeScript OK, frontend build OK
+
 ### Integrações Externas
-- [x] Melhor Envio — token JWT configurado em /opt/elitepinup/.env
-- [x] SMTP — mail.cyberpersons.com:587, testado e funcionando (email enviado com sucesso)
+- [x] Melhor Envio — integração completa (cotação, serviços habilitáveis, CEP de origem, dias extras por método)
+- [x] SMTP — mail.cyberpersons.com:587, testado e funcionando
 - [ ] Mercado Pago — ACCESS_TOKEN + WEBHOOK_SECRET (adiado por decisão do Rafael)
 
 ### Pendências Restantes
-- [ ] Push schema Sprint 1-4 para prod (prisma db push no servidor — tabelas Attribute, MediaFile, Review etc.)
-- [ ] Deploy dos email templates + BullMQ para produção
+- [ ] Push schema para prod (prisma db push — tabelas Attribute, MediaFile, Review, EmailTemplate, ShippingMethod, Setting etc.)
+- [ ] Deploy completo para produção
 - [ ] Cache Redis por rota (CacheInterceptor)
 - [ ] Testes de carga (k6/Artillery)
 - [ ] Test infrastructure (helpers, fixtures, E2E com supertest)
@@ -469,6 +480,9 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | 2026-04-02 | BullMQ para fila de emails | Emails enviados assincronamente via fila Redis. 3 tentativas com backoff exponencial. Worker com concorrência 5. Evita timeout em requests |
 | 2026-04-02 | Jest --experimental-vm-modules | React Email render v2 usa dynamic import que requer essa flag. slug ESM resolvido com moduleNameMapper para mock CJS |
 | 2026-04-03 | Email templates editáveis no admin | Templates HTML no banco (EmailTemplate model) com sistema de tags {{tag}}. Admin edita subject + body + preview. React Email como fallback se template não existir no DB. Imagens da galeria inseríveis no corpo |
+| 2026-04-03 | Melhor Envio integração completa | Cotação real via API /me/shipment/calculate. Admin habilita/desabilita serviços, edita nome de exibição e dias extras por método. CEP de origem editável no admin. Frete obrigatório no checkout. Desconto NUNCA se aplica ao frete |
+| 2026-04-03 | Model Setting (key-value) | Configurações editáveis no admin (ex: shop_cep). Simples key-value no banco, sem model separado por config |
+| 2026-04-03 | ExtraDays lógica de frete | MAX entre todos os produtos do pedido (produto > tag > categoria) + dias extras do método de envio. Tudo somado ao prazo do Melhor Envio |
 
 ---
 

@@ -97,8 +97,9 @@ model Order {
   discount Float @default(0)
   total    Float // calculado
 
-  shippingAddress String? // JSON serializado
-  trackingCode    String?
+  shippingAddress     String? // JSON serializado
+  shippingServiceName String? // Nome do serviço (ex: "PAC", "SEDEX")
+  trackingCode        String?
 
   couponId String?
 
@@ -685,4 +686,27 @@ model EmailTemplate {
   updatedAt DateTime @updatedAt
 
   @@map("email_templates")
+}
+
+model ShippingMethod {
+  id          String  @id @default(cuid())
+  serviceId   Int     @unique // ID do serviço no Melhor Envio (1=PAC, 2=SEDEX, etc.)
+  name        String  // Nome original do Melhor Envio
+  displayName String? // Nome editável exibido ao cliente (se null, usa name)
+  company     String  // Transportadora (ex: "Correios", "Jadlog")
+  extraDays   Int     @default(0) // Dias adicionais de prazo para este método
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("shipping_methods")
+}
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+
+  @@map("settings")
 }

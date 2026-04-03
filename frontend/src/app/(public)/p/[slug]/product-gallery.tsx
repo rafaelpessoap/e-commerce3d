@@ -45,10 +45,6 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
     return img.mediaFile?.thumb ?? img.url ?? '';
   }
 
-  function getFullUrl(img: GalleryImage): string {
-    return img.mediaFile?.full ?? img.url ?? '';
-  }
-
   function getAlt(img: GalleryImage): string {
     return img.mediaFile?.alt ?? img.altText ?? productName;
   }
