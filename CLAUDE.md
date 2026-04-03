@@ -9,7 +9,7 @@
 
 ## Identidade do Projeto
 
-- **Nome temporário:** miniatures-store (nome definitivo a definir)
+- **Nome:** ElitePinup3D
 - **Repositório:** https://github.com/rafaelpessoap/e-commerce3d
 - **Dono:** Rafael Pessoa (rafaelzezao@gmail.com)
 - **Objetivo:** E-commerce de miniaturas 3D (pinups) como piloto. Após validação, migrar arsenalcraft.com.br (12k+ produtos, WooCommerce com 40 plugins).
@@ -229,7 +229,7 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 - [x] Auth module — login (TDD: 6 testes, mensagem genérica, isActive check, lastLoginAt)
 - [x] Auth module — refreshToken (TDD: 5 testes, rotação de tokens, revogação)
 - [x] Auth controller (register, login, refresh) com DTOs validados
-- [x] JWT Strategy (passport-jwt, access 15m, refresh 7d)
+- [x] JWT Strategy (passport-jwt, access 7d, refresh 30d)
 - [x] Guards globais (JwtAuthGuard com @Public, RolesGuard com @Roles)
 - [x] Decorators (@Public, @Roles, @CurrentUser)
 - [x] Users module — getProfile, updateProfile, changePassword (TDD: 9 testes)
@@ -267,38 +267,18 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 - [x] CRUD completo: Products, Categories, Tags, Brands, Scales, Coupons, FreeShippingRules, Bundles — @Roles('ADMIN')
 - [x] Gestão de pedidos: updateStatus com state machine + histórico
 
-### Frontend Next.js ✅ (15 rotas)
-- [x] Infra: API client (axios), types, React Query provider, Zustand stores (auth, cart)
-- [x] Layout raiz: metadata pt-BR, Geist font, Providers wrapper
-- [x] Componentes: Header, Footer, ProductCard, Pagination, EmptyState, shadcn (button, input, label, card, badge, separator)
-- [x] `/` Home: hero, categorias destaque, CTA registro
-- [x] `/categoria/[slug]`: SSR, metadata dinâmica, grid de produtos
-- [x] `/produto/[slug]`: galeria, preço PIX, variações/escalas, tags, AddToCartButton
-- [x] `/busca`: busca client-side com React Query, paginação
-- [x] `/login` + `/cadastro`: forms com validação, auth store integration
-- [x] `/carrinho`: items com +/-, remove, cupom, resumo, link checkout
-- [x] `/checkout`: endereço, método pagamento (PIX/boleto/cartão com desconto), resumo, criar pedido
-- [x] `/pedido/confirmacao/[id]`: confirmação pós-compra
-- [x] `/minha-conta`: dashboard com cards (pedidos, wishlist, dados)
-- [x] `/minha-conta/pedidos`: lista com status badges
-- [x] `/minha-conta/pedidos/[id]`: detalhe com timeline visual de 5 estados
-- [x] `/minha-conta/dados`: editar perfil + alterar senha
-- [x] `/minha-conta/lista-de-desejos`: lista com remove
-- [x] `/admin`: dashboard com 4 cards de métricas + pedidos por status
-- [x] `/admin/produtos`: tabela paginada, link criar/editar
-- [x] `/admin/produtos/novo`: form com nome, descrição, preço, SKU
-- [x] `/admin/pedidos`: tabela com filtro por status (Select)
-- [x] `/admin/pedidos/[id]`: detalhe, update status (state machine), histórico timeline
-- [x] `/admin/categorias`: lista + criar inline
-- [x] `/admin/cupons`: tabela com código, tipo, valor, usos, status
-- [x] `/admin/escalas`: lista + criar inline (nome, código, tamanho)
-- [x] `/admin/marcas`: marcas table + criar inline
-- [x] `/admin/tags`: tags table com color + criar inline
-- [x] `/admin/frete`: free shipping rules + criar
-- [x] `/admin/configuracoes`: settings display
-- [x] `/admin/blog`: publicar/despublicar posts
-- [x] Proteção de rotas: /admin requer login+ADMIN, /minha-conta requer login
-- [x] Build passing (41 rotas, TypeScript OK)
+### Frontend Next.js ✅
+- [x] Infra: API client (axios + sessionId), types, React Query, Zustand (auth, cart)
+- [x] URLs curtas: `/p/slug`, `/c/slug`, `/m/slug`, `/t/slug`
+- [x] Carrinho anônimo (sessionId no localStorage, merge no login)
+- [x] Wishlist button nos ProductCards (coração, redirect se não logado, auto-add após login)
+- [x] Checkout com endereço completo (ViaCEP auto-fill)
+- [x] Proteção de rotas: /admin (login+ADMIN), /minha-conta (login), returnTo após login
+- [x] Cloudflare cache rules: /_next/static (365d), /_next/image (30d), /api (bypass)
+- [x] Seed: 5 categorias, 4 escalas, 5 tags, 2 marcas, cupom WELCOME10, produto exemplo
+- [x] Páginas: Home, produtos, `/p/`, `/c/`, `/m/`, `/t/`, busca, blog, carrinho, checkout, confirmação, rastreamento, login, cadastro, recuperar-senha, sobre, contato, FAQ, termos, privacidade, trocas
+- [x] Admin: dashboard, produtos, pedidos, categorias, tags, marcas, escalas, frete, cupons, blog, config
+- [x] Minha Conta: dashboard, pedidos (lista+detalhe+timeline), dados, endereços, wishlist
 
 ### Fase 6 — SEO, Performance e Infra ✅
 - [x] SEO module — upsertMeta por entidade, getMeta, generateSitemap (TDD: 5 testes)
@@ -315,38 +295,65 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 
 ### Deploy em Produção ✅ (03/04/2026)
 - [x] Servidor configurado: /opt/elitepinup/.env + docker-compose.yml
-- [x] OLS vhost criado via CyberPanel, customizado com proxy reverso
-- [x] SSL: certificado Let's Encrypt gerado via CyberPanel
-- [x] Containers rodando: elitepinup_db (healthy), elitepinup_backend (healthy), elitepinup_frontend (up)
-- [x] API respondendo: https://elitepinup3d.com.br/api/health → {"data":{"status":"ok"}}
-- [x] Frontend servindo: https://elitepinup3d.com.br/ → 200
-- [x] Prisma db push executado (tabelas criadas)
-- [x] Admin criado: rafaelzezao@gmail.com / Admin@2026!
-- [x] Deploy automático funcionando (push para main → build → deploy via SSH)
-- [x] R2 testado e funcionando (upload OK)
-- [x] Proteção de rotas: /admin exige login + ADMIN, /minha-conta exige login
+- [x] OLS vhost com proxy reverso + SSL + HTTPS redirect + chattr +i
+- [x] Containers: elitepinup_db (healthy), elitepinup_backend (healthy), elitepinup_frontend (healthy)
+- [x] Site no ar: https://elitepinup3d.com.br (API + Frontend)
+- [x] Admin: rafaelzezao@gmail.com / Admin@2026!
+- [x] Deploy automático: push → GHCR build → SSH pull+restart
+- [x] R2 testado, Redis configurado (bind 0.0.0.0, senha, firewall)
+- [x] Seed executado: 5 categorias, 4 escalas, 5 tags, 2 marcas, cupom WELCOME10, produto exemplo
+- [x] Cloudflare cache rules configuradas via API
+- [x] Teste manual: registro, login, carrinho, checkout com endereço ViaCEP, pedido finalizado ✅
 
 ---
 
-## Pendências Restantes
+## Pendências — Sistema de Produtos Completo (estilo WooCommerce)
 
-### PRÓXIMA SESSÃO — Prioridade alta
-- [ ] **Prisma seed** — dados iniciais: categorias, escalas padrão (28mm, 32mm, 75mm), cupom WELCOME10
-- [ ] **Teste manual end-to-end** — registro → login → admin → criar produto → carrinho → checkout → pedido
-- [ ] **Configurar Mercado Pago** — obter tokens, atualizar .env no servidor
-- [ ] **Configurar Melhor Envio** — obter token, atualizar .env no servidor
-- [ ] **Prisma migrations** — criar migration inicial a partir do schema atual (`prisma migrate dev --name init`)
+Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 
-### MELHORIAS PÓS-LAUNCH
-- [ ] **Cache Redis por rota** — CacheInterceptor em /products, /categories
-- [ ] **Cloudflare cache rules** — assets estáticos e API GET
-- [ ] **Testes de carga** — k6/Artillery
-- [ ] **Test infrastructure** — test/helpers/, test/fixtures/, jest configs de integração
-- [ ] **Testes E2E** — supertest + banco real, testes de segurança (IDOR, 401, 403)
-- [ ] **Componentes frontend** — scale-selector, variation-selector, shipping-simulator, mini-cart, breadcrumb, loading skeletons
-- [ ] **Email templates** — React Email (hoje usa HTML inline)
-- [ ] **BullMQ email processor** — fila assíncrona (hoje síncrono)
-- [ ] **Cloudflare Origin Certificate** — substituir Let's Encrypt para evitar renovação manual (dura 15 anos)
+### Sprint 1 — Schema + Atributos + Admin Produto (Geral/Categorização/Inventário)
+- [ ] Prisma schema: adicionar campos em Product (salePrice, shortDescription, weight, dimensions, gtin, extraDays, manageStock, type), ProductVariation (image, gtin, salePrice, dimensions), Category/Tag (extraDays)
+- [ ] Prisma schema: novos models Attribute, AttributeValue, ProductAttribute, RelatedProduct, Review, ReviewReward
+- [ ] Backend: Attributes CRUD (TDD) — create, findAll, createValue, deleteValue
+- [ ] Frontend: `/admin/atributos` — gerenciar atributos e valores
+- [ ] Backend: atualizar Product DTOs e Service com campos novos
+- [ ] Frontend: `/admin/produtos/[id]` — página de edição (CRIAR, hoje 404)
+- [ ] Frontend: componente `ProductForm` com abas (Geral, Categorização, Inventário)
+- [ ] Aba Geral: nome, slug editável (/p/slug), descrição curta, descrição longa, preço + preço promocional, SKU + GTIN, tipo (simples/variável), status, destaque
+- [ ] Aba Categorização: categoria/marca (select + criar nova inline), tags (multi-select + criar inline)
+- [ ] Aba Inventário: toggle gerenciar estoque, quantidade, peso, dimensões (largura × altura × comprimento)
+
+### Sprint 2 — Imagens + Variações + Editor Rich Text + Atributos no produto
+- [ ] Frontend: aba Imagens — upload R2, imagem principal, galeria múltipla, reordenar drag-and-drop
+- [ ] Frontend: aba Variações — lista editável (escala, preço, preço promo, SKU, GTIN, estoque, imagem própria)
+- [ ] Frontend: editor rich text (TipTap) — negrito, itálico, listas, headings, links, imagens inline, toggle HTML
+- [ ] Frontend: aba Atributos — selecionar atributos existentes, multi-select valores, criar novo inline
+
+### Sprint 3 — Entrega + Relacionados + Página pública completa
+- [ ] Backend: resolveExtraDays(productId) — prioridade: produto > tag > categoria
+- [ ] Frontend: aba Entrega (admin) — dias adicionais, preview prazo
+- [ ] Frontend: aba Relacionados — produtos específicos (busca) + regras dinâmicas (tag/categoria/atributo)
+- [ ] Frontend: `/p/[slug]` atualizada — galeria com thumbnails, preço promo riscado, atributos (tabela), variações com imagem, prazo de entrega, produtos relacionados
+
+### Sprint 4 — Avaliações + Filtros por Atributos
+- [ ] Backend: Reviews CRUD (TDD) — criar (só DELIVERED), listar, média estrelas, aprovar, gerar cupom recompensa
+- [ ] Frontend: avaliações na página do produto — estrelas, comentários, imagens
+- [ ] Frontend: "Avaliar" no minha-conta/pedidos (só se DELIVERED), upload imagens
+- [ ] Backend: filtro por atributos na listagem de produtos
+- [ ] Frontend: sidebar de filtros (atributos, preço, marca) em /produtos e /c/[slug]
+
+### Integrações Externas (quando Rafael tiver os tokens)
+- [ ] Mercado Pago — ACCESS_TOKEN + WEBHOOK_SECRET → atualizar .env no servidor
+- [ ] Melhor Envio — token API → simulação de frete real no checkout
+- [ ] SMTP — verificar se Postfix do servidor envia, configurar SMTP_USER/SMTP_PASS
+
+### Melhorias Futuras (pós-launch)
+- [ ] Cache Redis por rota (CacheInterceptor)
+- [ ] Testes de carga (k6/Artillery)
+- [ ] Test infrastructure (helpers, fixtures, E2E com supertest)
+- [ ] Email templates (React Email, hoje usa HTML inline)
+- [ ] BullMQ email processor (fila assíncrona, hoje síncrono)
+- [ ] Cloudflare Origin Certificate (15 anos, substituir Let's Encrypt)
 
 ---
 
@@ -365,15 +372,24 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 | 2026-04-02 | Node.js 22 (não 24) | v24 não disponível na máquina, v22 é LTS compatível |
 | 2026-04-03 | Prisma 6 (não 7) | Prisma 7 prisma-client-js não aceita URL no constructor nem no schema (com prisma.config.ts). Incompatível com deploy Docker. Prisma 6 funciona igual ao ERP |
 | 2026-04-02 | Elasticsearch 8.17 (não 9.3) | ES 9.3 não existe ainda no Docker Hub, usando 8.17 (última estável) |
-| 2026-04-02 | Backend na porta 4000 (não 3000) | Porta 3000 já em uso ou reservada, backend roda em 4000 |
 | 2026-04-02 | bcrypt salt rounds = 12 | Recomendação do doc de segurança para 2026+, mais seguro que 10 |
-| 2026-04-02 | Access token 15min, refresh 7d | Spec do módulo de auth. Refresh é JWT armazenado no banco com rotação |
+| 2026-04-03 | Access token 7d, refresh 30d | Sessão curta (15min) fazia cliente deslogar constantemente. 7d/30d é mais prático para e-commerce |
 | 2026-04-03 | OLS (não Nginx) como proxy | Servidor usa CyberPanel/OLS. Nginx no Docker seria redundante e conflitaria |
 | 2026-04-03 | Portas 3002/3003 (não 4000/3000) | 3000 ocupada por nghttpx, 3001 pelo ERP. Backend:3002, Frontend:3003 |
 | 2026-04-03 | Redis/ES no host (não containers) | Redis 7.0.15 e ES 9.3.2 já rodam no host. Containers acessam via extra_hosts host.docker.internal |
 | 2026-04-03 | GHCR (não build local) | Imagens Docker buildadas no GitHub Actions e pushadas para ghcr.io. Servidor só faz pull |
 | 2026-04-03 | chattr +i no vhost.conf | CyberPanel esvazia vhost.conf em cada restart do OLS. chattr +i protege contra overwrite |
 | 2026-04-03 | Cloudflare R2 bucket: elitepinup | CDN: cdn.elitepinup3d.com.br. Token S3 API testado e funcionando |
+| 2026-04-03 | URLs curtas /p/ /c/ /m/ /t/ | Produto, categoria, marca, tag. /produtos para listagem geral. SEO-friendly e curtas |
+| 2026-04-03 | Carrinho anônimo via sessionId | UUID no localStorage, header x-session-id, merge no login via POST /cart/merge |
+| 2026-04-03 | Cloudflare cache rules via API | /_next/static 365d, /_next/image 30d, /api bypass. Configurado via API com Zone ID |
+| 2026-04-03 | Redis bind 0.0.0.0 + senha | Redis local precisou abrir bind para Docker bridge (172.x). Senha: EliteRedis2026!. nft firewall rule para 172.16.0.0/12 |
+| 2026-04-03 | Redirect HTTP→HTTPS via OLS rewrite | RewriteCond %{HTTPS} !on → 301 para https |
+| 2026-04-03 | Admin produto estilo WooCommerce | Sistema completo com atributos, variações, galeria, inventário, relacionados, avaliações. Plano em 4 sprints |
+| 2026-04-03 | SEO pega de outros campos | Meta title = nome do produto, meta description = descrição curta. Sem campos SEO separados |
+| 2026-04-03 | Dias adicionais de entrega | Prioridade: produto > tag > categoria. Campo extraDays em cada nível |
+| 2026-04-03 | Atributos como modelo separado | Attribute → AttributeValue → ProductAttribute. Reutilizáveis para filtros na listagem |
+| 2026-04-03 | Avaliações com recompensa | Só pode avaliar produto de pedido DELIVERED. Cupom de desconto gerado como recompensa |
 
 ---
 
@@ -387,6 +403,14 @@ Antes de implementar qualquer feature, consulte o documento relevante:
 | SSL issueSSL falha com Cloudflare proxy ativo | ACME HTTP-01 challenge não chega ao servidor com Cloudflare proxy | Desativar proxy temporariamente no Cloudflare, emitir cert, reativar |
 | Frontend /admin visível sem login | Rota client-side não verificava auth antes de renderizar | Adicionado guard no layout: verifica `isAuthenticated` + `role === 'ADMIN'`, redireciona para /login |
 | Listener map do OLS fora do bloco | sed inseriu map fora do listener, OLS não roteava para o vhost | Corrigido posicionamento do map dentro do listener Default e SSL |
+| Redis ETIMEDOUT do container | Redis bind 127.0.0.1, Docker bridge é 172.x, nft firewall bloqueava | Bind 0.0.0.0, senha Redis, nft rule para 172.16.0.0/12 tcp 6379/9200 |
+| Redis protected-mode | Conexão externa sem auth rejeitada | Configurado requirepass no Redis |
+| Frontend SSR crash em /c/[slug] | ProductCard acessava product.variations.length mas API de listagem não inclui variations | Optional chaining: `product.variations ?? []` |
+| /produtos e /marca/[slug] 404 | Páginas não existiam no frontend | Criadas as rotas |
+| "Erro ao criar conta" genérico | Frontend lia `data.message` mas HttpExceptionFilter retorna `{ error: { message, details } }` | Corrigido para ler `data.error.message` e `data.error.details` |
+| Frontend healthcheck unhealthy | Next.js standalone bind no IP do container, não em localhost | Adicionado HOSTNAME=0.0.0.0 no Dockerfile |
+| /admin redireciona para /minha-conta | Layout admin enviava para /login sem returnTo | Adicionado `?returnTo=/admin` no redirect |
+| Checkout sem endereço completo | Só tinha campo CEP | Formulário completo com ViaCEP auto-fill (rua, bairro, cidade, UF) |
 
 ---
 
