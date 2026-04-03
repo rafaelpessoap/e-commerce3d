@@ -9,11 +9,18 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { api } from '@/lib/api-client';
 
+function extractError(err: unknown): string {
+  const resp = (err as { response?: { data?: { error?: { message?: string; details?: string[] }; message?: string } } })?.response?.data;
+  if (resp?.error?.details?.length) return resp.error.details.join(', ');
+  return resp?.error?.message ?? resp?.message ?? 'Erro desconhecido';
+}
+
 export default function AdminAttributesPage() {
   const queryClient = useQueryClient();
   const [newAttrName, setNewAttrName] = useState('');
   const [newValueFor, setNewValueFor] = useState<string | null>(null);
   const [newValueText, setNewValueText] = useState('');
+  const [error, setError] = useState('');
 
   const { data: attributes, isLoading } = useQuery({
     queryKey: ['admin', 'attributes'],
@@ -26,29 +33,35 @@ export default function AdminAttributesPage() {
   const createAttr = useMutation({
     mutationFn: (name: string) => api.post('/attributes', { name }),
     onSuccess: () => {
+      setError('');
       queryClient.invalidateQueries({ queryKey: ['admin', 'attributes'] });
       setNewAttrName('');
     },
+    onError: (err) => { setError(extractError(err)); },
   });
 
   const deleteAttr = useMutation({
     mutationFn: (id: string) => api.delete(`/attributes/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'attributes'] }),
+    onSuccess: () => { setError(''); queryClient.invalidateQueries({ queryKey: ['admin', 'attributes'] }); },
+    onError: (err) => { setError(extractError(err)); },
   });
 
   const createValue = useMutation({
     mutationFn: ({ attrId, value }: { attrId: string; value: string }) =>
       api.post(`/attributes/${attrId}/values`, { value }),
     onSuccess: () => {
+      setError('');
       queryClient.invalidateQueries({ queryKey: ['admin', 'attributes'] });
       setNewValueText('');
       setNewValueFor(null);
     },
+    onError: (err) => { setError(extractError(err)); },
   });
 
   const deleteValue = useMutation({
     mutationFn: (valueId: string) => api.delete(`/attributes/values/${valueId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'attributes'] }),
+    onSuccess: () => { setError(''); queryClient.invalidateQueries({ queryKey: ['admin', 'attributes'] }); },
+    onError: (err) => { setError(extractError(err)); },
   });
 
   return (
@@ -57,6 +70,12 @@ export default function AdminAttributesPage() {
       <p className="text-muted-foreground mb-6">
         Gerencie atributos e seus valores. Exemplos: Arma (Espada, Adaga), Raça (Elfo, Humano).
       </p>
+
+      {error && (
+        <div className="bg-destructive/10 text-destructive border border-destructive/20 rounded-md px-4 py-3 mb-4 text-sm">
+          {error}
+        </div>
+      )}
 
       {/* Create attribute */}
       <form

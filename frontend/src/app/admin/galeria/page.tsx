@@ -38,6 +38,7 @@ export default function AdminGalleryPage() {
   const [editAlt, setEditAlt] = useState('');
   const [editTitle, setEditTitle] = useState('');
   const [editDesc, setEditDesc] = useState('');
+  const [uploadError, setUploadError] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'gallery', page, search],
@@ -69,6 +70,7 @@ export default function AdminGalleryPage() {
   async function handleUpload(files: FileList | null) {
     if (!files) return;
     setUploading(true);
+    setUploadError('');
 
     for (const file of Array.from(files)) {
       const formData = new FormData();
@@ -78,7 +80,9 @@ export default function AdminGalleryPage() {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
       } catch (err) {
-        console.error('Upload failed:', err);
+        const resp = (err as { response?: { data?: { error?: { message?: string }; message?: string } } })?.response?.data;
+        const msg = resp?.error?.message ?? resp?.message ?? 'Erro ao fazer upload';
+        setUploadError(`Falha ao enviar "${file.name}": ${msg}`);
       }
     }
 
@@ -130,6 +134,12 @@ export default function AdminGalleryPage() {
           </Button>
         </div>
       </div>
+
+      {uploadError && (
+        <div className="bg-destructive/10 text-destructive border border-destructive/20 rounded-md px-4 py-3 mb-4 text-sm">
+          {uploadError}
+        </div>
+      )}
 
       {/* Search */}
       <form

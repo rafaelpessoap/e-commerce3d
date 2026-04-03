@@ -9,9 +9,16 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { api } from '@/lib/api-client';
 
+function extractError(err: unknown): string {
+  const resp = (err as { response?: { data?: { error?: { message?: string; details?: string[] }; message?: string } } })?.response?.data;
+  if (resp?.error?.details?.length) return resp.error.details.join(', ');
+  return resp?.error?.message ?? resp?.message ?? 'Erro desconhecido';
+}
+
 export default function AdminBrandsPage() {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
+  const [error, setError] = useState('');
 
   const { data: brands, isLoading } = useQuery({
     queryKey: ['admin', 'brands'],
@@ -20,12 +27,18 @@ export default function AdminBrandsPage() {
 
   const createMutation = useMutation({
     mutationFn: (n: string) => api.post('/brands', { name: n }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin', 'brands'] }); setName(''); },
+    onSuccess: () => { setError(''); queryClient.invalidateQueries({ queryKey: ['admin', 'brands'] }); setName(''); },
+    onError: (err) => { setError(extractError(err)); },
   });
 
   return (
     <div>
       <h1 className="text-3xl font-bold mb-6">Marcas</h1>
+      {error && (
+        <div className="bg-destructive/10 text-destructive border border-destructive/20 rounded-md px-4 py-3 mb-4 text-sm">
+          {error}
+        </div>
+      )}
       <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) createMutation.mutate(name); }} className="flex gap-2 mb-6 max-w-md">
         <Input placeholder="Nova marca" value={name} onChange={(e) => setName(e.target.value)} />
         <Button type="submit" disabled={createMutation.isPending}><Plus className="h-4 w-4 mr-2" />Criar</Button>

@@ -17,11 +17,18 @@ import {
 } from '@/components/ui/table';
 import { api } from '@/lib/api-client';
 
+function extractError(err: unknown): string {
+  const resp = (err as { response?: { data?: { error?: { message?: string; details?: string[] }; message?: string } } })?.response?.data;
+  if (resp?.error?.details?.length) return resp.error.details.join(', ');
+  return resp?.error?.message ?? resp?.message ?? 'Erro desconhecido';
+}
+
 export default function AdminScalesPage() {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [baseSize, setBaseSize] = useState('');
+  const [error, setError] = useState('');
 
   const { data: scales, isLoading } = useQuery({
     queryKey: ['admin', 'scales'],
@@ -39,11 +46,13 @@ export default function AdminScalesPage() {
         baseSize: parseFloat(baseSize),
       }),
     onSuccess: () => {
+      setError('');
       queryClient.invalidateQueries({ queryKey: ['admin', 'scales'] });
       setName('');
       setCode('');
       setBaseSize('');
     },
+    onError: (err) => { setError(extractError(err)); },
   });
 
   function handleCreate(e: React.FormEvent) {
@@ -54,6 +63,12 @@ export default function AdminScalesPage() {
   return (
     <div>
       <h1 className="text-3xl font-bold mb-6">Escalas</h1>
+
+      {error && (
+        <div className="bg-destructive/10 text-destructive border border-destructive/20 rounded-md px-4 py-3 mb-4 text-sm">
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleCreate} className="flex gap-3 mb-6 items-end max-w-2xl">
         <div className="space-y-1">

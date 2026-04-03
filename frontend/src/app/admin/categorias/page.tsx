@@ -16,9 +16,16 @@ import {
 } from '@/components/ui/table';
 import { api } from '@/lib/api-client';
 
+function extractError(err: unknown): string {
+  const resp = (err as { response?: { data?: { error?: { message?: string; details?: string[] }; message?: string } } })?.response?.data;
+  if (resp?.error?.details?.length) return resp.error.details.join(', ');
+  return resp?.error?.message ?? resp?.message ?? 'Erro desconhecido';
+}
+
 export default function AdminCategoriesPage() {
   const queryClient = useQueryClient();
   const [newName, setNewName] = useState('');
+  const [error, setError] = useState('');
 
   const { data: categories, isLoading } = useQuery({
     queryKey: ['admin', 'categories'],
@@ -33,6 +40,10 @@ export default function AdminCategoriesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'categories'] });
       setNewName('');
+      setError('');
+    },
+    onError: (err) => {
+      setError(extractError(err));
     },
   });
 
@@ -45,7 +56,7 @@ export default function AdminCategoriesPage() {
     <div>
       <h1 className="text-3xl font-bold mb-6">Categorias</h1>
 
-      <form onSubmit={handleCreate} className="flex gap-2 mb-6 max-w-md">
+      <form onSubmit={handleCreate} className="flex gap-2 mb-4 max-w-md">
         <Input
           placeholder="Nova categoria"
           value={newName}
@@ -56,6 +67,12 @@ export default function AdminCategoriesPage() {
           Criar
         </Button>
       </form>
+
+      {error && (
+        <div className="bg-destructive/10 text-destructive border border-destructive/20 rounded-md px-4 py-3 mb-4 text-sm max-w-md">
+          {error}
+        </div>
+      )}
 
       {isLoading ? (
         <p className="text-muted-foreground">Carregando...</p>

@@ -9,10 +9,17 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { api } from '@/lib/api-client';
 
+function extractError(err: unknown): string {
+  const resp = (err as { response?: { data?: { error?: { message?: string; details?: string[] }; message?: string } } })?.response?.data;
+  if (resp?.error?.details?.length) return resp.error.details.join(', ');
+  return resp?.error?.message ?? resp?.message ?? 'Erro desconhecido';
+}
+
 export default function AdminTagsPage() {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [color, setColor] = useState('');
+  const [error, setError] = useState('');
 
   const { data: tags, isLoading } = useQuery({
     queryKey: ['admin', 'tags'],
@@ -21,12 +28,18 @@ export default function AdminTagsPage() {
 
   const createMutation = useMutation({
     mutationFn: () => api.post('/tags', { name, color: color || undefined }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin', 'tags'] }); setName(''); setColor(''); },
+    onSuccess: () => { setError(''); queryClient.invalidateQueries({ queryKey: ['admin', 'tags'] }); setName(''); setColor(''); },
+    onError: (err) => { setError(extractError(err)); },
   });
 
   return (
     <div>
       <h1 className="text-3xl font-bold mb-6">Tags</h1>
+      {error && (
+        <div className="bg-destructive/10 text-destructive border border-destructive/20 rounded-md px-4 py-3 mb-4 text-sm">
+          {error}
+        </div>
+      )}
       <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) createMutation.mutate(); }} className="flex gap-2 mb-6 max-w-md">
         <Input placeholder="Nova tag" value={name} onChange={(e) => setName(e.target.value)} />
         <Input placeholder="#cor" value={color} onChange={(e) => setColor(e.target.value)} className="w-28" />
