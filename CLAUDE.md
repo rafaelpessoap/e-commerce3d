@@ -447,12 +447,69 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [x] Sessão persistente: atualizar página não desloga mais (hydrate via GET /users/me)
 - [x] CI verde (lint errors corrigidos: unused imports, unescaped entities, explicit any)
 
-### Pendências Restantes
-- [ ] Blog admin: criar/editar posts (precisa integrar TipTap no formulário)
+### ProductForm WooCommerce + Deploy Fix ✅ (03-04/04/2026)
+- [x] ProductForm reescrito estilo WooCommerce: 2 colunas (main + sidebar sticky), blocos modulares
+- [x] Sidebar: Publicar (status/tipo/salvar), Imagens, Categoria, Marca, Tags com inline create
+- [x] Main: Nome+slug, Descrição Completa (RichTextEditor), Dados do Produto (abas verticais), Descrição Curta
+- [x] Abas verticais (Inventário, Produção, Atributos, Variações) — todas renderizadas simultaneamente (CSS toggle, sem perda de dados)
+- [x] Após salvar: mensagem de sucesso, NÃO redireciona. Botão "Cadastrar novo" + "Ver na lista"
+- [x] Fontes maiores (text-base wrapper, text-lg inputs)
+- [x] Produto variável: preço do pai desabilitado, preços apenas nas variações
+- [x] Variações: imagem via upload/galeria (era URL), nome auto do atributo, peso/dimensões herdam do pai
+- [x] Link do produto abaixo do slug: "Ver produto: /p/slug" (abre em nova aba)
+- [x] Product DTOs: @IsUUID → @IsString (IDs são CUIDs), basePrice aceita 0 para variáveis, description sem @MinLength
+- [x] ProductImage → MediaFile FK: onDelete Cascade (era RESTRICT, causava erro binário)
+- [x] Deploy workflow: testes antes do build, --force-recreate (containers não atualizavam), versionamento automático YYYYMMDD-SHA
+- [x] GitHub Releases automáticas em cada deploy
+- [x] Versão visível no rodapé da sidebar admin (NEXT_PUBLIC_APP_VERSION)
+- [x] Docker actions: login-action v4, build-push-action v7 (Node.js 24)
+- [x] Pacotes não usados removidos: cache-manager-redis-yet, cache-manager, @nestjs/cache-manager
+- [x] OLS cache: noCacheUrl para /admin, /api, /login, /minha-conta, /checkout (evita cache de binário)
+- [x] Atributos: refetchQueries para atualização imediata, form fica aberto após adicionar valor
+- [x] Total: 40 test suites, 293 testes passando, 0 lint errors
+
+### Pendências — Próximo Plano (admin UX + clientes + cupons avançados)
+
+**Plano detalhado em:** `~/.claude/plans/memoized-riding-platypus.md`
+
+#### Passo 1 — Schema: User (cpf, phone) + Coupon (categoryId, tagId, userId)
+- [ ] User: adicionar campos cpf (unique), phone
+- [ ] Coupon: adicionar categoryId, tagId, userId para regras avançadas (desconto por categoria/tag, cupom exclusivo por cliente)
+
+#### Passo 2 — Backend: Users findAll, Coupons regras avançadas, Shipping sync, Tags/Categories extraDays
+- [ ] UsersService: findAll paginado (admin) com busca por nome/email/cpf
+- [ ] CouponsService: validação por categoria/tag/userId
+- [ ] MelhorEnvioService: fetchServicesFromApi() (GET /me/shipment/services em vez de lista hardcoded)
+- [ ] Tags/Categories DTOs: aceitar extraDays
+
+#### Passo 3 — Frontend: Galeria em lista (não grid)
+- [ ] Reescrever galeria: lista com thumbnail à esquerda, info à direita, editar inline, ampliar, excluir
+
+#### Passo 4 — Frontend: Tags e Categorias com extraDays
+- [ ] Tags: campo "Dias de produção" na edição e criação
+- [ ] Categorias: campo "Dias de produção" na edição e criação
+
+#### Passo 5 — Frontend: Cupons com regras avançadas
+- [ ] Restrição por categoria (select), por tag (select), cupom exclusivo por cliente (busca)
+
+#### Passo 6 — Frontend: /admin/configuracoes editável
+- [ ] Cards editáveis: nome da loja, desconto PIX/Boleto (%), prazo base produção
+
+#### Passo 7 — Frontend: /admin/clientes (gestão de clientes)
+- [ ] Tabela: nome, email, CPF, telefone, pedidos, data cadastro. Busca, editar, detalhes
+
+#### Passo 8 — Frontend: Checkout com dados do cliente
+- [ ] Seção "Dados Pessoais": nome, CPF (máscara), telefone (máscara), email (read-only)
+- [ ] Ao salvar pedido, atualizar perfil do user com cpf/phone
+
+#### Passo 9 — Frontend: Frete — botão sincronizar transportadoras
+- [ ] Botão "Sincronizar" chama POST /shipping/methods/sync para obter lista real do Melhor Envio
+
+### Outras Pendências
+- [ ] Blog admin: criar/editar posts (TipTap)
 - [ ] Cache Redis por rota (CacheInterceptor)
 - [ ] Testes de carga (k6/Artillery)
-- [ ] Test infrastructure (helpers, fixtures, E2E com supertest)
-- [ ] Cloudflare Origin Certificate (15 anos, substituir Let's Encrypt)
+- [ ] Cloudflare Origin Certificate (15 anos)
 - [ ] Mercado Pago integration (adiado)
 
 ---
@@ -505,6 +562,15 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | 2026-04-03 | Admin CRUD inline edit | Padrão: click no nome da linha → campos editáveis inline. Enter salva, Escape cancela. Botão delete com confirm(). Sem página separada de edição para entidades simples |
 | 2026-04-03 | Cupons CRUD completo | Formulário de criação com todos os campos (code, type, value, minOrder, maxUses, usesPerUser, validade, firstPurchase). Dialog de edição. Delete com confirmação |
 | 2026-04-03 | Scales PUT/DELETE endpoints | Escalas não tinham endpoints de update/delete no backend. Criados com UpdateScaleDto (campos opcionais) + soft delete (isActive: false) |
+| 2026-04-03 | ProductForm WooCommerce layout | 2 colunas: main (nome, descrições, dados com abas verticais) + sidebar sticky (publicar, imagens, categorias, marca, tags). Blocos modulares como WooCommerce |
+| 2026-04-03 | Abas verticais com CSS toggle | Todas as abas renderizadas simultaneamente, toggle via CSS hidden/block. Evita perda de dados entre abas |
+| 2026-04-03 | Produto variável sem preço pai | Quando tipo=variable, preço base é desabilitado. Cada variação define seu próprio preço. basePrice aceita 0 |
+| 2026-04-03 | Variações baseadas em atributos | WooCommerce-style: seleciona atributo → marca valores → gera variações. Cada variação tem preço, SKU, estoque, peso/dimensões (herda do pai), imagem (upload/galeria) |
+| 2026-04-03 | Deploy --force-recreate | docker compose up -d sem --force-recreate não recriava containers mesmo com imagem nova. Agora deploy sempre força recreate |
+| 2026-04-03 | Versionamento automático | YYYYMMDD-SHA7 (ex: 20260403-f6e56ea). Exibido no rodapé admin. GitHub Release criada automaticamente em cada deploy |
+| 2026-04-04 | OLS noCacheUrl para admin | LiteSpeed cache cacheava rotas do admin causando binário corrompido. Adicionado noCacheUrl para /admin, /api, /login, /minha-conta, /checkout |
+| 2026-04-04 | Cupons com regras por categoria/tag/cliente | Cupom pode restringir desconto a uma categoria ou tag específica. Cupom exclusivo para um cliente. Desconto aplicado apenas nos items que encaixam |
+| 2026-04-04 | User precisa de CPF e telefone | Dados obrigatórios para e-commerce brasileiro. CPF com validação, telefone com máscara. Coletados no checkout e editáveis no perfil |
 
 ---
 
@@ -532,6 +598,13 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | Admin CRUD falha silenciosamente | Mutations sem onError, catch com console.error | Adicionado extractError helper + onError em todas as mutations + div de erro visível |
 | Schema prod desatualizado | Tabelas de Sprint 1-4 não existiam no banco de produção | prisma db push no servidor + force-recreate containers |
 | CI falhando (lint errors) | Unused imports (Image, useState, getFullUrl), unescaped entities, explicit any | Removidos imports não usados, escapados caracteres, tipagem correta |
+| Deploy não atualiza containers | docker compose up -d sem --force-recreate não recriava containers com tag :latest | Adicionado --force-recreate no workflow de deploy |
+| Binário ao editar produto com imagem | OLS LiteSpeed cache cacheava resposta corrompida de rotas do admin | Adicionado noCacheUrl no vhost.conf para /admin, /api, /login, /minha-conta, /checkout |
+| ProductImage FK RESTRICT | Deletar MediaFile falhava se usado em ProductImage | Alterado para onDelete: Cascade no schema + aplicado via ALTER TABLE no banco prod |
+| Produto variável exigia preço | DTO usava @IsPositive no basePrice, variável não tem preço pai | Trocado para @Min(0), frontend envia 0 quando type=variable |
+| categoryId/brandId/tagIds must be UUID | DTOs usavam @IsUUID mas Prisma gera CUIDs | Trocado para @IsString |
+| Atributos: valor não aparecia após criar | invalidateQueries não forçava re-fetch imediato | Trocado para refetchQueries com await, form fica aberto para adicionar vários valores |
+| Actions Node.js 20 deprecated | docker/login-action@v3, docker/build-push-action@v6 usam Node 20 | Atualizado para v4 e v7 respectivamente |
 
 ---
 
