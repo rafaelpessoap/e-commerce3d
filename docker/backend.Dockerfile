@@ -24,9 +24,8 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts --omit=dev
 
-# Copy Prisma schema + config (needed for migrations)
+# Copy Prisma schema (needed for migrations)
 COPY prisma ./prisma
-COPY prisma.config.ts ./prisma.config.ts
 
 # Copy built app
 COPY --from=build /app/dist ./dist
