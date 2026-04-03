@@ -429,9 +429,26 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [x] SMTP — mail.cyberpersons.com:587, testado e funcionando
 - [ ] Mercado Pago — ACCESS_TOKEN + WEBHOOK_SECRET (adiado por decisão do Rafael)
 
+### Admin CRUD Completo ✅ (03/04/2026)
+- [x] Todas as páginas admin mostram erros ao usuário (antes falhavam silenciosamente)
+- [x] Categorias: edição inline (click no nome), exclusão com confirmação
+- [x] Tags: edição inline (nome + cor), exclusão
+- [x] Marcas: edição inline (nome), exclusão
+- [x] Escalas: edição inline (todos os campos), exclusão (+ novos endpoints PUT/DELETE no backend)
+- [x] Cupons: CRUD completo reescrito — formulário de criação, dialog de edição, exclusão (antes só tinha listagem)
+- [x] Atributos: já tinha criar/deletar valores, agora com error handling
+- [x] Galeria: mensagem de erro no upload, refresh automático após upload (refetchQueries)
+
+### Deploy Produção Atualizado ✅ (03/04/2026)
+- [x] Schema completo aplicado em produção (prisma db push — todas as tabelas novas)
+- [x] Containers recriados com imagens mais recentes
+- [x] Seed de email templates executado em produção
+- [x] next.config.ts corrigido: cdn.elitepinup3d.com.br (era cdn.miniatures3d.com)
+- [x] Sessão persistente: atualizar página não desloga mais (hydrate via GET /users/me)
+- [x] CI verde (lint errors corrigidos: unused imports, unescaped entities, explicit any)
+
 ### Pendências Restantes
-- [ ] Push schema para prod (prisma db push — tabelas Attribute, MediaFile, Review, EmailTemplate, ShippingMethod, Setting etc.)
-- [ ] Deploy completo para produção
+- [ ] Blog admin: criar/editar posts (precisa integrar TipTap no formulário)
 - [ ] Cache Redis por rota (CacheInterceptor)
 - [ ] Testes de carga (k6/Artillery)
 - [ ] Test infrastructure (helpers, fixtures, E2E com supertest)
@@ -483,6 +500,11 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | 2026-04-03 | Melhor Envio integração completa | Cotação real via API /me/shipment/calculate. Admin habilita/desabilita serviços, edita nome de exibição e dias extras por método. CEP de origem editável no admin. Frete obrigatório no checkout. Desconto NUNCA se aplica ao frete |
 | 2026-04-03 | Model Setting (key-value) | Configurações editáveis no admin (ex: shop_cep). Simples key-value no banco, sem model separado por config |
 | 2026-04-03 | ExtraDays lógica de frete | MAX entre todos os produtos do pedido (produto > tag > categoria) + dias extras do método de envio. Tudo somado ao prazo do Melhor Envio |
+| 2026-04-03 | Auth hydrate no app init | Zustand auth store chama GET /users/me ao carregar se accessToken existe no localStorage. Layouts protegidos esperam isHydrated antes de redirecionar |
+| 2026-04-03 | Error handling obrigatório em mutations | Todas as páginas admin devem ter onError com extractError helper + div de erro visível. Falhas silenciosas confundem o usuário |
+| 2026-04-03 | Admin CRUD inline edit | Padrão: click no nome da linha → campos editáveis inline. Enter salva, Escape cancela. Botão delete com confirm(). Sem página separada de edição para entidades simples |
+| 2026-04-03 | Cupons CRUD completo | Formulário de criação com todos os campos (code, type, value, minOrder, maxUses, usesPerUser, validade, firstPurchase). Dialog de edição. Delete com confirmação |
+| 2026-04-03 | Scales PUT/DELETE endpoints | Escalas não tinham endpoints de update/delete no backend. Criados com UpdateScaleDto (campos opcionais) + soft delete (isActive: false) |
 
 ---
 
@@ -504,6 +526,12 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | Frontend healthcheck unhealthy | Next.js standalone bind no IP do container, não em localhost | Adicionado HOSTNAME=0.0.0.0 no Dockerfile |
 | /admin redireciona para /minha-conta | Layout admin enviava para /login sem returnTo | Adicionado `?returnTo=/admin` no redirect |
 | Checkout sem endereço completo | Só tinha campo CEP | Formulário completo com ViaCEP auto-fill (rua, bairro, cidade, UF) |
+| Sessão perde ao atualizar página | Zustand auth store reiniciava com user:null no reload, token ficava no localStorage mas ninguém restaurava | Adicionado hydrate() no Providers que chama GET /users/me se accessToken existe. Layouts esperam isHydrated antes de redirect |
+| Imagem quebrada na galeria | next.config.ts tinha cdn.miniatures3d.com mas CDN real é cdn.elitepinup3d.com.br | Corrigido remotePatterns para o domínio correto |
+| Upload não atualiza galeria | invalidateQueries não forçava re-fetch imediato | Trocado para refetchQueries com await |
+| Admin CRUD falha silenciosamente | Mutations sem onError, catch com console.error | Adicionado extractError helper + onError em todas as mutations + div de erro visível |
+| Schema prod desatualizado | Tabelas de Sprint 1-4 não existiam no banco de produção | prisma db push no servidor + force-recreate containers |
+| CI falhando (lint errors) | Unused imports (Image, useState, getFullUrl), unescaped entities, explicit any | Removidos imports não usados, escapados caracteres, tipagem correta |
 
 ---
 
