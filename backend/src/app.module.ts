@@ -35,6 +35,7 @@ import { SeoModule } from './seo/seo.module';
 import { BlogModule } from './blog/blog.module';
 import { PagesModule } from './pages/pages.module';
 import { AttributesModule } from './attributes/attributes.module';
+import { ReviewsModule } from './reviews/reviews.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { RedisModule } from './redis/redis.module';
@@ -81,6 +82,7 @@ import { RedisModule } from './redis/redis.module';
     BlogModule,
     PagesModule,
     AttributesModule,
+    ReviewsModule,
   ],
   controllers: [AppController],
   providers: [

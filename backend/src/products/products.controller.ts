@@ -26,6 +26,9 @@ export class ProductsController {
     @Query('categoryId') categoryId?: string,
     @Query('brandId') brandId?: string,
     @Query('search') search?: string,
+    @Query('attributes') attributes?: string,
+    @Query('priceMin') priceMin?: string,
+    @Query('priceMax') priceMax?: string,
   ) {
     return await this.productsService.findAll({
       page: parseInt(page, 10),
@@ -33,6 +36,9 @@ export class ProductsController {
       categoryId,
       brandId,
       search,
+      attributeValueIds: attributes ? attributes.split(',') : undefined,
+      priceMin: priceMin ? parseFloat(priceMin) : undefined,
+      priceMax: priceMax ? parseFloat(priceMax) : undefined,
     });
   }
 

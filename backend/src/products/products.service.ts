@@ -88,8 +88,11 @@ export class ProductsService {
     categoryId?: string;
     brandId?: string;
     search?: string;
+    attributeValueIds?: string[];
+    priceMin?: number;
+    priceMax?: number;
   }) {
-    const { page, perPage, categoryId, brandId, search } = params;
+    const { page, perPage, categoryId, brandId, search, attributeValueIds, priceMin, priceMax } = params;
     const skip = (page - 1) * perPage;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -101,6 +104,16 @@ export class ProductsService {
         { name: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
       ];
+    }
+    if (attributeValueIds?.length) {
+      where.attributes = {
+        some: { attributeValueId: { in: attributeValueIds } },
+      };
+    }
+    if (priceMin !== undefined || priceMax !== undefined) {
+      where.basePrice = {};
+      if (priceMin !== undefined) where.basePrice.gte = priceMin;
+      if (priceMax !== undefined) where.basePrice.lte = priceMax;
     }
 
     const [data, total] = await Promise.all([

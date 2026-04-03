@@ -6,6 +6,7 @@ import { formatCurrency, ROUTES } from '@/lib/constants';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ProductCard } from '@/components/product/product-card';
 import { WishlistButton } from '@/components/product/wishlist-button';
+import { ReviewsSection } from '@/components/product/reviews-section';
 import { AddToCartButton } from './add-to-cart-button';
 import { ProductGallery } from './product-gallery';
 import type { Product } from '@/types/product';
@@ -206,6 +207,9 @@ export default async function ProductPage({ params }: Props) {
           )}
         </div>
       </div>
+
+      {/* Reviews */}
+      <ReviewsSection productId={product.id} />
 
       {/* Related Products */}
       {related.length > 0 && (

@@ -198,6 +198,27 @@ describe('ProductsService', () => {
         }),
       );
     });
+
+    it('should filter by attribute values', async () => {
+      (prisma.product.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.product.count as jest.Mock).mockResolvedValue(0);
+
+      await service.findAll({
+        page: 1,
+        perPage: 10,
+        attributeValueIds: ['av1', 'av2'],
+      });
+
+      expect(prisma.product.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            attributes: {
+              some: { attributeValueId: { in: ['av1', 'av2'] } },
+            },
+          }),
+        }),
+      );
+    });
   });
 
   describe('update', () => {

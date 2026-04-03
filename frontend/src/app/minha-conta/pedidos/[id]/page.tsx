@@ -6,8 +6,13 @@ import { useParams } from 'next/navigation';
 import { api } from '@/lib/api-client';
 import { formatCurrency } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle, Circle } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { StarRating } from '@/components/product/star-rating';
+import { CheckCircle, Circle, Star } from 'lucide-react';
+import { useState } from 'react';
 
 const STATUS_ORDER = ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED'];
 
@@ -91,13 +96,18 @@ export default function OrderDetailPage() {
       <h2 className="text-sm font-medium mb-4">Itens</h2>
       <div className="space-y-3">
         {data.items?.map((item: ApiRecord) => (
-          <div key={item.id} className="flex justify-between text-sm">
+          <div key={item.id} className="flex items-center justify-between text-sm">
             <span>
               {item.product?.name ?? 'Produto'} x{item.quantity}
             </span>
-            <span className="font-medium">
-              {formatCurrency(item.price * item.quantity)}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="font-medium">
+                {formatCurrency(item.price * item.quantity)}
+              </span>
+              {data.status === 'DELIVERED' && (
+                <ReviewButton productId={item.productId} productName={item.product?.name} orderId={data.id} />
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -129,5 +139,56 @@ export default function OrderDetailPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function ReviewButton({ productId, productName, orderId }: { productId: string; productName?: string; orderId: string }) {
+  const [open, setOpen] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  async function handleSubmit() {
+    if (rating === 0) return;
+    setSending(true);
+    try {
+      await api.post('/reviews', { productId, orderId, rating, comment: comment || undefined });
+      setSent(true);
+    } catch {
+      // Pode já ter avaliado
+      setSent(true);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  if (sent) {
+    return <span className="text-xs text-muted-foreground">✅ Avaliado</span>;
+  }
+
+  return (
+    <>
+      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setOpen(true)}>
+        <Star className="h-3 w-3 mr-1" />Avaliar
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Avaliar {productName ?? 'Produto'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex justify-center">
+              <StarRating rating={rating} size={32} interactive onChange={setRating} />
+            </div>
+            <Textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Conte como foi sua experiência..." rows={3} />
+            <p className="text-xs text-muted-foreground">Após aprovação, você receberá um cupom de 5% de desconto.</p>
+            <Button onClick={handleSubmit} disabled={rating === 0 || sending} className="w-full">
+              {sending ? 'Enviando...' : 'Enviar Avaliação'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

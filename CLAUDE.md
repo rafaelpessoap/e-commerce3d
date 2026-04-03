@@ -376,12 +376,21 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [x] ProductCard atualizado para suportar MediaFile.card
 - [x] Total: 35 test suites, 230 testes, 38 rotas frontend
 
-### Sprint 4 — Avaliações + Filtros por Atributos
-- [ ] Backend: Reviews CRUD (TDD RED→GREEN) — criar (só DELIVERED), listar, média estrelas, aprovar, gerar cupom recompensa
-- [ ] Frontend: avaliações na página do produto — estrelas, comentários, imagens
-- [ ] Frontend: "Avaliar" no minha-conta/pedidos (só se DELIVERED), upload imagens
-- [ ] Backend: filtro por atributos na listagem (TDD RED→GREEN)
-- [ ] Frontend: sidebar de filtros (atributos, preço, marca) em /produtos e /c/[slug]
+### Sprint 4 — Avaliações + Filtros por Atributos ✅ (03/04/2026)
+
+**Backend (TDD RED→GREEN):**
+- [x] ReviewsService: create (valida DELIVERED + ownership + product in order + rating 1-5), findByProduct (só approved), getAverageRating, approve, generateReward (cupom 5%) — TDD: 10 testes
+- [x] ReviewsController: POST /reviews, GET /products/:id/reviews, GET /reviews/admin, PUT /reviews/:id/approve
+- [x] ProductsService.findAll: filtro por attributeValueIds + priceMin/priceMax — TDD: 1 teste novo (15 total)
+- [x] ProductsController: query params attributes (comma-separated), priceMin, priceMax
+
+**Frontend:**
+- [x] StarRating: componente de estrelas (display + interactive mode)
+- [x] ReviewsSection: média + lista de reviews aprovadas na página do produto
+- [x] ReviewButton: botão "Avaliar" em pedidos DELIVERED, modal com estrelas + comentário
+- [x] FilterSidebar: sidebar com filtros por atributos (checkboxes), marca (radio), preço (min/max)
+- [x] /produtos: layout com sidebar + grid filtrado
+- [x] Total: 36 test suites, 241 testes, 38 rotas frontend
 
 ### Integrações Externas (quando Rafael tiver os tokens)
 - [ ] Mercado Pago — ACCESS_TOKEN + WEBHOOK_SECRET → atualizar .env no servidor
