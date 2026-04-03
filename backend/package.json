@@ -105,5 +105,8 @@
   "overrides": {
     "picomatch": "^4.0.4",
     "lodash": "^4.17.25"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   }
 }
