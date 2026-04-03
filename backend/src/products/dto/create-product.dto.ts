@@ -5,7 +5,6 @@ import {
   IsPositive,
   IsOptional,
   IsArray,
-  IsUUID,
   IsBoolean,
   IsInt,
   Min,
@@ -27,7 +26,6 @@ export class CreateProductDto {
 
   @IsString()
   @IsNotEmpty()
-  @MinLength(10)
   description!: string;
 
   @IsOptional()
@@ -101,16 +99,16 @@ export class CreateProductDto {
 
   // Categorizacao
   @IsOptional()
-  @IsUUID()
+  @IsString()
   categoryId?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   brandId?: string;
 
   @IsOptional()
   @IsArray()
-  @IsUUID(undefined, { each: true })
+  @IsString({ each: true })
   tagIds?: string[];
 
   // Atributos: array de attributeValueIds

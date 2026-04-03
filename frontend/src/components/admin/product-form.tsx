@@ -7,7 +7,6 @@ import { Save, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,7 +32,6 @@ export function ProductForm({ productId }: ProductFormProps) {
   const [slugManual, setSlugManual] = useState(false);
   const [description, setDescription] = useState('');
   const [shortDescription, setShortDescription] = useState('');
-  const [content, setContent] = useState('');
   const [type, setType] = useState('simple');
   const [basePrice, setBasePrice] = useState('');
   const [salePrice, setSalePrice] = useState('');
@@ -103,9 +101,8 @@ export function ProductForm({ productId }: ProductFormProps) {
       setName(existingProduct.name ?? '');
       setSlug(existingProduct.slug ?? '');
       setSlugManual(true);
-      setDescription(existingProduct.description ?? '');
+      setDescription(existingProduct.content || existingProduct.description || '');
       setShortDescription(existingProduct.shortDescription ?? '');
-      setContent(existingProduct.content ?? '');
       setType(existingProduct.type ?? 'simple');
       setBasePrice(String(existingProduct.basePrice ?? ''));
       setSalePrice(existingProduct.salePrice ? String(existingProduct.salePrice) : '');
@@ -131,8 +128,8 @@ export function ProductForm({ productId }: ProductFormProps) {
       );
       // Variations
       setVariations(
-        existingProduct.variations?.map((v: { id: string; scaleId: string; name: string; sku: string; gtin?: string; price: number; salePrice?: number; stock: number; image?: string }) => ({
-          id: v.id, scaleId: v.scaleId, name: v.name, sku: v.sku, gtin: v.gtin, price: v.price, salePrice: v.salePrice, stock: v.stock, image: v.image,
+        existingProduct.variations?.map((v: { id: string; name: string; sku: string; gtin?: string; price: number; salePrice?: number; stock: number; weight?: number; width?: number; height?: number; length?: number; image?: string; attributeValueId?: string }) => ({
+          id: v.id, name: v.name, sku: v.sku, gtin: v.gtin, price: v.price, salePrice: v.salePrice, stock: v.stock, weight: v.weight, width: v.width, height: v.height, length: v.length, image: v.image, attributeValueId: v.attributeValueId,
         })) ?? [],
       );
       // Attributes
@@ -184,10 +181,10 @@ export function ProductForm({ productId }: ProductFormProps) {
 
     const body: Record<string, unknown> = {
       name,
-      slug,
-      description,
+      slug: slug || undefined,
+      description: description || ' ',
       shortDescription: shortDescription || undefined,
-      content: content || undefined,
+      content: description || undefined,
       type,
       basePrice: parseFloat(basePrice),
       salePrice: salePrice ? parseFloat(salePrice) : undefined,
@@ -245,7 +242,7 @@ export function ProductForm({ productId }: ProductFormProps) {
           <TabsTrigger value="inventory">Inventário</TabsTrigger>
           <TabsTrigger value="attributes">Atributos</TabsTrigger>
           {type === 'variable' && <TabsTrigger value="variations">Variações</TabsTrigger>}
-          <TabsTrigger value="delivery">Entrega</TabsTrigger>
+          <TabsTrigger value="delivery">Produção</TabsTrigger>
           <TabsTrigger value="related">Relacionados</TabsTrigger>
         </TabsList>
 
@@ -273,21 +270,20 @@ export function ProductForm({ productId }: ProductFormProps) {
 
               <div className="space-y-2">
                 <Label>Descrição Curta</Label>
-                <Textarea value={shortDescription} onChange={(e) => setShortDescription(e.target.value)} placeholder="Resumo de até 300 caracteres" rows={2} maxLength={300} />
-                <p className="text-xs text-muted-foreground">{shortDescription.length}/300 — Usada como meta description para SEO</p>
+                <RichTextEditor
+                  value={shortDescription}
+                  onChange={setShortDescription}
+                  placeholder="Resumo do produto (sem imagens). Usada como meta description para SEO."
+                  simple
+                />
               </div>
 
               <div className="space-y-2">
                 <Label>Descrição Completa</Label>
-                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descrição detalhada do produto" rows={4} />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Conteúdo (descrição longa)</Label>
                 <RichTextEditor
-                  value={content}
-                  onChange={setContent}
-                  placeholder="Descrição detalhada com formatação..."
+                  value={description}
+                  onChange={setDescription}
+                  placeholder="Descrição detalhada com formatação. Pode inserir imagens."
                 />
               </div>
             </CardContent>
@@ -333,7 +329,7 @@ export function ProductForm({ productId }: ProductFormProps) {
                     </label>
                   ))}
                 </div>
-                {type === 'variable' && <p className="text-xs text-muted-foreground">Variações serão gerenciadas na aba Variações (Sprint 2)</p>}
+                {type === 'variable' && <p className="text-xs text-muted-foreground">Configure as variações na aba Variações.</p>}
               </div>
 
               <div className="flex items-center gap-6">
@@ -512,25 +508,25 @@ export function ProductForm({ productId }: ProductFormProps) {
                 <p className="text-sm text-muted-foreground">Cada variação tem sua própria escala, preço, SKU e estoque.</p>
               </CardHeader>
               <CardContent>
-                <VariationEditor productId={productId} variations={variations} onChange={setVariations} />
+                <VariationEditor variations={variations} onChange={setVariations} />
               </CardContent>
             </Card>
           </TabsContent>
         )}
 
-        {/* ─── Aba Entrega ─── */}
+        {/* ─── Aba Produção ─── */}
         <TabsContent value="delivery">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Prazo de Entrega</CardTitle>
+              <CardTitle className="text-lg">Dias para Produção</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Prazo base: 3 dias úteis. Dias adicionais são somados ao prazo base.
+                Miniaturas impressas precisam de tempo para produção. Este prazo é somado ao prazo de entrega da transportadora.
                 Prioridade: produto {'>'} tag {'>'} categoria.
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Dias Adicionais de Entrega</Label>
+                <Label>Dias necessários para produção</Label>
                 <Input
                   type="number"
                   min="0"
@@ -542,16 +538,11 @@ export function ProductForm({ productId }: ProductFormProps) {
               </div>
 
               <div className="bg-muted/50 rounded-lg p-4 text-sm">
-                <p className="font-medium mb-1">Preview do prazo:</p>
-                <p>
-                  3 dias úteis (base) + {extraDays || '0'} dias adicionais ={' '}
-                  <span className="font-bold">{3 + (parseInt(extraDays) || 0)} dias úteis</span>
+                <p className="font-medium mb-2">Como funciona:</p>
+                <p>{extraDays ? `${extraDays} dias para produção` : 'Usando padrão da tag/categoria'} + prazo da transportadora (calculado pelo CEP do cliente)</p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  O prazo de entrega total só é calculado no checkout, após o cliente informar o CEP.
                 </p>
-                {!extraDays && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Sem override — será usado o valor da tag ou categoria do produto.
-                  </p>
-                )}
               </div>
             </CardContent>
           </Card>

@@ -26,9 +26,10 @@ interface RichTextEditorProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  simple?: boolean; // hide image/heading buttons for short descriptions
 }
 
-export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
+export function RichTextEditor({ value, onChange, placeholder, simple }: RichTextEditorProps) {
   const [htmlMode, setHtmlMode] = useState(false);
 
   const editor = useEditor({
@@ -74,13 +75,17 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
         <ToolBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} title="Itálico">
           <Italic className="h-4 w-4" />
         </ToolBtn>
-        <div className="w-px h-5 bg-border mx-1" />
-        <ToolBtn onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })} title="Título H2">
-          <Heading2 className="h-4 w-4" />
-        </ToolBtn>
-        <ToolBtn onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive('heading', { level: 3 })} title="Título H3">
-          <Heading3 className="h-4 w-4" />
-        </ToolBtn>
+        {!simple && (
+          <>
+            <div className="w-px h-5 bg-border mx-1" />
+            <ToolBtn onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })} title="Título H2">
+              <Heading2 className="h-4 w-4" />
+            </ToolBtn>
+            <ToolBtn onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive('heading', { level: 3 })} title="Título H3">
+              <Heading3 className="h-4 w-4" />
+            </ToolBtn>
+          </>
+        )}
         <div className="w-px h-5 bg-border mx-1" />
         <ToolBtn onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} title="Lista">
           <List className="h-4 w-4" />
@@ -92,9 +97,11 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
         <ToolBtn onClick={insertLink} title="Link">
           <LinkIcon className="h-4 w-4" />
         </ToolBtn>
-        <ToolBtn onClick={insertImage} title="Imagem">
-          <ImageIcon className="h-4 w-4" />
-        </ToolBtn>
+        {!simple && (
+          <ToolBtn onClick={insertImage} title="Imagem">
+            <ImageIcon className="h-4 w-4" />
+          </ToolBtn>
+        )}
         <div className="w-px h-5 bg-border mx-1" />
         <ToolBtn onClick={() => editor.chain().focus().undo().run()} title="Desfazer">
           <Undo className="h-4 w-4" />

@@ -5,7 +5,6 @@ import {
   IsOptional,
   IsBoolean,
   IsArray,
-  IsUUID,
   IsInt,
   Min,
   MinLength,
@@ -91,16 +90,16 @@ export class UpdateProductDto {
   extraDays?: number | null;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   categoryId?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   brandId?: string;
 
   @IsOptional()
   @IsArray()
-  @IsUUID(undefined, { each: true })
+  @IsString({ each: true })
   tagIds?: string[];
 
   @IsOptional()
