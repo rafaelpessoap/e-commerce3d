@@ -574,6 +574,17 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [x] OLS noCacheUrl: adicionado /p/, /c/, /t/, /m/, /produtos (corrige binário corrompido ao atualizar página)
 - [x] TDD: 11 testes novos (267 total passando, 36 suites)
 
+#### Checkout UX + Logs + MP Payer Fix ✅ (04/04/2026 sessão 2):
+- [x] CardPaymentForm: removido passo "Validar cartão" — tokenize no "Confirmar Pedido" via forwardRef/useImperativeHandle
+- [x] PIX: adicionado last_name no payer (antes só first_name)
+- [x] Cartão: adicionados first_name e last_name no payer (antes não tinha nenhum)
+- [x] Parsing de nome consistente no PaymentsService (first/last) para os 3 métodos
+- [x] CheckoutLog model (Prisma): step, status, method, request/response JSON, error, duration, IP, userAgent
+- [x] CheckoutLogService: fire-and-forget, sanitiza dados sensíveis (cardToken, CPF)
+- [x] Integrado em: OrdersController (create_order), PaymentsController (create_payment, webhook)
+- [x] Endpoint admin: GET /payments/:orderId/logs
+- [x] TDD: 5 testes CheckoutLog (327 total passando, 42 suites — 2 email pre-existentes)
+
 #### Outras Pendências:
 - [ ] Blog admin: criar/editar posts (TipTap)
 - [ ] Cache Redis por rota (CacheInterceptor)
@@ -581,7 +592,8 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [ ] Cloudflare Origin Certificate (15 anos)
 - [x] Mercado Pago integration — PIX, Cartão, Boleto (Sprint 1-3 concluídos, Sprint 4 resiliência pendente)
 - [ ] Mercado Pago Sprint 4 — expiração BullMQ (PIX 30min, Boleto 3 dias), testes E2E com cartões teste
-- [ ] Checkout UX — frete no carrinho, layout de frete igual página produto, sistema de log de erros do checkout
+- [ ] Checkout UX restante — frete no carrinho, layout de frete igual página produto
+- [ ] MP App config — aplicação "elitepinup" precisa de catalog_product_id (Checkout API) no painel do MP
 
 ---
 
@@ -673,6 +685,10 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | 2026-04-04 | CardPaymentForm com SDK JS vanilla (não Brick) | CardPayment Brick do SDK React tem botão próprio de "Pagar" que conflita com o "Confirmar Pedido" do checkout. Reescrito com Core Methods (createCardToken, getInstallments) do @mercadopago/sdk-js para controle total do fluxo. Formulário customizado + botão "Validar dados do cartão" antes do submit |
 | 2026-04-04 | Serialização de erros do MP SDK | SDK do MP retorna objetos de erro complexos. Logger com ${err} mostrava [object Object]. Criado helper serializeError() que extrai message + cause/response/body em JSON |
 | 2026-04-04 | NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY no build | Variável NEXT_PUBLIC_* precisa estar no build time do Next.js (não runtime). Adicionado ARG/ENV no frontend.Dockerfile + build-arg no workflow de deploy |
+| 2026-04-04 | CardPaymentForm sem passo extra | Rafael vetou o botão "Validar dados do cartão" — nenhuma loja faz isso. Reescrito com forwardRef/useImperativeHandle, tokenize() chamado pelo checkout no submit |
+| 2026-04-04 | PIX/CC payer incompleto | PIX faltava last_name, CC faltava first_name e last_name. MP pode rejeitar sem esses campos. Corrigido nos 3 métodos |
+| 2026-04-04 | CheckoutLog model para debug | Rafael pediu sistema de log detalhado do checkout. Model Prisma + service fire-and-forget, sanitiza dados sensíveis. Integrado em orders+payments controllers |
+| 2026-04-04 | MP internal_error 500 em todos os métodos | Aplicação "elitepinup" no painel MP tem catalog_product_id null — não foi configurada com tipo de integração. Token funciona para GET, falha para POST /payments. Solução: configurar "Checkout API" no painel |
 
 ---
 
@@ -722,6 +738,10 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | PIX payment error: [object Object] | MercadoPagoClient logava erros do SDK com template literal ${err}, SDK retorna objetos complexos | Helper serializeError() extrai message + JSON.stringify de cause/response/body |
 | CardPayment Brick botão duplicado | Brick do SDK React renderizava botão "Pagar" próprio + "Confirmar Pedido" do checkout. Confuso para o cliente | Reescrito com Core Methods (SDK JS vanilla): formulário customizado sem botão do MP. Fluxo: validar cartão → confirmar pedido |
 | Desconto aplicado sobre total (com frete) | calculateMethodDiscount usava order.total que inclui shipping. PIX 10% descontava do frete também | Corrigido: desconto sobre order.subtotal apenas. amount = subtotal - discount + shipping |
+| MP internal_error 500 em PIX/Boleto/CC | Aplicação "elitepinup" no painel do MP tem catalog_product_id: null. Sem tipo de integração, API rejeita criação de pagamentos | Precisa configurar "Checkout API" no painel MP developer. Token válido (GET 200, POST 500) |
+| CardPaymentForm passo extra "Validar cartão" | Fluxo tinha 2 etapas: validar → confirmar. Nenhuma loja faz isso, confunde o cliente | Reescrito com forwardRef + useImperativeHandle. Checkout chama tokenize() no submit. Um clique só |
+| PIX sem last_name, CC sem first_name/last_name | MercadoPagoClient enviava payer incompleto. MP pode rejeitar | Adicionados os campos faltantes nos 3 métodos. Nome parseado uma vez no PaymentsService |
+| import type vs import para Request (express) | CI com isolatedModules + emitDecoratorMetadata requer `import type` para tipos usados em decorated signatures | Trocado para `import type { Request }` nos controllers |
 
 ---
 
@@ -745,28 +765,30 @@ Sempre que:
 
 2. **MELHOR_ENVIO_TOKEN configurado em produção (04/04/2026).** Token de produção ativo. Sync usa 3 CEPs regionais para descobrir todas as transportadoras.
 
-3. **Mercado Pago Sprint 1-3 concluídos (04/04/2026).** Backend + Frontend implementados e deployados. PIX deu erro "Erro ao criar pagamento PIX" no primeiro teste — logs agora mostram erro real (serializado). Cartão: fluxo reescrito com SDK JS vanilla (sem Brick). Sprint 4 (resiliência BullMQ) pendente. Precisa testar novamente após fix de logging.
+3. **Mercado Pago Sprint 1-3 concluídos (04/04/2026).** Backend + Frontend implementados e deployados. Todos os 3 métodos retornam `internal_error` 500 do MP — **problema na configuração da aplicação no painel do MP** (catalog_product_id é null, precisa selecionar "Checkout API"). Token válido (GET endpoints funcionam, POST payments falha). Não é problema de código.
 
-4. **Checkout UX pendente:** Frete no checkout deve usar mesmo layout tabela da página do produto. Carrinho (/carrinho) precisa de calculadora de frete. Sistema de log estruturado para erros do checkout (backend + frontend) solicitado pelo Rafael. Testes E2E automatizados com cartões de teste do MP desejados.
+4. **Checkout UX:** Frete no carrinho pendente. Sistema de log estruturado implementado (CheckoutLog model + service). Testes E2E com cartões de teste do MP desejados.
+
+5. **MP App precisa de configuração:** Acessar https://www.mercadopago.com.br/developers/panel/app → editar "elitepinup" → selecionar "Checkout API" como produto → salvar → testar novamente.
 
 ---
 
 ## Última Sessão
 
-- **Data:** 04/04/2026 (noite)
+- **Data:** 04/04/2026 (sessão 2 — noite/madrugada)
 - **O que foi feito:**
-  1. **Fix Frete:** Sync multi-CEP (SP/RJ/RS), mínimos API, resolveShippingData com variationId, ProductVariationsAndShipping unificado, layout tabela WooCommerce, OLS noCacheUrl para rotas públicas. TDD: 11 testes novos.
-  2. **Mercado Pago completo (Sprints 1-3):** Backend: MercadoPagoClient (PIX/Cartão/Boleto/webhook HMAC), PaymentsService dispatcher, CreatePaymentDto. Frontend: CardPaymentForm (SDK JS vanilla), PixPayment (QR+polling), BoletoPayment, página /pedido/pagamento/[id], checkout integrado.
-  3. **SECURITY:** OrdersService recalcula TODOS os preços do banco. Frontend envia IDs+quantidades — preço/subtotal/total IGNORADOS. Fix desconto sobre subtotal (não total com frete).
-  4. **Infra:** MELHOR_ENVIO_TOKEN + MERCADOPAGO_ACCESS_TOKEN configurados no servidor. Dockerfile + deploy workflow atualizados com NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY. Schema produção atualizado (7 campos novos).
-  5. **Total: 37 suites, 295 testes passando, 0 erros lint, 0 erros TS.**
+  1. **CardPaymentForm UX:** Removido passo "Validar cartão". Agora tokeniza direto no "Confirmar Pedido" via forwardRef/useImperativeHandle. Um clique, como qualquer loja.
+  2. **MP Payer Fields:** PIX agora envia last_name. Cartão agora envia first_name e last_name. Parsing de nome centralizado no PaymentsService.
+  3. **CheckoutLog System:** Model Prisma + CheckoutLogService (fire-and-forget, sanitiza dados sensíveis). Integrado em OrdersController e PaymentsController. Endpoint admin GET /payments/:orderId/logs. TDD: 5 testes novos.
+  4. **Diagnóstico MP:** Investigação profunda revelou que o `internal_error` 500 vem da configuração da aplicação no painel do MP (catalog_product_id null), não do código. Token funciona para GET, falha para POST /payments.
+  5. **Total: 42 suites (40 pass, 2 email pre-existentes), 327 testes passando, 0 erros TS, 0 erros lint.**
 - **O que ficou pendente:**
-  - Testar PIX/Cartão/Boleto em produção (PIX deu erro no primeiro teste — logs agora detalhados)
-  - Checkout UX: frete no carrinho, layout frete igual página produto, sistema de log estruturado de erros
+  - **BLOQUEANTE:** Configurar produto "Checkout API" na aplicação MP (painel developer) — sem isso, nenhum pagamento funciona
+  - Checkout UX: frete no carrinho, layout frete igual página produto
   - Mercado Pago Sprint 4: expiração BullMQ (PIX 30min, Boleto 3 dias), testes E2E com cartões teste
   - Blog admin (TipTap), cache Redis, testes de carga
 - **Próximo passo exato:**
-  1. Testar checkout em produção (PIX, Cartão com APRO, Boleto) e verificar logs de erro reais.
-  2. Criar sistema de log estruturado para erros de pagamento (modelo PaymentLog ou logger dedicado).
-  3. Igualar layout de frete do checkout com o da página do produto (tabela ordenada por preço).
+  1. Rafael configura "Checkout API" no painel MP → testa PIX/Cartão/Boleto em produção.
+  2. Verificar checkout_logs no banco para debug detalhado.
+  3. Igualar layout de frete do checkout com o da página do produto.
   4. Adicionar calculadora de frete na página do carrinho.
