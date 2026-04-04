@@ -40,9 +40,11 @@ export default function AdminShippingPage() {
       setSyncMessage(`${result.synced} transportadoras sincronizadas`);
       setTimeout(() => setSyncMessage(''), 4000);
     },
-    onError: () => {
-      setSyncMessage('Erro ao sincronizar transportadoras');
-      setTimeout(() => setSyncMessage(''), 4000);
+    onError: (err: unknown) => {
+      const resp = (err as { response?: { data?: { error?: { message?: string }; message?: string } } })?.response?.data;
+      const msg = resp?.error?.message ?? resp?.message ?? 'Erro ao sincronizar transportadoras';
+      setSyncMessage(msg);
+      setTimeout(() => setSyncMessage(''), 6000);
     },
   });
 

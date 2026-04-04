@@ -66,9 +66,38 @@ export class MelhorEnvioService {
    * Sincroniza com o banco (upsert para cada serviço encontrado).
    */
   async syncServicesFromApi(): Promise<{ synced: number; services: Array<{ id: number; name: string; company: string }> }> {
+    if (!this.token) {
+      this.logger.warn('MELHOR_ENVIO_TOKEN não configurado — usando serviços padrão');
+      // Fallback: sync hardcoded services to DB
+      const services: Array<{ id: number; name: string; company: string }> = [];
+      for (const svc of MELHOR_ENVIO_SERVICES) {
+        services.push(svc);
+        const existing = await this.prisma.shippingMethod.findUnique({
+          where: { serviceId: svc.id },
+        });
+        if (!existing) {
+          await this.prisma.shippingMethod.create({
+            data: {
+              serviceId: svc.id,
+              name: svc.name,
+              company: svc.company,
+              isActive: false,
+            },
+          });
+        }
+      }
+      return { synced: services.length, services };
+    }
+
+    // Buscar CEP de origem do banco
+    const fromCepSetting = await this.prisma.setting
+      .findUnique({ where: { key: 'shop_cep' } })
+      .catch(() => null);
+    const fromCep = fromCepSetting?.value ?? this.fromCep ?? '01001000';
+
     // Faz uma cotação com dados fictícios para descobrir os serviços disponíveis
     const body = {
-      from: { postal_code: this.fromCep || '01001000' },
+      from: { postal_code: fromCep },
       to: { postal_code: '30130000' },
       products: [{ id: '1', width: 15, height: 10, length: 20, weight: 0.5, insurance_value: 50, quantity: 1 }],
     };
@@ -88,8 +117,9 @@ export class MelhorEnvioService {
     );
 
     if (!response.ok) {
-      this.logger.error(`Melhor Envio sync error: ${response.status}`);
-      throw new BadRequestException('Não foi possível sincronizar transportadoras');
+      const errorBody = await response.text().catch(() => '');
+      this.logger.error(`Melhor Envio sync error: ${response.status} — ${errorBody}`);
+      throw new BadRequestException(`Não foi possível sincronizar transportadoras (${response.status})`);
     }
 
     const data: any[] = await response.json();

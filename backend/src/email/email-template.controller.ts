@@ -9,13 +9,13 @@ export class EmailTemplateController {
   @Roles('ADMIN')
   @Get()
   async findAll() {
-    return this.emailTemplateService.findAll();
+    return { data: await this.emailTemplateService.findAll() };
   }
 
   @Roles('ADMIN')
   @Get(':id')
   async findById(@Param('id') id: string) {
-    return this.emailTemplateService.findByType(id);
+    return { data: await this.emailTemplateService.findByType(id) };
   }
 
   @Roles('ADMIN')
@@ -24,6 +24,6 @@ export class EmailTemplateController {
     @Param('id') id: string,
     @Body() body: { subject?: string; htmlBody?: string },
   ) {
-    return this.emailTemplateService.update(id, body);
+    return { data: await this.emailTemplateService.update(id, body) };
   }
 }

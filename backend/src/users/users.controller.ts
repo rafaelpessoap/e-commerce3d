@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Body, Query } from '@nestjs/common';
+import { Controller, Get, Put, Body, Param, Query } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -23,6 +23,8 @@ export class UsersController {
     });
   }
 
+  // ─── Current user routes (must be BEFORE :id routes) ───────
+
   @Get('me')
   async getProfile(@CurrentUser() user: { id: string }) {
     const profile = await this.usersService.getProfile(user.id);
@@ -45,5 +47,24 @@ export class UsersController {
   ) {
     await this.usersService.changePassword(user.id, dto);
     return { data: { message: 'Password changed successfully' } };
+  }
+
+  // ─── Admin routes ──────────────────────────────────────────
+
+  @Roles('ADMIN')
+  @Get(':id/addresses')
+  async adminGetUserAddresses(@Param('id') id: string) {
+    const addresses = await this.usersService.adminGetUserAddresses(id);
+    return { data: addresses };
+  }
+
+  @Roles('ADMIN')
+  @Put(':id')
+  async adminUpdateUser(
+    @Param('id') id: string,
+    @Body() dto: { name?: string; email?: string; cpf?: string; phone?: string; isActive?: boolean },
+  ) {
+    const updated = await this.usersService.adminUpdateUser(id, dto);
+    return { data: updated };
   }
 }

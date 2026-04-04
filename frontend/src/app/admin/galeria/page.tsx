@@ -300,18 +300,16 @@ export default function AdminGalleryPage() {
 
       {/* Zoom Dialog */}
       <Dialog open={!!zoomMedia} onOpenChange={(open) => !open && setZoomMedia(null)}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-[90vw] max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>{zoomMedia?.filename}</DialogTitle>
           </DialogHeader>
           {zoomMedia && (
-            <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden bg-muted">
-              <Image
-                src={zoomMedia.gallery}
+            <div className="flex items-center justify-center overflow-auto">
+              <img
+                src={zoomMedia.full}
                 alt={zoomMedia.alt ?? zoomMedia.filename}
-                fill
-                className="object-contain"
-                sizes="800px"
+                className="max-w-full max-h-[80vh] object-contain rounded-lg"
               />
             </div>
           )}

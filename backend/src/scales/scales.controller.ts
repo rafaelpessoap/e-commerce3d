@@ -12,19 +12,19 @@ export class ScalesController {
   @Public()
   @Get()
   async findAll() {
-    return await this.scalesService.findAll();
+    return { data: await this.scalesService.findAll() };
   }
 
   @Roles('ADMIN')
   @Post()
   async create(@Body() dto: CreateScaleDto) {
-    return await this.scalesService.create(dto);
+    return { data: await this.scalesService.create(dto) };
   }
 
   @Roles('ADMIN')
   @Put(':id')
   async update(@Param('id') id: string, @Body() dto: UpdateScaleDto) {
-    return await this.scalesService.update(id, dto);
+    return { data: await this.scalesService.update(id, dto) };
   }
 
   @Roles('ADMIN')

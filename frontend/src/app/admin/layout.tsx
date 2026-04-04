@@ -69,15 +69,15 @@ export default function AdminLayout({
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <aside className="w-60 border-r bg-muted/30 flex flex-col">
-        <div className="p-4 border-b">
+      <aside className="w-60 h-screen border-r bg-muted/30 flex flex-col sticky top-0">
+        <div className="p-4 border-b flex-shrink-0">
           <Link href="/admin" className="font-bold text-lg">
             {SITE_NAME}
           </Link>
           <p className="text-xs text-muted-foreground">Admin</p>
         </div>
 
-        <nav className="flex-1 p-3 space-y-1">
+        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
           {NAV_ITEMS.map((item) => {
             const isActive = item.exact
               ? pathname === item.href
@@ -101,7 +101,7 @@ export default function AdminLayout({
           })}
         </nav>
 
-        <div className="p-3 border-t space-y-1">
+        <div className="p-3 border-t space-y-1 flex-shrink-0">
           <Link
             href={ROUTES.home}
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2"

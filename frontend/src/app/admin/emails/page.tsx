@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
-import { Mail, Eye, Code, Save, Image, Copy, Check } from 'lucide-react';
+import { Mail, Eye, Code, Save, ImageIcon, Copy, Check } from 'lucide-react';
 
 interface TagInfo {
   tag: string;
@@ -37,11 +37,13 @@ export default function AdminEmailsPage() {
   const [showGallery, setShowGallery] = useState(false);
   const [gallerySearch, setGallerySearch] = useState('');
 
+  const [error, setError] = useState('');
+
   const { data: templates, isLoading } = useQuery({
     queryKey: ['email-templates'],
     queryFn: async () => {
-      const { data } = await api.get<EmailTemplate[]>('/email-templates');
-      return data;
+      const { data } = await api.get('/email-templates');
+      return (data.data ?? data) as EmailTemplate[];
     },
   });
 
@@ -65,14 +67,24 @@ export default function AdminEmailsPage() {
       return result;
     },
     onSuccess: () => {
+      setError('');
       queryClient.invalidateQueries({ queryKey: ['email-templates'] });
+    },
+    onError: (err: unknown) => {
+      const resp = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data;
+      setError(resp?.error?.message ?? 'Erro ao salvar template');
     },
   });
 
-  const selectedTemplate = templates?.find((t) => t.id === selectedId);
-  const availableTags: TagInfo[] = selectedTemplate
-    ? JSON.parse(selectedTemplate.availableTags)
-    : [];
+  const selectedTemplate = templates?.find((t: EmailTemplate) => t.id === selectedId);
+  let availableTags: TagInfo[] = [];
+  try {
+    availableTags = selectedTemplate
+      ? JSON.parse(selectedTemplate.availableTags)
+      : [];
+  } catch {
+    availableTags = [];
+  }
 
   function selectTemplate(tpl: EmailTemplate) {
     setSelectedId(tpl.id);
@@ -119,6 +131,12 @@ export default function AdminEmailsPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Templates de Email</h1>
+
+      {error && (
+        <div className="bg-destructive/10 text-destructive border border-destructive/20 rounded-md px-4 py-3 mb-4 text-sm">
+          {error}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
         {/* Lista de templates */}
@@ -193,7 +211,7 @@ export default function AdminEmailsPage() {
                 onClick={() => setShowGallery(!showGallery)}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm bg-muted text-muted-foreground hover:text-foreground"
               >
-                <Image className="h-3.5 w-3.5" />
+                <ImageIcon className="h-3.5 w-3.5" />
                 Inserir Imagem
               </button>
               <div className="flex-1" />

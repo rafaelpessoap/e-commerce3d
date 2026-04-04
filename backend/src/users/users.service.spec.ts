@@ -23,6 +23,9 @@ describe('UsersService', () => {
               update: jest.fn(),
               count: jest.fn(),
             },
+            address: {
+              findMany: jest.fn(),
+            },
           },
         },
       ],
@@ -151,6 +154,75 @@ describe('UsersService', () => {
             phone: '11999999999',
           }),
         }),
+      );
+    });
+  });
+
+  describe('adminUpdateUser', () => {
+    it('should update user name, cpf, phone and isActive', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 'u1' });
+      (prisma.user.update as jest.Mock).mockResolvedValue({
+        id: 'u1',
+        name: 'New Name',
+        cpf: '99999999999',
+        phone: '21888888888',
+        isActive: false,
+      });
+
+      const result = await service.adminUpdateUser('u1', {
+        name: 'New Name',
+        cpf: '99999999999',
+        phone: '21888888888',
+        isActive: false,
+      });
+
+      expect(result.name).toBe('New Name');
+      expect(result.isActive).toBe(false);
+      expect(prisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ name: 'New Name', isActive: false }),
+        }),
+      );
+    });
+
+    it('should throw NotFoundException for non-existent user', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.adminUpdateUser('bad-id', { name: 'X' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should NOT allow role or password changes', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 'u1' });
+      (prisma.user.update as jest.Mock).mockResolvedValue({ id: 'u1' });
+
+      await service.adminUpdateUser('u1', {
+        role: 'ADMIN',
+        password: 'hacked',
+      } as any);
+
+      expect(prisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.not.objectContaining({ role: 'ADMIN', password: 'hacked' }),
+        }),
+      );
+    });
+  });
+
+  describe('adminGetUserAddresses', () => {
+    it('should return addresses for a given user', async () => {
+      const mockAddresses = [
+        { id: 'a1', street: 'Rua A', city: 'SP', userId: 'u1' },
+        { id: 'a2', street: 'Rua B', city: 'RJ', userId: 'u1' },
+      ];
+      (prisma.address.findMany as jest.Mock).mockResolvedValue(mockAddresses);
+
+      const result = await service.adminGetUserAddresses('u1');
+
+      expect(result).toHaveLength(2);
+      expect(prisma.address.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { userId: 'u1' } }),
       );
     });
   });

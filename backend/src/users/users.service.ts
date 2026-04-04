@@ -99,6 +99,38 @@ export class UsersService {
     });
   }
 
+  async adminUpdateUser(
+    userId: string,
+    dto: { name?: string; email?: string; cpf?: string; phone?: string; isActive?: boolean },
+  ) {
+    const existing = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!existing) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Only allow safe fields — never role or password
+    const { name, email, cpf, phone, isActive } = dto;
+    const data: Record<string, unknown> = {};
+    if (name !== undefined) data.name = name;
+    if (email !== undefined) data.email = email;
+    if (cpf !== undefined) data.cpf = cpf;
+    if (phone !== undefined) data.phone = phone;
+    if (isActive !== undefined) data.isActive = isActive;
+
+    return this.prisma.user.update({
+      where: { id: userId },
+      data,
+      select: USER_SELECT,
+    });
+  }
+
+  async adminGetUserAddresses(userId: string) {
+    return this.prisma.address.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async changePassword(
     userId: string,
     dto: { currentPassword: string; newPassword: string },
