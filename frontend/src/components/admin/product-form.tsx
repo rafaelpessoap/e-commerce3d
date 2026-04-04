@@ -440,6 +440,7 @@ export function ProductForm({ productId }: ProductFormProps) {
 
                       <hr />
 
+                      {type !== 'variable' && (
                       <div>
                         <h3 className="text-sm font-medium mb-3">Estoque</h3>
                         <div className="flex items-center gap-2 mb-3">
@@ -453,6 +454,12 @@ export function ProductForm({ productId }: ProductFormProps) {
                           </div>
                         )}
                       </div>
+                      )}
+                      {type === 'variable' && (
+                        <p className="text-sm text-muted-foreground">
+                          Produto variavel: o estoque e gerenciado em cada variacao.
+                        </p>
+                      )}
 
                       <hr />
 

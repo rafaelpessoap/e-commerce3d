@@ -43,7 +43,7 @@ export class UpdateProductDto {
 
   @IsOptional()
   @IsNumber()
-  @IsPositive()
+  @Min(0)
   basePrice?: number;
 
   @IsOptional()

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { EmptyState } from '@/components/shared/empty-state';
+import { ShippingCalculator, type ShippingQuote } from '@/components/shared/shipping-calculator';
 import { api } from '@/lib/api-client';
 import { useCartStore } from '@/store/cart-store';
 import { ROUTES, formatCurrency } from '@/lib/constants';
@@ -17,6 +18,7 @@ export default function CartPage() {
   const [couponCode, setCouponCode] = useState('');
   const [couponMsg, setCouponMsg] = useState('');
   const [loading, setLoading] = useState(true);
+  const [selectedShipping, setSelectedShipping] = useState<ShippingQuote | null>(null);
 
   useEffect(() => {
     api
@@ -166,20 +168,38 @@ export default function CartPage() {
         <p className="text-sm text-muted-foreground mb-4">{couponMsg}</p>
       )}
 
-      {/* Summary */}
+      {/* Shipping */}
       <div className="border rounded-lg p-6 space-y-3">
+        <h2 className="font-semibold text-base mb-2">Calcular Frete</h2>
+        <ShippingCalculator
+          products={items.map((i) => ({ productId: i.productId, quantity: i.quantity }))}
+          selectedQuote={selectedShipping}
+          onSelectQuote={setSelectedShipping}
+        />
+      </div>
+
+      {/* Summary */}
+      <div className="border rounded-lg p-6 space-y-3 mt-6">
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Subtotal</span>
           <span>{formatCurrency(subtotal)}</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Frete</span>
-          <span className="text-muted-foreground">Calcular no checkout</span>
+          <span className="text-muted-foreground">
+            Frete{selectedShipping ? ` (${selectedShipping.name})` : ''}
+          </span>
+          {selectedShipping ? (
+            <span className={selectedShipping.price === 0 ? 'text-green-600 font-medium' : ''}>
+              {selectedShipping.price === 0 ? 'Gratis' : formatCurrency(selectedShipping.price)}
+            </span>
+          ) : (
+            <span className="text-muted-foreground text-xs">Calcule acima</span>
+          )}
         </div>
         <Separator />
         <div className="flex justify-between font-bold text-lg">
           <span>Total</span>
-          <span>{formatCurrency(subtotal)}</span>
+          <span>{formatCurrency(subtotal + (selectedShipping?.price ?? 0))}</span>
         </div>
         <Link href={ROUTES.checkout} className="block mt-4">
           <Button size="lg" className="w-full">
