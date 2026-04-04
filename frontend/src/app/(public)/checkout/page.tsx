@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShippingCalculator, type ShippingQuote } from '@/components/shared/shipping-calculator';
-import { CardPaymentForm } from '@/components/payment/card-payment-form';
+import { CardPaymentForm, type CardPaymentFormRef } from '@/components/payment/card-payment-form';
 import { api } from '@/lib/api-client';
 import { useCartStore } from '@/store/cart-store';
 import { useAuthStore } from '@/store/auth-store';
@@ -28,11 +28,7 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState('pix');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [cardData, setCardData] = useState<{
-    token: string;
-    installments: number;
-    paymentMethodId: string;
-  } | null>(null);
+  const cardFormRef = useRef<CardPaymentFormRef>(null);
 
   // Personal data
   const [fullName, setFullName] = useState('');
@@ -118,10 +114,6 @@ export default function CheckoutPage() {
       setError('Selecione uma opcao de frete.');
       return;
     }
-    if (paymentMethod === 'credit_card' && !cardData) {
-      setError('Preencha os dados do cartao de credito.');
-      return;
-    }
 
     setError('');
     setLoading(true);
@@ -140,6 +132,34 @@ export default function CheckoutPage() {
     });
 
     try {
+      // Tokenizar cartão (se necessário) — tudo em 1 clique
+      let cardToken: string | undefined;
+      let cardInstallments: number | undefined;
+      let cardMethodId: string | undefined;
+
+      if (paymentMethod === 'credit_card') {
+        if (!cardFormRef.current) {
+          setError('Formulario do cartao nao carregou. Recarregue a pagina.');
+          setLoading(false);
+          return;
+        }
+        try {
+          const tokenData = await cardFormRef.current.tokenize();
+          if (!tokenData) {
+            setError('Erro ao processar cartao. Verifique os dados.');
+            setLoading(false);
+            return;
+          }
+          cardToken = tokenData.token;
+          cardInstallments = tokenData.installments;
+          cardMethodId = tokenData.paymentMethodId;
+        } catch (cardErr) {
+          setError((cardErr as Error).message || 'Dados do cartao invalidos.');
+          setLoading(false);
+          return;
+        }
+      }
+
       // 1. Criar pedido (backend recalcula preços do banco)
       const { data: orderData } = await api.post('/orders', {
         items: items.map((i) => ({
@@ -163,9 +183,9 @@ export default function CheckoutPage() {
       const { data: paymentData } = await api.post('/payments/create', {
         orderId,
         method: paymentMethod,
-        cardToken: cardData?.token,
-        installments: cardData?.installments,
-        paymentMethodId: cardData?.paymentMethodId,
+        cardToken,
+        installments: cardInstallments,
+        paymentMethodId: cardMethodId,
         payerEmail: email,
         payerCpf: cpfDigits,
         payerName: fullName.trim(),
@@ -423,10 +443,7 @@ export default function CheckoutPage() {
                       name="payment"
                       value={method.id}
                       checked={paymentMethod === method.id}
-                      onChange={() => {
-                        setPaymentMethod(method.id);
-                        setCardData(null);
-                      }}
+                      onChange={() => setPaymentMethod(method.id)}
                       className="accent-primary"
                     />
                     <span className="font-medium text-sm">{method.label}</span>
@@ -443,12 +460,8 @@ export default function CheckoutPage() {
               {paymentMethod === 'credit_card' && (
                 <div className="mt-4">
                   <CardPaymentForm
+                    ref={cardFormRef}
                     amount={total}
-                    onCardReady={(data) => {
-                      setCardData(data);
-                      setError('');
-                    }}
-                    onError={(msg) => setError(msg)}
                   />
                 </div>
               )}
@@ -519,7 +532,7 @@ export default function CheckoutPage() {
                 size="lg"
                 className="w-full mt-4"
                 onClick={handlePlaceOrder}
-                disabled={loading || !selectedShipping || !zipCode}
+                disabled={loading}
               >
                 {loading ? 'Finalizando...' : 'Confirmar Pedido'}
               </Button>

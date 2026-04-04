@@ -538,6 +538,29 @@ model Payment {
   @@map("payments")
 }
 
+model CheckoutLog {
+  id        String   @id @default(cuid())
+  orderId   String?
+  userId    String?
+  step      String // create_order, create_payment, payment_webhook, payment_status_check
+  status    String // success, error
+  method    String? // pix, credit_card, boleto
+  request   String? @db.Text // JSON do request (sanitizado, sem tokens)
+  response  String? @db.Text // JSON do response
+  error     String? @db.Text // mensagem de erro + stack
+  duration  Int? // ms
+  ip        String?
+  userAgent String?
+  metadata  String? @db.Text // JSON extra (ex: MP payment ID, idempotency key)
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([userId])
+  @@index([step])
+  @@index([createdAt])
+  @@map("checkout_logs")
+}
+
 model SeoMeta {
   id          String @id @default(cuid())
   entityType  String // product, category, brand, page, blog_post

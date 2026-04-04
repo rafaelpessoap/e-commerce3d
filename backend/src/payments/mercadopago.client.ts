@@ -5,7 +5,8 @@ import * as crypto from 'crypto';
 
 function serializeError(err: unknown): string {
   if (err instanceof Error) {
-    const extra = (err as any).cause ?? (err as any).response ?? (err as any).body;
+    const extra =
+      (err as any).cause ?? (err as any).response ?? (err as any).body;
     return `${err.message}${extra ? ' | ' + JSON.stringify(extra) : ''}`;
   }
   try {
@@ -22,10 +23,12 @@ export class MercadoPagoClient {
   private readonly webhookSecret: string;
 
   constructor(private readonly configService: ConfigService) {
-    const accessToken = this.configService.get<string>('MERCADOPAGO_ACCESS_TOKEN') ?? '';
+    const accessToken =
+      this.configService.get<string>('MERCADOPAGO_ACCESS_TOKEN') ?? '';
     const config = new MercadoPagoConfig({ accessToken });
     this.paymentApi = new Payment(config);
-    this.webhookSecret = this.configService.get<string>('MERCADOPAGO_WEBHOOK_SECRET') ?? '';
+    this.webhookSecret =
+      this.configService.get<string>('MERCADOPAGO_WEBHOOK_SECRET') ?? '';
   }
 
   async createPixPayment(params: {
@@ -35,6 +38,7 @@ export class MercadoPagoClient {
     payerEmail: string;
     payerCpf: string;
     payerFirstName: string;
+    payerLastName: string;
   }) {
     const body = {
       transaction_amount: params.amount,
@@ -44,16 +48,21 @@ export class MercadoPagoClient {
       payer: {
         email: params.payerEmail,
         first_name: params.payerFirstName,
+        last_name: params.payerLastName,
         identification: { type: 'CPF' as const, number: params.payerCpf },
       },
     };
 
-    this.logger.log(`PIX payment request: amount=${params.amount}, email=${params.payerEmail}, ref=${params.externalReference}`);
+    this.logger.log(
+      `PIX payment request: amount=${params.amount}, email=${params.payerEmail}, ref=${params.externalReference}`,
+    );
 
     try {
       const result = await this.paymentApi.create({ body });
 
-      this.logger.log(`PIX payment created: id=${result.id}, status=${result.status}`);
+      this.logger.log(
+        `PIX payment created: id=${result.id}, status=${result.status}`,
+      );
 
       const txData = result.point_of_interaction?.transaction_data;
 
@@ -65,8 +74,13 @@ export class MercadoPagoClient {
         expiresAt: result.date_of_expiration ?? '',
       };
     } catch (err) {
-      this.logger.error(`PIX payment FAILED: ${serializeError(err)}`, JSON.stringify({ params: { ...params, payerCpf: '***' } }));
-      throw new BadRequestException(`Erro ao criar pagamento PIX: ${serializeError(err)}`);
+      this.logger.error(
+        `PIX payment FAILED: ${serializeError(err)}`,
+        JSON.stringify({ params: { ...params, payerCpf: '***' } }),
+      );
+      throw new BadRequestException(
+        `Erro ao criar pagamento PIX: ${serializeError(err)}`,
+      );
     }
   }
 
@@ -79,6 +93,8 @@ export class MercadoPagoClient {
     externalReference: string;
     payerEmail: string;
     payerCpf: string;
+    payerFirstName: string;
+    payerLastName: string;
   }) {
     const body = {
       transaction_amount: params.amount,
@@ -89,16 +105,22 @@ export class MercadoPagoClient {
       external_reference: params.externalReference,
       payer: {
         email: params.payerEmail,
+        first_name: params.payerFirstName,
+        last_name: params.payerLastName,
         identification: { type: 'CPF' as const, number: params.payerCpf },
       },
     };
 
-    this.logger.log(`CC payment request: amount=${params.amount}, installments=${params.installments}, method=${params.paymentMethodId}, ref=${params.externalReference}`);
+    this.logger.log(
+      `CC payment request: amount=${params.amount}, installments=${params.installments}, method=${params.paymentMethodId}, ref=${params.externalReference}`,
+    );
 
     try {
       const result = await this.paymentApi.create({ body });
 
-      this.logger.log(`CC payment result: id=${result.id}, status=${result.status}, detail=${result.status_detail}`);
+      this.logger.log(
+        `CC payment result: id=${result.id}, status=${result.status}, detail=${result.status_detail}`,
+      );
 
       return {
         id: result.id!,
@@ -107,8 +129,16 @@ export class MercadoPagoClient {
         cardLastFour: result.card?.last_four_digits ?? '',
       };
     } catch (err) {
-      this.logger.error(`CC payment FAILED: ${serializeError(err)}`, JSON.stringify({ amount: params.amount, method: params.paymentMethodId }));
-      throw new BadRequestException(`Erro ao processar pagamento com cartao: ${serializeError(err)}`);
+      this.logger.error(
+        `CC payment FAILED: ${serializeError(err)}`,
+        JSON.stringify({
+          amount: params.amount,
+          method: params.paymentMethodId,
+        }),
+      );
+      throw new BadRequestException(
+        `Erro ao processar pagamento com cartao: ${serializeError(err)}`,
+      );
     }
   }
 
@@ -134,12 +164,16 @@ export class MercadoPagoClient {
       },
     };
 
-    this.logger.log(`Boleto payment request: amount=${params.amount}, ref=${params.externalReference}`);
+    this.logger.log(
+      `Boleto payment request: amount=${params.amount}, ref=${params.externalReference}`,
+    );
 
     try {
       const result = await this.paymentApi.create({ body });
 
-      this.logger.log(`Boleto payment created: id=${result.id}, status=${result.status}`);
+      this.logger.log(
+        `Boleto payment created: id=${result.id}, status=${result.status}`,
+      );
 
       return {
         id: result.id!,
@@ -148,8 +182,13 @@ export class MercadoPagoClient {
         expiresAt: result.date_of_expiration ?? '',
       };
     } catch (err) {
-      this.logger.error(`Boleto payment FAILED: ${serializeError(err)}`, JSON.stringify({ amount: params.amount }));
-      throw new BadRequestException(`Erro ao gerar boleto: ${serializeError(err)}`);
+      this.logger.error(
+        `Boleto payment FAILED: ${serializeError(err)}`,
+        JSON.stringify({ amount: params.amount }),
+      );
+      throw new BadRequestException(
+        `Erro ao gerar boleto: ${serializeError(err)}`,
+      );
     }
   }
 
@@ -157,8 +196,12 @@ export class MercadoPagoClient {
     try {
       return await this.paymentApi.get({ id: paymentId });
     } catch (err) {
-      this.logger.error(`Get payment FAILED (id=${paymentId}): ${serializeError(err)}`);
-      throw new BadRequestException('Erro ao consultar pagamento no Mercado Pago');
+      this.logger.error(
+        `Get payment FAILED (id=${paymentId}): ${serializeError(err)}`,
+      );
+      throw new BadRequestException(
+        'Erro ao consultar pagamento no Mercado Pago',
+      );
     }
   }
 

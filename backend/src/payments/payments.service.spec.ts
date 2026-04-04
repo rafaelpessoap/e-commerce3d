@@ -17,7 +17,12 @@ describe('PaymentsService', () => {
     discount: 0,
     total: 115,
     status: 'PENDING',
-    user: { id: 'user1', email: 'buyer@test.com', name: 'Test User', cpf: '12345678909' },
+    user: {
+      id: 'user1',
+      email: 'buyer@test.com',
+      name: 'Test User',
+      cpf: '12345678909',
+    },
   };
 
   beforeEach(async () => {
@@ -79,13 +84,24 @@ describe('PaymentsService', () => {
     it('should create PIX payment, call MP SDK, and return QR code data', async () => {
       (prisma.order.findUnique as jest.Mock).mockResolvedValue(mockOrder);
       (prisma.payment.create as jest.Mock).mockResolvedValue({
-        id: 'pay1', orderId: 'order1', method: 'pix', amount: 90, discount: 10, status: 'PENDING',
+        id: 'pay1',
+        orderId: 'order1',
+        method: 'pix',
+        amount: 90,
+        discount: 10,
+        status: 'PENDING',
       });
       (mpClient.createPixPayment as jest.Mock).mockResolvedValue({
-        id: 12345, qrCode: 'pix-code', qrCodeBase64: 'base64-img', expiresAt: '2026-04-05T00:00:00Z',
+        id: 12345,
+        qrCode: 'pix-code',
+        qrCodeBase64: 'base64-img',
+        expiresAt: '2026-04-05T00:00:00Z',
       });
       (prisma.payment.update as jest.Mock).mockResolvedValue({
-        id: 'pay1', externalId: '12345', pixQrCode: 'base64-img', pixCopiaECola: 'pix-code',
+        id: 'pay1',
+        externalId: '12345',
+        pixQrCode: 'base64-img',
+        pixCopiaECola: 'pix-code',
       });
 
       const result = await service.createPayment('order1', 'pix', {
@@ -114,16 +130,24 @@ describe('PaymentsService', () => {
 
     it('should apply discount on SUBTOTAL (not total with shipping)', async () => {
       (prisma.order.findUnique as jest.Mock).mockResolvedValue(mockOrder);
-      (prisma.payment.create as jest.Mock).mockImplementation(async (args: any) => ({
-        id: 'pay1', ...args.data,
-      }));
+      (prisma.payment.create as jest.Mock).mockImplementation(
+        async (args: any) => ({
+          id: 'pay1',
+          ...args.data,
+        }),
+      );
       (mpClient.createPixPayment as jest.Mock).mockResolvedValue({
-        id: 12345, qrCode: 'code', qrCodeBase64: 'img', expiresAt: '2026-04-05T00:00:00Z',
+        id: 12345,
+        qrCode: 'code',
+        qrCodeBase64: 'img',
+        expiresAt: '2026-04-05T00:00:00Z',
       });
       (prisma.payment.update as jest.Mock).mockResolvedValue({});
 
       await service.createPayment('order1', 'pix', {
-        payerEmail: 'buyer@test.com', payerCpf: '12345678909', payerName: 'Test',
+        payerEmail: 'buyer@test.com',
+        payerCpf: '12345678909',
+        payerName: 'Test',
       });
 
       // Discount: 10% of subtotal (100) = 10
@@ -141,13 +165,23 @@ describe('PaymentsService', () => {
     it('should create CC payment with card token and return status', async () => {
       (prisma.order.findUnique as jest.Mock).mockResolvedValue(mockOrder);
       (prisma.payment.create as jest.Mock).mockResolvedValue({
-        id: 'pay2', orderId: 'order1', method: 'credit_card', amount: 115, discount: 0, status: 'PENDING',
+        id: 'pay2',
+        orderId: 'order1',
+        method: 'credit_card',
+        amount: 115,
+        discount: 0,
+        status: 'PENDING',
       });
       (mpClient.createCreditCardPayment as jest.Mock).mockResolvedValue({
-        id: 67890, status: 'approved', statusDetail: 'accredited', cardLastFour: '6351',
+        id: 67890,
+        status: 'approved',
+        statusDetail: 'accredited',
+        cardLastFour: '6351',
       });
       (prisma.payment.update as jest.Mock).mockResolvedValue({
-        id: 'pay2', status: 'APPROVED', externalId: '67890',
+        id: 'pay2',
+        status: 'APPROVED',
+        externalId: '67890',
       });
       (prisma.order.update as jest.Mock).mockResolvedValue({});
 
@@ -185,17 +219,29 @@ describe('PaymentsService', () => {
     it('should update payment to APPROVED when MP returns approved', async () => {
       (prisma.order.findUnique as jest.Mock).mockResolvedValue(mockOrder);
       (prisma.payment.create as jest.Mock).mockResolvedValue({
-        id: 'pay2', orderId: 'order1', method: 'credit_card', amount: 115, discount: 0, status: 'PENDING',
+        id: 'pay2',
+        orderId: 'order1',
+        method: 'credit_card',
+        amount: 115,
+        discount: 0,
+        status: 'PENDING',
       });
       (mpClient.createCreditCardPayment as jest.Mock).mockResolvedValue({
-        id: 67890, status: 'approved', statusDetail: 'accredited', cardLastFour: '6351',
+        id: 67890,
+        status: 'approved',
+        statusDetail: 'accredited',
+        cardLastFour: '6351',
       });
       (prisma.payment.update as jest.Mock).mockResolvedValue({});
       (prisma.order.update as jest.Mock).mockResolvedValue({});
 
       await service.createPayment('order1', 'credit_card', {
-        cardToken: 'token', installments: 1, paymentMethodId: 'visa',
-        payerEmail: 'buyer@test.com', payerCpf: '12345678909', payerName: 'APRO',
+        cardToken: 'token',
+        installments: 1,
+        paymentMethodId: 'visa',
+        payerEmail: 'buyer@test.com',
+        payerCpf: '12345678909',
+        payerName: 'APRO',
       });
 
       expect(prisma.payment.update).toHaveBeenCalledWith(
@@ -216,16 +262,28 @@ describe('PaymentsService', () => {
     it('should update payment to FAILED when MP returns rejected', async () => {
       (prisma.order.findUnique as jest.Mock).mockResolvedValue(mockOrder);
       (prisma.payment.create as jest.Mock).mockResolvedValue({
-        id: 'pay2', orderId: 'order1', method: 'credit_card', amount: 115, discount: 0, status: 'PENDING',
+        id: 'pay2',
+        orderId: 'order1',
+        method: 'credit_card',
+        amount: 115,
+        discount: 0,
+        status: 'PENDING',
       });
       (mpClient.createCreditCardPayment as jest.Mock).mockResolvedValue({
-        id: 67890, status: 'rejected', statusDetail: 'cc_rejected_other_reason', cardLastFour: '5682',
+        id: 67890,
+        status: 'rejected',
+        statusDetail: 'cc_rejected_other_reason',
+        cardLastFour: '5682',
       });
       (prisma.payment.update as jest.Mock).mockResolvedValue({});
 
       await service.createPayment('order1', 'credit_card', {
-        cardToken: 'token', installments: 1, paymentMethodId: 'visa',
-        payerEmail: 'buyer@test.com', payerCpf: '12345678909', payerName: 'OTHE',
+        cardToken: 'token',
+        installments: 1,
+        paymentMethodId: 'visa',
+        payerEmail: 'buyer@test.com',
+        payerCpf: '12345678909',
+        payerName: 'OTHE',
       });
 
       expect(prisma.payment.update).toHaveBeenCalledWith(
@@ -241,11 +299,17 @@ describe('PaymentsService', () => {
   describe('createPayment — Boleto', () => {
     it('should create boleto payment and return URL + barcode', async () => {
       (prisma.order.findUnique as jest.Mock).mockResolvedValue(mockOrder);
-      (prisma.payment.create as jest.Mock).mockImplementation(async (args: any) => ({
-        id: 'pay3', ...args.data,
-      }));
+      (prisma.payment.create as jest.Mock).mockImplementation(
+        async (args: any) => ({
+          id: 'pay3',
+          ...args.data,
+        }),
+      );
       (mpClient.createBoletoPayment as jest.Mock).mockResolvedValue({
-        id: 11111, boletoUrl: 'https://mp.com/boleto/11111', barcode: '23793...', expiresAt: '2026-04-07T00:00:00Z',
+        id: 11111,
+        boletoUrl: 'https://mp.com/boleto/11111',
+        barcode: '23793...',
+        expiresAt: '2026-04-07T00:00:00Z',
       });
       (prisma.payment.update as jest.Mock).mockResolvedValue({});
 
@@ -295,10 +359,14 @@ describe('PaymentsService', () => {
         external_reference: 'order1',
       });
       (prisma.payment.findFirst as jest.Mock).mockResolvedValue({
-        id: 'pay1', orderId: 'order1', status: 'PENDING', amount: 105,
+        id: 'pay1',
+        orderId: 'order1',
+        status: 'PENDING',
+        amount: 105,
       });
       (prisma.order.findUnique as jest.Mock).mockResolvedValue({
-        id: 'order1', total: 105,
+        id: 'order1',
+        total: 105,
       });
       (prisma.payment.update as jest.Mock).mockResolvedValue({});
       (prisma.order.update as jest.Mock).mockResolvedValue({});
@@ -323,10 +391,16 @@ describe('PaymentsService', () => {
 
     it('should be idempotent — skip if already in target status', async () => {
       (mpClient.getPayment as jest.Mock).mockResolvedValue({
-        id: 12345, status: 'approved', transaction_amount: 105, external_reference: 'order1',
+        id: 12345,
+        status: 'approved',
+        transaction_amount: 105,
+        external_reference: 'order1',
       });
       (prisma.payment.findFirst as jest.Mock).mockResolvedValue({
-        id: 'pay1', orderId: 'order1', status: 'APPROVED', amount: 105,
+        id: 'pay1',
+        orderId: 'order1',
+        status: 'APPROVED',
+        amount: 105,
       });
 
       await service.processWebhook('12345');
@@ -336,7 +410,10 @@ describe('PaymentsService', () => {
 
     it('should ignore unknown MP payment IDs', async () => {
       (mpClient.getPayment as jest.Mock).mockResolvedValue({
-        id: 99999, status: 'approved', transaction_amount: 100, external_reference: 'unknown-order',
+        id: 99999,
+        status: 'approved',
+        transaction_amount: 100,
+        external_reference: 'unknown-order',
       });
       (prisma.payment.findFirst as jest.Mock).mockResolvedValue(null);
 
@@ -347,10 +424,16 @@ describe('PaymentsService', () => {
 
     it('should reject webhook when payment amount diverges from order', async () => {
       (mpClient.getPayment as jest.Mock).mockResolvedValue({
-        id: 12345, status: 'approved', transaction_amount: 50, external_reference: 'order1',
+        id: 12345,
+        status: 'approved',
+        transaction_amount: 50,
+        external_reference: 'order1',
       });
       (prisma.payment.findFirst as jest.Mock).mockResolvedValue({
-        id: 'pay1', orderId: 'order1', status: 'PENDING', amount: 105,
+        id: 'pay1',
+        orderId: 'order1',
+        status: 'PENDING',
+        amount: 105,
       });
 
       await service.processWebhook('12345');
@@ -361,10 +444,16 @@ describe('PaymentsService', () => {
 
     it('should update to FAILED when MP reports rejected', async () => {
       (mpClient.getPayment as jest.Mock).mockResolvedValue({
-        id: 12345, status: 'rejected', transaction_amount: 105, external_reference: 'order1',
+        id: 12345,
+        status: 'rejected',
+        transaction_amount: 105,
+        external_reference: 'order1',
       });
       (prisma.payment.findFirst as jest.Mock).mockResolvedValue({
-        id: 'pay1', orderId: 'order1', status: 'PENDING', amount: 105,
+        id: 'pay1',
+        orderId: 'order1',
+        status: 'PENDING',
+        amount: 105,
       });
       (prisma.payment.update as jest.Mock).mockResolvedValue({});
       (prisma.order.update as jest.Mock).mockResolvedValue({});
@@ -384,7 +473,10 @@ describe('PaymentsService', () => {
   describe('getPaymentStatus', () => {
     it('should return payment status for polling', async () => {
       (prisma.payment.findFirst as jest.Mock).mockResolvedValue({
-        id: 'pay1', orderId: 'order1', status: 'APPROVED', method: 'pix',
+        id: 'pay1',
+        orderId: 'order1',
+        status: 'APPROVED',
+        method: 'pix',
       });
 
       const result = await service.getPaymentStatus('order1');

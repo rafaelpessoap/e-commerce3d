@@ -61,7 +61,8 @@ export class PaymentsService {
 
     // Desconto sobre SUBTOTAL (não total que inclui frete)
     const discount = this.calculateMethodDiscount(method, order.subtotal);
-    const amount = Math.round((order.subtotal - discount + order.shipping) * 100) / 100;
+    const amount =
+      Math.round((order.subtotal - discount + order.shipping) * 100) / 100;
 
     // Criar registro local PENDING
     const payment = await this.prisma.payment.create({
@@ -71,17 +72,44 @@ export class PaymentsService {
     const payerEmail = extra?.payerEmail ?? order.user?.email ?? '';
     const payerCpf = extra?.payerCpf ?? (order.user as any)?.cpf ?? '';
     const payerName = extra?.payerName ?? order.user?.name ?? '';
+    const nameParts = payerName.split(' ');
+    const payerFirstName = nameParts[0] || payerName || 'Cliente';
+    const payerLastName = nameParts.slice(1).join(' ') || payerFirstName;
 
     // Dispatcher por método
     switch (method) {
       case 'pix':
-        return this.handlePixPayment(payment, order, payerEmail, payerCpf, payerName);
+        return this.handlePixPayment(
+          payment,
+          order,
+          payerEmail,
+          payerCpf,
+          payerFirstName,
+          payerLastName,
+        );
       case 'boleto':
-        return this.handleBoletoPayment(payment, order, payerEmail, payerCpf, payerName);
+        return this.handleBoletoPayment(
+          payment,
+          order,
+          payerEmail,
+          payerCpf,
+          payerFirstName,
+          payerLastName,
+        );
       case 'credit_card':
-        return this.handleCreditCardPayment(payment, order, extra);
+        return this.handleCreditCardPayment(
+          payment,
+          order,
+          payerEmail,
+          payerCpf,
+          payerFirstName,
+          payerLastName,
+          extra,
+        );
       default:
-        throw new BadRequestException(`Método de pagamento não suportado: ${method}`);
+        throw new BadRequestException(
+          `Método de pagamento não suportado: ${method}`,
+        );
     }
   }
 
@@ -90,7 +118,8 @@ export class PaymentsService {
     order: any,
     payerEmail: string,
     payerCpf: string,
-    payerName: string,
+    payerFirstName: string,
+    payerLastName: string,
   ) {
     const mpResult = await this.mpClient.createPixPayment({
       amount: payment.amount,
@@ -98,7 +127,8 @@ export class PaymentsService {
       externalReference: order.id,
       payerEmail,
       payerCpf,
-      payerFirstName: payerName.split(' ')[0] ?? payerName,
+      payerFirstName,
+      payerLastName,
     });
 
     return this.prisma.payment.update({
@@ -117,20 +147,17 @@ export class PaymentsService {
     order: any,
     payerEmail: string,
     payerCpf: string,
-    payerName: string,
+    payerFirstName: string,
+    payerLastName: string,
   ) {
-    const nameParts = payerName.split(' ');
-    const firstName = nameParts[0] ?? payerName;
-    const lastName = nameParts.slice(1).join(' ') || firstName;
-
     const mpResult = await this.mpClient.createBoletoPayment({
       amount: payment.amount,
       description: `Pedido ${order.number ?? order.id}`,
       externalReference: order.id,
       payerEmail,
       payerCpf,
-      payerFirstName: firstName,
-      payerLastName: lastName,
+      payerFirstName,
+      payerLastName,
     });
 
     return this.prisma.payment.update({
@@ -147,6 +174,10 @@ export class PaymentsService {
   private async handleCreditCardPayment(
     payment: any,
     order: any,
+    payerEmail: string,
+    payerCpf: string,
+    payerFirstName: string,
+    payerLastName: string,
     extra?: {
       cardToken?: string;
       installments?: number;
@@ -157,7 +188,9 @@ export class PaymentsService {
     },
   ) {
     if (!extra?.cardToken) {
-      throw new BadRequestException('cardToken é obrigatório para pagamento com cartão');
+      throw new BadRequestException(
+        'cardToken é obrigatório para pagamento com cartão',
+      );
     }
 
     const mpResult = await this.mpClient.createCreditCardPayment({
@@ -167,8 +200,10 @@ export class PaymentsService {
       paymentMethodId: extra.paymentMethodId ?? 'visa',
       description: `Pedido ${order.number ?? order.id}`,
       externalReference: order.id,
-      payerEmail: extra.payerEmail ?? '',
-      payerCpf: extra.payerCpf ?? '',
+      payerEmail,
+      payerCpf,
+      payerFirstName,
+      payerLastName,
     });
 
     const newStatus = WEBHOOK_STATUS_MAP[mpResult.status] ?? 'PENDING';

@@ -5,11 +5,14 @@ import {
   Body,
   Param,
   Headers,
+  Req,
   UnauthorizedException,
   Logger,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { PaymentsService } from './payments.service';
 import { MercadoPagoClient } from './mercadopago.client';
+import { CheckoutLogService } from './checkout-log.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -21,23 +24,63 @@ export class PaymentsController {
   constructor(
     private readonly paymentsService: PaymentsService,
     private readonly mpClient: MercadoPagoClient,
+    private readonly checkoutLog: CheckoutLogService,
   ) {}
 
   @Post('create')
-  async createPayment(@Body() dto: CreatePaymentDto) {
-    const result = await this.paymentsService.createPayment(
-      dto.orderId,
-      dto.method,
-      {
-        cardToken: dto.cardToken,
-        installments: dto.installments,
-        paymentMethodId: dto.paymentMethodId,
-        payerEmail: dto.payerEmail,
-        payerCpf: dto.payerCpf,
-        payerName: dto.payerName,
-      },
-    );
-    return { data: result };
+  async createPayment(@Body() dto: CreatePaymentDto, @Req() req: Request) {
+    const start = Date.now();
+    const userId = (req as any).user?.id;
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string);
+    const userAgent = req.headers['user-agent'];
+
+    try {
+      const result = await this.paymentsService.createPayment(
+        dto.orderId,
+        dto.method,
+        {
+          cardToken: dto.cardToken,
+          installments: dto.installments,
+          paymentMethodId: dto.paymentMethodId,
+          payerEmail: dto.payerEmail,
+          payerCpf: dto.payerCpf,
+          payerName: dto.payerName,
+        },
+      );
+
+      await this.checkoutLog.log({
+        step: 'create_payment',
+        status: 'success',
+        orderId: dto.orderId,
+        userId,
+        method: dto.method,
+        request: dto,
+        response: {
+          paymentId: result.id,
+          status: result.status,
+          externalId: result.externalId,
+        },
+        duration: Date.now() - start,
+        ip,
+        userAgent,
+      });
+
+      return { data: result };
+    } catch (err) {
+      await this.checkoutLog.log({
+        step: 'create_payment',
+        status: 'error',
+        orderId: dto.orderId,
+        userId,
+        method: dto.method,
+        request: dto,
+        error: err,
+        duration: Date.now() - start,
+        ip,
+        userAgent,
+      });
+      throw err;
+    }
   }
 
   @Public()
@@ -68,7 +111,27 @@ export class PaymentsController {
 
     // Processar notificação de pagamento
     if (body.action?.startsWith('payment.') && dataId) {
-      await this.paymentsService.processWebhook(dataId);
+      const start = Date.now();
+      try {
+        await this.paymentsService.processWebhook(dataId);
+        await this.checkoutLog.log({
+          step: 'payment_webhook',
+          status: 'success',
+          request: { action: body.action, dataId },
+          metadata: { mpPaymentId: dataId, xRequestId },
+          duration: Date.now() - start,
+        });
+      } catch (err) {
+        await this.checkoutLog.log({
+          step: 'payment_webhook',
+          status: 'error',
+          request: { action: body.action, dataId },
+          error: err,
+          metadata: { mpPaymentId: dataId },
+          duration: Date.now() - start,
+        });
+        throw err;
+      }
     }
 
     return { received: true };
@@ -94,5 +157,11 @@ export class PaymentsController {
   @Get(':orderId')
   async findByOrder(@Param('orderId') orderId: string) {
     return { data: await this.paymentsService.findByOrderId(orderId) };
+  }
+
+  @Roles('ADMIN')
+  @Get(':orderId/logs')
+  async getCheckoutLogs(@Param('orderId') orderId: string) {
+    return { data: await this.checkoutLog.findByOrder(orderId) };
   }
 }

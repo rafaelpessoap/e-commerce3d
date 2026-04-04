@@ -18,7 +18,8 @@ jest.mock('mercadopago', () => ({
 
 describe('MercadoPagoClient', () => {
   let client: MercadoPagoClient;
-  const WEBHOOK_SECRET = 'test-webhook-secret-64chars-minimum-for-security-purposes-here';
+  const WEBHOOK_SECRET =
+    'test-webhook-secret-64chars-minimum-for-security-purposes-here';
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -70,6 +71,7 @@ describe('MercadoPagoClient', () => {
         payerEmail: 'buyer@test.com',
         payerCpf: '12345678909',
         payerFirstName: 'Test',
+        payerLastName: 'Buyer',
       });
 
       expect(mockPaymentCreate).toHaveBeenCalledWith({
@@ -78,6 +80,8 @@ describe('MercadoPagoClient', () => {
           payment_method_id: 'pix',
           payer: expect.objectContaining({
             email: 'buyer@test.com',
+            first_name: 'Test',
+            last_name: 'Buyer',
           }),
         }),
       });
@@ -99,6 +103,7 @@ describe('MercadoPagoClient', () => {
           payerEmail: 'buyer@test.com',
           payerCpf: '12345678909',
           payerFirstName: 'Test',
+          payerLastName: 'Buyer',
         }),
       ).rejects.toThrow(BadRequestException);
     });
@@ -124,6 +129,8 @@ describe('MercadoPagoClient', () => {
         externalReference: 'order-456',
         payerEmail: 'buyer@test.com',
         payerCpf: '12345678909',
+        payerFirstName: 'Test',
+        payerLastName: 'Buyer',
       });
 
       expect(mockPaymentCreate).toHaveBeenCalledWith({
@@ -132,6 +139,11 @@ describe('MercadoPagoClient', () => {
           token: 'card-token-from-frontend',
           installments: 3,
           payment_method_id: 'master',
+          payer: expect.objectContaining({
+            email: 'buyer@test.com',
+            first_name: 'Test',
+            last_name: 'Buyer',
+          }),
         }),
       });
 
@@ -158,6 +170,8 @@ describe('MercadoPagoClient', () => {
         externalReference: 'order-456',
         payerEmail: 'buyer@test.com',
         payerCpf: '12345678909',
+        payerFirstName: 'Test',
+        payerLastName: 'Buyer',
       });
 
       expect(result.status).toBe('rejected');
@@ -177,6 +191,8 @@ describe('MercadoPagoClient', () => {
           externalReference: 'order-456',
           payerEmail: 'buyer@test.com',
           payerCpf: '12345678909',
+          payerFirstName: 'Test',
+          payerLastName: 'Buyer',
         }),
       ).rejects.toThrow(BadRequestException);
     });
@@ -192,7 +208,9 @@ describe('MercadoPagoClient', () => {
         transaction_details: {
           external_resource_url: 'https://mercadopago.com/boleto/11111',
         },
-        barcode: { content: '23793.38128 60000.000003 00000.000402 1 84340000010000' },
+        barcode: {
+          content: '23793.38128 60000.000003 00000.000402 1 84340000010000',
+        },
         date_of_expiration: '2026-04-07T00:00:00.000Z',
       });
 
@@ -266,9 +284,17 @@ describe('MercadoPagoClient', () => {
   // ─── WEBHOOK SIGNATURE VERIFICATION ──────────────────────────
 
   describe('verifyWebhookSignature', () => {
-    function generateValidSignature(dataId: string, requestId: string, ts: string, secret: string): string {
+    function generateValidSignature(
+      dataId: string,
+      requestId: string,
+      ts: string,
+      secret: string,
+    ): string {
       const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`;
-      const hmac = crypto.createHmac('sha256', secret).update(manifest).digest('hex');
+      const hmac = crypto
+        .createHmac('sha256', secret)
+        .update(manifest)
+        .digest('hex');
       return `ts=${ts},v1=${hmac}`;
     }
 
@@ -276,7 +302,12 @@ describe('MercadoPagoClient', () => {
       const dataId = '12345';
       const requestId = 'req-abc-123';
       const ts = '1712345678';
-      const signature = generateValidSignature(dataId, requestId, ts, WEBHOOK_SECRET);
+      const signature = generateValidSignature(
+        dataId,
+        requestId,
+        ts,
+        WEBHOOK_SECRET,
+      );
 
       const result = client.verifyWebhookSignature({
         xSignature: signature,

@@ -1,19 +1,21 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 const MP_PUBLIC_KEY = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY ?? '';
 
-interface CardPaymentFormProps {
-  amount: number;
-  onCardReady: (data: {
+export interface CardPaymentFormRef {
+  tokenize: () => Promise<{
     token: string;
     installments: number;
     paymentMethodId: string;
-  }) => void;
-  onError: (error: string) => void;
+  } | null>;
+}
+
+interface CardPaymentFormProps {
+  amount: number;
 }
 
 interface InstallmentOption {
@@ -23,11 +25,8 @@ interface InstallmentOption {
   recommended_message: string;
 }
 
-export function CardPaymentForm({
-  amount,
-  onCardReady,
-  onError,
-}: CardPaymentFormProps) {
+export const CardPaymentForm = forwardRef<CardPaymentFormRef, CardPaymentFormProps>(
+  function CardPaymentForm({ amount }, ref) {
   const [cardNumber, setCardNumber] = useState('');
   const [expMonth, setExpMonth] = useState('');
   const [expYear, setExpYear] = useState('');
@@ -37,8 +36,6 @@ export function CardPaymentForm({
   const [installmentsList, setInstallmentsList] = useState<InstallmentOption[]>([]);
   const [selectedInstallments, setSelectedInstallments] = useState(1);
   const [paymentMethodId, setPaymentMethodId] = useState('');
-  const [tokenizing, setTokenizing] = useState(false);
-  const [tokenized, setTokenized] = useState(false);
   // MercadoPago JS SDK is untyped — suppress any warnings
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mpRef = useRef<any>(null);
@@ -60,6 +57,40 @@ export function CardPaymentForm({
     loadMP();
   }, []);
 
+  useImperativeHandle(ref, () => ({
+    async tokenize() {
+      if (!mpRef.current) {
+        throw new Error('SDK de pagamento nao carregado. Recarregue a pagina.');
+      }
+
+      const cleanedCard = cardNumber.replace(/\D/g, '');
+      if (cleanedCard.length < 13) throw new Error('Numero do cartao invalido');
+      if (!expMonth || !expYear) throw new Error('Preencha a validade do cartao');
+      if (!cvv || cvv.length < 3) throw new Error('CVV invalido');
+      if (!holderName.trim()) throw new Error('Preencha o nome no cartao');
+
+      const token = await mpRef.current.createCardToken({
+        cardNumber: cleanedCard,
+        cardholderName: holderName,
+        cardExpirationMonth: expMonth,
+        cardExpirationYear: `20${expYear}`,
+        securityCode: cvv,
+        identificationType: 'CPF',
+        identificationNumber: holderCpf.replace(/\D/g, ''),
+      });
+
+      if (!token?.id) {
+        throw new Error('Erro ao processar cartao. Verifique os dados.');
+      }
+
+      return {
+        token: token.id,
+        installments: selectedInstallments,
+        paymentMethodId: paymentMethodId || 'visa',
+      };
+    },
+  }));
+
   if (!MP_PUBLIC_KEY) {
     return (
       <div className="text-sm text-destructive p-4 border rounded-lg">
@@ -79,7 +110,6 @@ export function CardPaymentForm({
       formatted = `${cleaned.slice(0, 4)} ${cleaned.slice(4)}`;
     }
     setCardNumber(formatted);
-    setTokenized(false);
 
     if (cleaned.length >= 6 && mpRef.current) {
       try {
@@ -95,69 +125,6 @@ export function CardPaymentForm({
         // Silent
       }
     }
-  }
-
-  async function handleTokenize() {
-    if (!mpRef.current) {
-      onError('SDK de pagamento nao carregado. Recarregue a pagina.');
-      return;
-    }
-
-    const cleanedCard = cardNumber.replace(/\D/g, '');
-    if (cleanedCard.length < 13) { onError('Numero do cartao invalido'); return; }
-    if (!expMonth || !expYear) { onError('Preencha a validade do cartao'); return; }
-    if (!cvv || cvv.length < 3) { onError('CVV invalido'); return; }
-    if (!holderName.trim()) { onError('Preencha o nome no cartao'); return; }
-
-    setTokenizing(true);
-    try {
-      const token = await mpRef.current.createCardToken({
-        cardNumber: cleanedCard,
-        cardholderName: holderName,
-        cardExpirationMonth: expMonth,
-        cardExpirationYear: `20${expYear}`,
-        securityCode: cvv,
-        identificationType: 'CPF',
-        identificationNumber: holderCpf.replace(/\D/g, ''),
-      });
-
-      if (token && token.id) {
-        setTokenized(true);
-        onCardReady({
-          token: token.id,
-          installments: selectedInstallments,
-          paymentMethodId: paymentMethodId || 'visa',
-        });
-      } else {
-        onError('Erro ao processar cartao. Verifique os dados.');
-      }
-    } catch (err) {
-      console.error('Card token error:', err);
-      onError('Dados do cartao invalidos. Verifique e tente novamente.');
-    } finally {
-      setTokenizing(false);
-    }
-  }
-
-  if (tokenized) {
-    return (
-      <div className="flex items-center justify-between text-sm p-3 bg-green-50 border border-green-200 rounded-lg">
-        <span className="text-green-700 font-medium">
-          Cartao validado — **** {cardNumber.replace(/\D/g, '').slice(-4)} ({selectedInstallments}x)
-        </span>
-        <button
-          type="button"
-          className="text-xs text-primary underline"
-          onClick={() => {
-            setTokenized(false);
-            setCardNumber('');
-            setCvv('');
-          }}
-        >
-          Alterar
-        </button>
-      </div>
-    );
   }
 
   return (
@@ -246,18 +213,6 @@ export function CardPaymentForm({
           </select>
         </div>
       )}
-
-      <button
-        type="button"
-        onClick={handleTokenize}
-        disabled={tokenizing}
-        className="w-full rounded-md bg-secondary px-4 py-2 text-sm font-medium hover:bg-secondary/80 disabled:opacity-50"
-      >
-        {tokenizing ? 'Validando cartao...' : 'Validar dados do cartao'}
-      </button>
-      <p className="text-xs text-muted-foreground text-center">
-        Valide os dados do cartao antes de confirmar o pedido
-      </p>
     </div>
   );
-}
+});
