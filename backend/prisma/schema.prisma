@@ -111,7 +111,8 @@ model Order {
   paymentStatus PaymentStatus @default(PENDING)
   paymentId     String?       // ID externo do gateway
 
-  notes String?
+  notes         String?
+  stockReserved Boolean @default(false) // true se estoque foi reservado (idempotência)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -177,10 +178,12 @@ model Product {
   salePrice Float? // preco promocional
 
   // Inventario
-  sku         String?  @unique
-  gtin        String?
-  manageStock Boolean  @default(true)
-  stock       Int      @default(0)
+  sku               String?  @unique
+  gtin              String?
+  manageStock       Boolean  @default(true)
+  stock             Int      @default(0)
+  reservedStock     Int      @default(0)
+  lowStockThreshold Int? // override global; null = usar Setting low_stock_threshold
   weight      Float? // kg
   width       Float? // cm
   height      Float? // cm
@@ -200,6 +203,7 @@ model Product {
   attributes        ProductAttribute[]
   relatedProducts   RelatedProduct[]   @relation("ProductRelated")
   reviews           Review[]
+  stockAuditLogs    StockAuditLog[]
 
   orderItems    OrderItem[]
   wishlistItems WishlistItem[]
@@ -224,17 +228,19 @@ model ProductVariation {
 
   sku       String
   gtin      String?
-  price     Float // preco com ajuste de escala
-  salePrice Float?
-  stock     Int   @default(0)
-  image     String? // URL imagem da variacao
+  price         Float // preco com ajuste de escala
+  salePrice     Float?
+  stock         Int   @default(0)
+  reservedStock Int   @default(0)
+  image         String? // URL imagem da variacao
 
   weight Float? // kg
   width  Float? // cm
   height Float? // cm
   length Float? // cm
 
-  orderItems OrderItem[]
+  orderItems     OrderItem[]
+  stockAuditLogs StockAuditLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -536,6 +542,30 @@ model Payment {
   @@index([orderId])
   @@index([externalId])
   @@map("payments")
+}
+
+model StockAuditLog {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variationId String?
+  variation   ProductVariation? @relation(fields: [variationId], references: [id], onDelete: Cascade)
+
+  quantityBefore Int
+  quantityAfter  Int
+  delta          Int // +/- change
+  reservedBefore Int?
+  reservedAfter  Int?
+
+  reason      String // ORDER_RESERVED, ORDER_CONFIRMED, ORDER_CANCELLED, PAYMENT_FAILED, ADMIN_ADJUSTMENT
+  referenceId String? // orderId ou admin userId
+
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+  @@index([variationId])
+  @@index([createdAt])
+  @@map("stock_audit_logs")
 }
 
 model CheckoutLog {

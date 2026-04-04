@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PaymentsService } from './payments.service';
 import { MercadoPagoClient } from './mercadopago.client';
 import { PrismaService } from '../prisma/prisma.service';
+import { StockService } from '../stock/stock.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('PaymentsService', () => {
@@ -52,6 +53,14 @@ describe('PaymentsService', () => {
             createBoletoPayment: jest.fn(),
             getPayment: jest.fn(),
             verifyWebhookSignature: jest.fn(),
+          },
+        },
+        {
+          provide: StockService,
+          useValue: {
+            reserveStock: jest.fn().mockResolvedValue(undefined),
+            confirmReservation: jest.fn().mockResolvedValue(undefined),
+            releaseStock: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],

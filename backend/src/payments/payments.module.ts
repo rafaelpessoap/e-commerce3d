@@ -3,8 +3,10 @@ import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { MercadoPagoClient } from './mercadopago.client';
 import { CheckoutLogService } from './checkout-log.service';
+import { StockModule } from '../stock/stock.module';
 
 @Module({
+  imports: [StockModule],
   controllers: [PaymentsController],
   providers: [PaymentsService, MercadoPagoClient, CheckoutLogService],
   exports: [PaymentsService, CheckoutLogService],

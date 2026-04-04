@@ -1,11 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { OrdersService } from './orders.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { StockService } from '../stock/stock.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('OrdersService', () => {
   let service: OrdersService;
   let prisma: PrismaService;
+
+  const mockStockService = {
+    reserveStock: jest.fn().mockResolvedValue(undefined),
+    releaseStock: jest.fn().mockResolvedValue(undefined),
+    confirmReservation: jest.fn().mockResolvedValue(undefined),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -28,6 +35,10 @@ describe('OrdersService', () => {
               create: jest.fn(),
             },
           },
+        },
+        {
+          provide: StockService,
+          useValue: mockStockService,
         },
       ],
     }).compile();

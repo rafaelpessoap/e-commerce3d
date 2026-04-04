@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { StockService } from '../stock/stock.service';
 import { randomBytes } from 'crypto';
 
 // State machine: valid transitions
@@ -19,7 +20,10 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
 
 @Injectable()
 export class OrdersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private stockService: StockService,
+  ) {}
 
   isValidTransition(from: string, to: string): boolean {
     return STATUS_TRANSITIONS[from]?.includes(to) ?? false;
@@ -100,7 +104,7 @@ export class OrdersService {
     const shipping = params.shipping ?? 0;
     const total = Math.round((subtotal + shipping) * 100) / 100;
 
-    return this.prisma.order.create({
+    const order = await this.prisma.order.create({
       data: {
         number: this.generateOrderNumber(),
         userId: params.userId,
@@ -124,6 +128,18 @@ export class OrdersService {
       },
       include: { items: true },
     });
+
+    // Reservar estoque (incrementa reservedStock, não decrementa stock)
+    await this.stockService.reserveStock(
+      order.id,
+      verifiedItems.map((item) => ({
+        productId: item.productId,
+        variationId: item.variationId,
+        quantity: item.quantity,
+      })),
+    );
+
+    return order;
   }
 
   async updateStatus(orderId: string, newStatus: string, userId?: string) {
@@ -151,10 +167,17 @@ export class OrdersService {
       },
     });
 
-    return this.prisma.order.update({
+    const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: { status: newStatus as any },
     });
+
+    // Liberar estoque reservado ao cancelar
+    if (newStatus === 'CANCELLED') {
+      await this.stockService.releaseStock(orderId, 'ORDER_CANCELLED');
+    }
+
+    return updated;
   }
 
   async findAll(params: {

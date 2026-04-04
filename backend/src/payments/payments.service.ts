@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MercadoPagoClient } from './mercadopago.client';
+import { StockService } from '../stock/stock.service';
 
 // Descontos configuráveis por método de pagamento (aplicados sobre SUBTOTAL)
 const METHOD_DISCOUNTS: Record<string, number> = {
@@ -33,6 +34,7 @@ export class PaymentsService {
   constructor(
     private prisma: PrismaService,
     private mpClient: MercadoPagoClient,
+    private stockService: StockService,
   ) {}
 
   calculateMethodDiscount(method: string, amount: number): number {
@@ -220,12 +222,19 @@ export class PaymentsService {
       },
     });
 
-    // Sincronizar status do pedido
-    if (newStatus === 'APPROVED' || newStatus === 'FAILED') {
+    // Sincronizar status do pedido + estoque
+    if (newStatus === 'APPROVED') {
       await this.prisma.order.update({
         where: { id: payment.orderId },
         data: { paymentStatus: newStatus as any },
       });
+      await this.stockService.confirmReservation(payment.orderId);
+    } else if (newStatus === 'FAILED') {
+      await this.prisma.order.update({
+        where: { id: payment.orderId },
+        data: { paymentStatus: newStatus as any },
+      });
+      await this.stockService.releaseStock(payment.orderId, 'PAYMENT_FAILED');
     }
 
     return updated;
@@ -290,6 +299,13 @@ export class PaymentsService {
       where: { id: payment.orderId },
       data: { paymentStatus: newStatus as any },
     });
+
+    // 7. Atualizar estoque
+    if (newStatus === 'APPROVED') {
+      await this.stockService.confirmReservation(payment.orderId);
+    } else if (newStatus === 'CANCELLED' || newStatus === 'FAILED') {
+      await this.stockService.releaseStock(payment.orderId, 'PAYMENT_FAILED');
+    }
   }
 
   async findByOrderId(orderId: string) {
