@@ -8,6 +8,8 @@ import { WishlistButton } from '@/components/product/wishlist-button';
 import { ReviewsSection } from '@/components/product/reviews-section';
 import { AddToCartButton } from './add-to-cart-button';
 import { ProductGallery } from './product-gallery';
+import { ProductShipping } from './product-shipping';
+import { AdminEditButton } from './admin-edit-button';
 import type { Product } from '@/types/product';
 import type { ApiResponse } from '@/types/api';
 
@@ -45,7 +47,6 @@ async function getRelatedProducts(categoryId: string | undefined, productId: str
       params: { categoryId, perPage: 4 },
     });
     const items = data.data ?? [];
-    // Exclui o próprio produto
     return items.filter((p: { id: string }) => p.id !== productId).slice(0, 4);
   } catch {
     return [];
@@ -68,7 +69,7 @@ export default async function ProductPage({ params }: Props) {
   if (!product) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-16">
-        <EmptyState title="Produto não encontrado" description="O produto que você procura não existe ou foi removido." />
+        <EmptyState title="Produto nao encontrado" description="O produto que voce procura nao existe ou foi removido." />
       </div>
     );
   }
@@ -99,12 +100,20 @@ export default async function ProductPage({ params }: Props) {
             </Link>
           )}
 
-          <h1 className="text-3xl font-bold mt-1">{product.name}</h1>
+          <div className="flex items-start justify-between gap-3 mt-1">
+            <h1 className="text-3xl font-bold">{product.name}</h1>
+            <AdminEditButton productId={product.id} />
+          </div>
 
           {product.brand && (
             <Link href={ROUTES.brand(product.brand.slug)} className="text-sm text-muted-foreground hover:text-primary mt-1 block">
               por {product.brand.name}
             </Link>
+          )}
+
+          {/* Short description — right below name */}
+          {product.shortDescription && (
+            <p className="mt-3 text-muted-foreground leading-relaxed">{product.shortDescription}</p>
           )}
 
           {/* Price */}
@@ -122,15 +131,10 @@ export default async function ProductPage({ params }: Props) {
             </p>
           </div>
 
-          {/* Short description */}
-          {product.shortDescription && (
-            <p className="mt-4 text-sm text-muted-foreground">{product.shortDescription}</p>
-          )}
-
           {/* Variations */}
           {variations.length > 0 && (
             <div className="mt-6">
-              <h3 className="text-sm font-medium mb-3">Escalas disponíveis</h3>
+              <h3 className="text-sm font-medium mb-3">Escalas disponiveis</h3>
               <div className="flex flex-wrap gap-2">
                 {variations.map((v: { id: string; name: string; price: number; salePrice?: number; image?: string; scale: { name: string } }) => (
                   <div key={v.id} className="rounded border px-3 py-2 text-sm cursor-pointer hover:border-primary transition-colors">
@@ -171,17 +175,20 @@ export default async function ProductPage({ params }: Props) {
           {/* Delivery info */}
           <div className="mt-6 bg-muted/50 rounded-lg p-4 text-sm">
             <p>
-              📦 Entrega em <span className="font-bold">{delivery.totalDays} dias úteis</span>
+              📦 Entrega em <span className="font-bold">{delivery.totalDays} dias uteis</span>
               {delivery.extraDays > 0 && (
                 <span className="text-muted-foreground"> (3 base + {delivery.extraDays} adicionais)</span>
               )}
             </p>
           </div>
 
+          {/* Shipping Calculator */}
+          <ProductShipping productId={product.id} />
+
           {/* Attributes */}
           {attributes.length > 0 && (
             <div className="mt-8 border-t pt-6">
-              <h3 className="text-sm font-medium mb-3">Características</h3>
+              <h3 className="text-sm font-medium mb-3">Caracteristicas</h3>
               <div className="space-y-2">
                 {attributes.map((pa: { id: string; attributeValue: { value: string; attribute: { name: string } } }) => (
                   <div key={pa.id} className="flex text-sm">
@@ -192,20 +199,21 @@ export default async function ProductPage({ params }: Props) {
               </div>
             </div>
           )}
-
-          {/* Description */}
-          <div className="mt-8 border-t pt-6">
-            <h3 className="text-sm font-medium mb-3">Descrição</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">{product.description}</p>
-          </div>
-
-          {product.content && (
-            <div className="mt-6">
-              <div className="prose prose-sm max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: product.content }} />
-            </div>
-          )}
         </div>
       </div>
+
+      {/* Long description — full width below image */}
+      {(product.description || product.content) && (
+        <div className="mt-12 border-t pt-8 max-w-4xl">
+          <h2 className="text-xl font-bold mb-4">Descricao</h2>
+          {product.description && (
+            <p className="text-muted-foreground leading-relaxed mb-6">{product.description}</p>
+          )}
+          {product.content && (
+            <div className="prose prose-sm max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: product.content }} />
+          )}
+        </div>
+      )}
 
       {/* Reviews */}
       <ReviewsSection productId={product.id} />
