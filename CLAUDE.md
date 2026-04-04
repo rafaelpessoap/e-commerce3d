@@ -594,6 +594,24 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [x] Webhook configurado no painel MP: URL produção + assinatura secreta + simulação testada 201 OK
 - [x] MERCADOPAGO_WEBHOOK_SECRET configurado no servidor
 
+#### Controle de Estoque Completo ✅ (04/04/2026 sessão 3):
+
+**Backend (TDD: 12 testes novos, 339 total passando):**
+- [x] Schema: +reservedStock em Product/ProductVariation, +lowStockThreshold em Product, +stockReserved em Order, model StockAuditLog
+- [x] StockService: reserveStock (pedido criado), confirmReservation (pagamento aprovado), releaseStock (cancelado/falhou), adjustStock (admin), audit log com prune (max 30)
+- [x] StockController: GET /stock/low-stock, GET /stock/:id/log, POST /stock/:id/adjust (@Roles ADMIN)
+- [x] Integração OrdersService: reserva no createOrder, libera no cancel
+- [x] Integração PaymentsService: confirma no APPROVED (webhook + CC síncrono), libera no FAILED/CANCELLED
+- [x] Idempotência via order.stockReserved flag
+- [x] Produtos com manageStock=false ignoram todas as regras (estoque infinito)
+
+**Frontend:**
+- [x] StockAuditLog: componente tabela com últimas 30 movimentações (data, motivo, antes/depois, delta, referência)
+- [x] ProductForm: aba "Histórico Estoque" (só em edição), campo lowStockThreshold por produto
+- [x] /admin/estoque: dashboard estoque baixo — produtos simples + variações abaixo do threshold
+- [x] Sidebar admin: link "Estoque" com ícone BarChart3
+- [x] /admin/configuracoes: settings low_stock_threshold (global) + low_stock_email_recipients
+
 #### Outras Pendências:
 - [ ] Blog admin: criar/editar posts (TipTap)
 - [ ] Cache Redis por rota (CacheInterceptor)
@@ -602,7 +620,9 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [x] Mercado Pago integration — PIX, Cartão, Boleto (Sprint 1-3 concluídos, Sprint 4 resiliência pendente)
 - [ ] Mercado Pago Sprint 4 — expiração BullMQ (PIX 30min, Boleto 3 dias), testes E2E com cartões teste
 - [x] Checkout UX — frete no carrinho com ShippingCalculator
-- [ ] Controle de estoque — campos existem mas sem validação/decremento (não implementar ainda, planejar com Rafael)
+- [x] Controle de estoque — completo (reserva, confirma, libera, ajuste admin, audit log, low stock alerts, frontend admin)
+- [ ] Email de alerta de estoque baixo — checkLowStock retorna dados mas falta integrar com EmailQueueService
+- [ ] Expiração automática de pedidos pendentes — PIX 30min, Boleto 3 dias (BullMQ delayed job)
 
 ---
 
@@ -703,7 +723,11 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | 2026-04-04 | Webhook processWebhook silencioso para ID inexistente | Simulação do MP envia ID fictício (123456789). Double-check fazia getPayment que jogava BadRequestException → 400. Agora captura o erro e retorna silenciosamente com log warning |
 | 2026-04-04 | Produto variável não tem estoque próprio | Produto type=variable não deve ter toggle "Gerenciar estoque" nem campo de quantidade. Estoque é por variação. Toggle escondido no frontend, mensagem explicativa |
 | 2026-04-04 | UpdateProductDto basePrice @IsPositive → @Min(0) | Produto variável tem basePrice=0 (preço vem das variações). CreateDto já aceitava 0, UpdateDto não. Inconsistência corrigida |
-| 2026-04-04 | Controle de estoque não implementado | Campos existem (Product.stock, ProductVariation.stock, Product.manageStock) mas sem lógica: não valida antes do pedido, não decrementa, não incrementa em cancelamento. Planejar com Rafael antes de implementar |
+| 2026-04-04 | Controle de estoque: reserva no pedido, confirma no pagamento | Estoque disponível = stock - reservedStock. Pedido criado reserva (reservedStock += qty). Pagamento aprovado confirma (stock -= qty, reservedStock -= qty). Cancelamento/falha libera (reservedStock -= qty). Idempotência via order.stockReserved flag |
+| 2026-04-04 | StockAuditLog com prune automático | Máximo 30 registros por produto/variação. Após cada escrita, deleta os mais antigos. Motivos: ORDER_RESERVED, ORDER_CONFIRMED, ORDER_CANCELLED, PAYMENT_FAILED, ADMIN_ADJUSTMENT |
+| 2026-04-04 | manageStock=false = estoque infinito | Produtos com manageStock=false não passam por nenhuma validação de estoque. StockService pula completamente esses produtos |
+| 2026-04-04 | lowStockThreshold hierarquia produto > global | Produto pode ter threshold individual. Se null, usa Setting key `low_stock_threshold` (padrão 5). Admin configura em /admin/configuracoes |
+| 2026-04-04 | StockService como single source of truth | Nenhum outro service modifica stock/reservedStock diretamente. Tudo passa pelo StockService (reserveStock, confirmReservation, releaseStock, adjustStock) |
 | 2026-04-04 | MP sandbox /v1/payments retorna 500 para conta ArsenalCraft | Testado exaustivamente: token TEST funciona para GET e preferences, mas POST /v1/payments retorna internal_error 500 com qualquer payload. Credenciais de produção funcionam perfeitamente. Ticket aberto no suporte do MP |
 
 ---
@@ -786,33 +810,36 @@ Sempre que:
 
 2. **MELHOR_ENVIO_TOKEN configurado em produção (04/04/2026).** Token de produção ativo. Sync usa 3 CEPs regionais para descobrir todas as transportadoras.
 
-3. **Mercado Pago Sprint 1-3 concluídos (04/04/2026).** Backend + Frontend implementados e deployados. Todos os 3 métodos retornam `internal_error` 500 do MP — **problema na configuração da aplicação no painel do MP** (catalog_product_id é null, precisa selecionar "Checkout API"). Token válido (GET endpoints funcionam, POST payments falha). Não é problema de código.
+3. **MP Sandbox 500 (ticket aberto 04/04/2026).** POST /v1/payments retorna internal_error 500 com credenciais TEST para todos os métodos. Credenciais de produção funcionam. Aplicação está configurada corretamente (Checkout Transparente + API Pagamentos). Diagnóstico completo enviado ao suporte do MP. Problema específico do sandbox para conta ArsenalCraft (ID 43265870, criada 2007).
 
-4. **MP Sandbox 500 (ticket aberto 04/04/2026).** POST /v1/payments retorna internal_error 500 com credenciais TEST para todos os métodos. Credenciais de produção funcionam. Aplicação está configurada corretamente (Checkout Transparente + API Pagamentos). Diagnóstico completo enviado ao suporte do MP. Problema específico do sandbox para conta ArsenalCraft (ID 43265870, criada 2007).
+4. **Webhook configurado e testado (04/04/2026).** URL: `https://elitepinup3d.com.br/api/v1/payments/webhook/mercadopago`. Assinatura secreta: `10eaed91ab9c50b28d6a93c353e2c293d87c146fa037c7b38d35e5754a6e1509`. Simulação MP retornou 201 OK. HMAC verificado com sucesso.
 
-5. **Controle de estoque não implementado.** Campos existem no banco (Product.stock, ProductVariation.stock, Product.manageStock) mas sem lógica de negócio: não valida disponibilidade antes do pedido, não decrementa ao pagar, não incrementa ao cancelar. Rafael quer planejar antes de implementar.
+5. **Email de alerta de estoque baixo pendente.** `checkLowStock()` no StockService retorna dados (isLow, currentStock, threshold, productName) mas NÃO envia email ainda. Falta criar `enqueueLowStock` no EmailQueueService + template de email + integrar após `confirmReservation` e `adjustStock`.
 
-6. **Webhook configurado e testado (04/04/2026).** URL: `https://elitepinup3d.com.br/api/v1/payments/webhook/mercadopago`. Assinatura secreta configurada. Simulação MP retornou 201 OK. HMAC verificado com sucesso.
+6. **Expiração automática de pedidos pendente.** PIX expira em 30min, Boleto em 3 dias. Precisa de BullMQ delayed job que verifica `Payment.expiresAt` e cancela pedidos não pagos, liberando estoque reservado.
 
 ---
 
 ## Última Sessão
 
-- **Data:** 04/04/2026 (sessão 3 — noite)
+- **Data:** 04/04/2026 (sessão 3 — noite/madrugada)
 - **O que foi feito:**
-  1. **Checkout UX + Bugs:** Removido passo "Validar cartão" (1 clique), fix payer fields (first/last name nos 3 métodos), CheckoutLog system (model + service + 5 testes), fix basePrice @Min(0) para variável, estoque toggle escondido para variável, ShippingCalculator na página /carrinho.
-  2. **Webhook MP:** Configurado no painel (URL + assinatura secreta), fix HMAC (data.id do query param), fix processWebhook (silencioso para ID inexistente). Simulação MP retornou 201 OK.
-  3. **Diagnóstico MP Sandbox:** Investigação exaustiva — sandbox retorna 500 para POST /v1/payments (qualquer payload). Produção funciona. Ticket aberto no suporte do MP com diagnóstico completo.
-  4. **Total: 42 suites (40 pass, 2 email pre-existentes), 327+ testes passando, 0 erros TS.**
+  1. **Checkout UX + Bugs:** CardPaymentForm 1 clique (forwardRef), fix payer fields (first/last name), CheckoutLog system (model + service + 5 testes), fix basePrice @Min(0) para variável, estoque toggle escondido para variável, ShippingCalculator na página /carrinho.
+  2. **Webhook MP:** Configurado no painel (URL + assinatura secreta + simulação 201 OK), fix HMAC (data.id query param), fix processWebhook silencioso para ID inexistente.
+  3. **Controle de Estoque completo:** StockService (reserve/confirm/release/adjust), StockAuditLog (30 max, prune auto), integrado em OrdersService + PaymentsService, idempotência via stockReserved flag, 12 testes TDD. Frontend: aba "Histórico Estoque" no ProductForm, página /admin/estoque (low stock dashboard), settings threshold + email, campo lowStockThreshold por produto.
+  4. **Diagnóstico MP Sandbox:** Sandbox retorna 500 para POST /v1/payments. Produção funciona. Ticket aberto no suporte.
+  5. **Total: 43 suites (41 pass, 2 email pre-existentes), 339 testes passando, 0 erros TS.**
 - **O que ficou pendente:**
-  - **BLOQUEANTE:** MP sandbox não funciona — aguardando resposta do suporte
-  - Decidir: usar credenciais de produção (pagamentos reais) ou esperar fix do sandbox
-  - Blog admin: criar/editar posts (TipTap)
-  - Controle de estoque: planejar com Rafael antes de implementar
-  - Mercado Pago Sprint 4: expiração BullMQ (PIX 30min, Boleto 3 dias)
-  - Cache Redis, testes de carga
+  - **MP Sandbox:** Aguardando resposta do suporte. Decisão: usar produção ou esperar fix
+  - **Email estoque baixo:** checkLowStock retorna dados mas não envia email (falta EmailQueueService integration)
+  - **Expiração pedidos:** PIX 30min, Boleto 3 dias — BullMQ delayed job para cancelar e liberar estoque
+  - **Blog admin:** Criar/editar posts com TipTap (baixa prioridade)
+  - **Cache Redis por rota:** CacheInterceptor (pós-deploy, baseado em métricas)
+  - **Testes de carga:** k6/Artillery (pós-deploy)
+  - **Cloudflare Origin Certificate:** 15 anos (infra)
+  - **Layout frete checkout:** Igualar ao da página do produto (tabela ordenada por preço)
 - **Próximo passo exato:**
-  1. Aguardar resposta do suporte MP sobre sandbox. Se não resolver, considerar usar credenciais de produção.
-  2. Blog admin com TipTap (criar/editar posts).
-  3. Planejar controle de estoque com Rafael (validação, decremento, incremento).
-  4. Igualar layout de frete do checkout com o da página do produto.
+  1. Decidir com Rafael: usar credenciais de produção para pagamentos ou esperar resposta do MP
+  2. Implementar email de alerta de estoque baixo (template + EmailQueueService)
+  3. Implementar expiração automática de pedidos pendentes (BullMQ delayed job)
+  4. Blog admin com TipTap (quando Rafael quiser)
