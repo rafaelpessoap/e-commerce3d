@@ -204,29 +204,30 @@ export function ProductVariationsAndShipping({ productId, productType, variation
         )}
 
         {hasSearched && quotes.length > 0 && (
-          <div className="space-y-2 mt-3">
-            {quotes.map((quote) => (
+          <div className="mt-3 border rounded-lg overflow-hidden divide-y">
+            <div className="grid grid-cols-[1fr_auto] gap-4 px-4 py-2 bg-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              <span>Tipo de entrega</span>
+              <span>Custo</span>
+            </div>
+            {[...quotes].sort((a, b) => a.price - b.price).map((quote) => (
               <div
                 key={quote.serviceId}
-                className="flex items-center justify-between border rounded-md px-3 py-2 text-sm"
+                className="grid grid-cols-[1fr_auto] gap-4 px-4 py-3 text-sm items-center"
               >
                 <div>
-                  <span className="font-medium">{quote.name}</span>
-                  <span className="text-xs text-muted-foreground ml-1">({quote.company})</span>
-                  <p className="text-xs text-muted-foreground">
-                    {quote.deliveryRange.min === quote.deliveryRange.max
-                      ? `${quote.deliveryRange.min} dias uteis`
-                      : `${quote.deliveryRange.min}-${quote.deliveryRange.max} dias uteis`}
-                  </p>
+                  <span className="font-medium">{quote.company} {quote.name}</span>
+                  <span className="text-muted-foreground ml-1">
+                    (Entrega em ate {quote.deliveryRange.max} dias uteis)
+                  </span>
                 </div>
-                <div className="text-right">
+                <div className="text-right font-bold whitespace-nowrap">
                   {freeShipping ? (
-                    <div>
-                      <span className="text-xs text-muted-foreground line-through">{formatCurrency(quote.price)}</span>
-                      <span className="text-sm font-bold text-green-600 ml-1">Gratis</span>
-                    </div>
+                    <span>
+                      <span className="text-muted-foreground line-through font-normal text-xs mr-1">{formatCurrency(quote.price)}</span>
+                      <span className="text-green-600">Gratis</span>
+                    </span>
                   ) : (
-                    <span className="font-bold">{formatCurrency(quote.price)}</span>
+                    <span className="text-primary">{formatCurrency(quote.price)}</span>
                   )}
                 </div>
               </div>
