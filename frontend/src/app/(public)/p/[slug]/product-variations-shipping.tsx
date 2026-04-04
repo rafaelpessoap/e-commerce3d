@@ -215,7 +215,7 @@ export function ProductVariationsAndShipping({ productId, productType, variation
                 className="grid grid-cols-[1fr_auto] gap-4 px-4 py-3 text-sm items-center"
               >
                 <div>
-                  <span className="font-medium">{quote.company} {quote.name}</span>
+                  <span className="font-medium">{quote.name}</span>
                   <span className="text-muted-foreground ml-1">
                     (Entrega em ate {quote.deliveryRange.max} dias uteis)
                   </span>

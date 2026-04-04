@@ -149,11 +149,9 @@ export function ShippingCalculator({
                   className="accent-primary"
                 />
                 <div>
-                  <span className="font-medium">{quote.company} {quote.name}</span>
+                  <span className="font-medium">{quote.name}</span>
                   <span className="text-muted-foreground ml-1">
-                    ({quote.deliveryRange.min === quote.deliveryRange.max
-                      ? `${quote.deliveryRange.max} dias uteis`
-                      : `${quote.deliveryRange.min}-${quote.deliveryRange.max} dias uteis`})
+                    (Entrega em ate {quote.deliveryRange.max} dias uteis)
                   </span>
                 </div>
                 <div className="text-right font-bold whitespace-nowrap">
