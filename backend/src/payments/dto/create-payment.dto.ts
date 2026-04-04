@@ -12,11 +12,11 @@ import {
 export class CreatePaymentDto {
   @IsString()
   @IsNotEmpty()
-  orderId: string;
+  orderId!: string;
 
   @IsString()
   @IsIn(['pix', 'boleto', 'credit_card'])
-  method: string;
+  method!: string;
 
   @IsOptional()
   @IsString()

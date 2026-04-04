@@ -203,7 +203,9 @@ export class PaymentsService {
   async processWebhook(mpPaymentId: string) {
     // 1. Double-check: buscar pagamento real na API do MP
     const mpPayment = await this.mpClient.getPayment(mpPaymentId);
-    const newStatus = WEBHOOK_STATUS_MAP[mpPayment.status];
+    const mpStatus = mpPayment.status as string | undefined;
+    if (!mpStatus) return;
+    const newStatus = WEBHOOK_STATUS_MAP[mpStatus];
     if (!newStatus) return;
 
     // 2. Encontrar payment local pelo externalId OU external_reference
@@ -211,7 +213,7 @@ export class PaymentsService {
       where: {
         OR: [
           { externalId: String(mpPayment.id) },
-          { orderId: mpPayment.external_reference },
+          { orderId: mpPayment.external_reference as string },
         ],
       },
     });
@@ -221,9 +223,10 @@ export class PaymentsService {
     if (payment.status === newStatus) return;
 
     // 4. Verificar que o valor confere (tolerância de R$0.01)
-    if (Math.abs(mpPayment.transaction_amount - payment.amount) > 0.01) {
+    const mpAmount = mpPayment.transaction_amount ?? 0;
+    if (Math.abs(mpAmount - payment.amount) > 0.01) {
       this.logger.error(
-        `Webhook valor divergente: MP=${mpPayment.transaction_amount}, local=${payment.amount}`,
+        `Webhook valor divergente: MP=${mpAmount}, local=${payment.amount}`,
       );
       return;
     }
@@ -235,7 +238,7 @@ export class PaymentsService {
         status: newStatus as any,
         externalId: String(mpPayment.id),
         paidAt: newStatus === 'APPROVED' ? new Date() : undefined,
-        paidAmount: newStatus === 'APPROVED' ? mpPayment.transaction_amount : undefined,
+        paidAmount: newStatus === 'APPROVED' ? mpAmount : undefined,
         webhookData: JSON.stringify(mpPayment),
       },
     });
