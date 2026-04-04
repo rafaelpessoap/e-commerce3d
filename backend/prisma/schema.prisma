@@ -521,6 +521,15 @@ model Payment {
   paidAt       DateTime?
   webhookData  String? // JSON do ultimo webhook
 
+  // Mercado Pago — dados específicos por método
+  pixQrCode     String? @db.Text // base64 QR code image
+  pixCopiaECola String? @db.Text // texto copia-e-cola PIX
+  boletoUrl     String? // URL para visualizar/baixar boleto
+  boletoBarcode String? // código de barras do boleto
+  expiresAt     DateTime? // expiração (PIX: 30min, Boleto: 3 dias)
+  installments  Int? // parcelas do cartão
+  cardLastFour  String? // últimos 4 dígitos do cartão
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShippingCalculator, type ShippingQuote } from '@/components/shared/shipping-calculator';
+import { CardPaymentForm } from '@/components/payment/card-payment-form';
 import { api } from '@/lib/api-client';
 import { useCartStore } from '@/store/cart-store';
 import { useAuthStore } from '@/store/auth-store';
@@ -27,6 +28,11 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState('pix');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [cardData, setCardData] = useState<{
+    token: string;
+    installments: number;
+    paymentMethodId: string;
+  } | null>(null);
 
   // Personal data
   const [fullName, setFullName] = useState('');
@@ -97,24 +103,31 @@ export default function CheckoutPage() {
       return;
     }
     if (!cpf.replace(/\D/g, '') || cpf.replace(/\D/g, '').length !== 11) {
-      setError('Preencha um CPF válido (11 dígitos).');
+      setError('Preencha um CPF valido (11 digitos).');
       return;
     }
     if (!phone.replace(/\D/g, '') || phone.replace(/\D/g, '').length < 10) {
-      setError('Preencha um telefone válido.');
+      setError('Preencha um telefone valido.');
       return;
     }
     if (!zipCode || !street || !number || !neighborhood || !city || !state) {
-      setError('Preencha todos os campos do endereço.');
+      setError('Preencha todos os campos do endereco.');
       return;
     }
     if (!selectedShipping) {
-      setError('Selecione uma opção de frete.');
+      setError('Selecione uma opcao de frete.');
+      return;
+    }
+    if (paymentMethod === 'credit_card' && !cardData) {
+      setError('Preencha os dados do cartao de credito.');
       return;
     }
 
     setError('');
     setLoading(true);
+
+    const cpfDigits = cpf.replace(/\D/g, '');
+    const phoneDigits = phone.replace(/\D/g, '');
 
     const shippingAddress = JSON.stringify({
       zipCode,
@@ -127,30 +140,38 @@ export default function CheckoutPage() {
     });
 
     try {
+      // 1. Criar pedido (backend recalcula preços do banco)
       const { data: orderData } = await api.post('/orders', {
         items: items.map((i) => ({
           productId: i.productId,
           variationId: i.variationId,
           quantity: i.quantity,
-          price: i.price,
+          price: i.price, // ignorado pelo backend — recalculado do DB
         })),
-        subtotal,
+        subtotal, // ignorado pelo backend
         shipping: shippingCost,
-        discount: paymentDiscount,
-        total,
+        discount: paymentDiscount, // ignorado pelo backend
+        total, // ignorado pelo backend
         paymentMethod,
         shippingAddress,
         shippingServiceName: selectedShipping.name,
       });
 
-      await api.post('/payments/create', {
-        orderId: orderData.data?.id ?? orderData.id,
+      const orderId = orderData.data?.id ?? orderData.id;
+
+      // 2. Criar pagamento no Mercado Pago
+      const { data: paymentData } = await api.post('/payments/create', {
+        orderId,
         method: paymentMethod,
+        cardToken: cardData?.token,
+        installments: cardData?.installments,
+        paymentMethodId: cardData?.paymentMethodId,
+        payerEmail: email,
+        payerCpf: cpfDigits,
+        payerName: fullName.trim(),
       });
 
-      // Update user profile with cpf and phone
-      const cpfDigits = cpf.replace(/\D/g, '');
-      const phoneDigits = phone.replace(/\D/g, '');
+      // 3. Atualizar perfil (non-blocking)
       try {
         await api.put('/users/me', {
           name: fullName.trim(),
@@ -158,13 +179,23 @@ export default function CheckoutPage() {
           phone: phoneDigits,
         });
       } catch {
-        // Non-blocking: profile update failure shouldn't prevent order completion
+        // Non-blocking
       }
 
+      // 4. Limpar carrinho
       await api.delete('/cart');
       clear();
 
-      router.push(`/pedido/confirmacao/${orderData.data?.id ?? orderData.id}`);
+      // 5. Redirecionar baseado no método
+      const payment = paymentData.data;
+
+      if (paymentMethod === 'credit_card' && payment?.status === 'APPROVED') {
+        // Cartão aprovado → confirmação direto
+        router.push(`/pedido/confirmacao/${orderId}`);
+      } else {
+        // PIX, Boleto, ou cartão pendente/rejeitado → página de pagamento
+        router.push(`/pedido/pagamento/${orderId}`);
+      }
     } catch (err) {
       const resp = (err as { response?: { data?: { error?: { message?: string }; message?: string } } })?.response?.data;
       setError(resp?.error?.message ?? resp?.message ?? 'Erro ao finalizar pedido');
@@ -392,7 +423,10 @@ export default function CheckoutPage() {
                       name="payment"
                       value={method.id}
                       checked={paymentMethod === method.id}
-                      onChange={() => setPaymentMethod(method.id)}
+                      onChange={() => {
+                        setPaymentMethod(method.id);
+                        setCardData(null);
+                      }}
                       className="accent-primary"
                     />
                     <span className="font-medium text-sm">{method.label}</span>
@@ -404,6 +438,34 @@ export default function CheckoutPage() {
                   )}
                 </label>
               ))}
+
+              {/* Formulário de cartão inline */}
+              {paymentMethod === 'credit_card' && (
+                <div className="mt-4 border rounded-lg p-4">
+                  {cardData ? (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-green-600 font-medium">Cartao preenchido ({cardData.installments}x)</span>
+                      <button
+                        type="button"
+                        className="text-xs text-primary underline"
+                        onClick={() => setCardData(null)}
+                      >
+                        Alterar cartao
+                      </button>
+                    </div>
+                  ) : (
+                    <CardPaymentForm
+                      amount={total}
+                      onSubmit={(data) => {
+                        setCardData(data);
+                        setError('');
+                      }}
+                      onError={(msg) => setError(msg)}
+                      disabled={loading}
+                    />
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

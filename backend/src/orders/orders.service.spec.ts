@@ -21,6 +21,9 @@ describe('OrdersService', () => {
               update: jest.fn(),
               count: jest.fn(),
             },
+            product: {
+              findUnique: jest.fn(),
+            },
             orderStatusHistory: {
               create: jest.fn(),
             },
@@ -71,14 +74,20 @@ describe('OrdersService', () => {
 
   describe('createOrder', () => {
     it('should create order with generated order number', async () => {
-      (prisma.order.create as jest.Mock).mockResolvedValue({
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue({
+        id: 'prod1',
+        basePrice: 49.9,
+        salePrice: null,
+        isActive: true,
+        manageStock: false,
+        variations: [],
+      });
+      (prisma.order.create as jest.Mock).mockImplementation(async (args: any) => ({
         id: 'order1',
         number: 'ORD-20260402-ABC123',
         status: 'PENDING',
-        userId: 'user1',
-        subtotal: 99.8,
-        total: 99.8,
-      });
+        ...args.data,
+      }));
 
       const result = await service.createOrder({
         userId: 'user1',
@@ -89,6 +98,121 @@ describe('OrdersService', () => {
 
       expect(result).toHaveProperty('number');
       expect(result.status).toBe('PENDING');
+      expect(result.subtotal).toBe(99.8); // recalculado do banco
+    });
+
+    it('should recalculate prices from DB — ignore frontend prices', async () => {
+      // Produto no banco custa R$50, mas frontend envia R$1
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue({
+        id: 'prod1',
+        basePrice: 50,
+        salePrice: null,
+        isActive: true,
+        manageStock: false,
+      });
+
+      (prisma.order.create as jest.Mock).mockImplementation(async (args: any) => ({
+        id: 'order1',
+        number: 'ORD-20260404-SEC1',
+        status: 'PENDING',
+        ...args.data,
+      }));
+
+      const result = await service.createOrder({
+        userId: 'user1',
+        items: [{ productId: 'prod1', quantity: 2, price: 1 }], // Atacante envia price: 1
+        subtotal: 2, // Atacante envia subtotal falso
+        total: 2, // Atacante envia total falso
+      });
+
+      // Backend deve usar preço do banco (R$50), não do frontend (R$1)
+      expect(result.subtotal).toBe(100); // 50 * 2
+      expect(result.total).toBe(100); // recalculado
+    });
+
+    it('should use salePrice when available (promotional price)', async () => {
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue({
+        id: 'prod1',
+        basePrice: 100,
+        salePrice: 79.9,
+        isActive: true,
+        manageStock: false,
+      });
+
+      (prisma.order.create as jest.Mock).mockImplementation(async (args: any) => ({
+        id: 'order1',
+        number: 'ORD-20260404-SALE',
+        status: 'PENDING',
+        ...args.data,
+      }));
+
+      const result = await service.createOrder({
+        userId: 'user1',
+        items: [{ productId: 'prod1', quantity: 1, price: 100 }],
+        subtotal: 100,
+        total: 100,
+      });
+
+      expect(result.subtotal).toBe(79.9); // usa salePrice
+    });
+
+    it('should use variation price when variationId is provided', async () => {
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue({
+        id: 'prod1',
+        basePrice: 0,
+        salePrice: null,
+        isActive: true,
+        manageStock: false,
+        variations: [
+          { id: 'var1', price: 69.9, salePrice: 59.9, stock: 10 },
+        ],
+      });
+
+      (prisma.order.create as jest.Mock).mockImplementation(async (args: any) => ({
+        id: 'order1',
+        number: 'ORD-20260404-VAR',
+        status: 'PENDING',
+        ...args.data,
+      }));
+
+      const result = await service.createOrder({
+        userId: 'user1',
+        items: [{ productId: 'prod1', variationId: 'var1', quantity: 1, price: 1 }],
+        subtotal: 1,
+        total: 1,
+      });
+
+      expect(result.subtotal).toBe(59.9); // variation salePrice
+    });
+
+    it('should throw when product is inactive', async () => {
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue({
+        id: 'prod1',
+        basePrice: 50,
+        isActive: false,
+      });
+
+      await expect(
+        service.createOrder({
+          userId: 'user1',
+          items: [{ productId: 'prod1', quantity: 1, price: 50 }],
+          subtotal: 50,
+          total: 50,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw when product does not exist', async () => {
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.createOrder({
+          userId: 'user1',
+          items: [{ productId: 'fake', quantity: 1, price: 50 }],
+          subtotal: 50,
+          total: 50,
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

@@ -37,32 +37,84 @@ export class OrdersService {
       productId: string;
       variationId?: string;
       quantity: number;
-      price: number;
+      price: number; // ignorado — recalculado do banco
     }>;
-    subtotal: number;
+    subtotal: number; // ignorado — recalculado do banco
     shipping?: number;
-    discount?: number;
-    total: number;
+    discount?: number; // ignorado — calculado pelo PaymentsService
+    total: number; // ignorado — recalculado do banco
     shippingAddress?: string;
     shippingServiceName?: string;
     couponId?: string;
     paymentMethod?: string;
   }) {
+    // SEGURANÇA: Recalcular TODOS os preços a partir do banco de dados
+    // Nunca confiar nos valores enviados pelo frontend
+    const verifiedItems: Array<{
+      productId: string;
+      variationId?: string;
+      quantity: number;
+      price: number;
+    }> = [];
+
+    for (const item of params.items) {
+      const product = await this.prisma.product.findUnique({
+        where: { id: item.productId },
+        include: { variations: true },
+      });
+
+      if (!product) {
+        throw new BadRequestException(`Produto não encontrado: ${item.productId}`);
+      }
+
+      if (!product.isActive) {
+        throw new BadRequestException(`Produto indisponível: ${product.name ?? item.productId}`);
+      }
+
+      let unitPrice: number;
+
+      if (item.variationId) {
+        const variation = product.variations?.find(
+          (v: { id: string }) => v.id === item.variationId,
+        );
+        if (!variation) {
+          throw new BadRequestException(`Variação não encontrada: ${item.variationId}`);
+        }
+        unitPrice = variation.salePrice ?? variation.price;
+      } else {
+        unitPrice = product.salePrice ?? product.basePrice;
+      }
+
+      verifiedItems.push({
+        productId: item.productId,
+        variationId: item.variationId,
+        quantity: item.quantity,
+        price: unitPrice,
+      });
+    }
+
+    // Recalcular subtotal e total com preços verificados do banco
+    const subtotal = Math.round(
+      verifiedItems.reduce((sum, i) => sum + i.price * i.quantity, 0) * 100,
+    ) / 100;
+    const shipping = params.shipping ?? 0;
+    const total = Math.round((subtotal + shipping) * 100) / 100;
+
     return this.prisma.order.create({
       data: {
         number: this.generateOrderNumber(),
         userId: params.userId,
         status: 'PENDING',
-        subtotal: params.subtotal,
-        shipping: params.shipping ?? 0,
-        discount: params.discount ?? 0,
-        total: params.total,
+        subtotal,
+        shipping,
+        discount: 0, // desconto será aplicado no PaymentsService
+        total,
         shippingAddress: params.shippingAddress,
         shippingServiceName: params.shippingServiceName,
         couponId: params.couponId,
         paymentMethod: params.paymentMethod,
         items: {
-          create: params.items.map((item) => ({
+          create: verifiedItems.map((item) => ({
             productId: item.productId,
             variationId: item.variationId,
             quantity: item.quantity,

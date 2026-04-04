@@ -435,7 +435,42 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 ### Integrações Externas
 - [x] Melhor Envio — integração completa (cotação, serviços habilitáveis, CEP de origem, dias extras por método)
 - [x] SMTP — mail.cyberpersons.com:587, testado e funcionando
-- [ ] Mercado Pago — ACCESS_TOKEN + WEBHOOK_SECRET (adiado por decisão do Rafael)
+- [ ] Mercado Pago — PIX + Cartão + Boleto (plano em `~/.claude/plans/idempotent-cuddling-wand.md`)
+
+### Mercado Pago — Sprint 1 Backend ✅ (04/04/2026)
+
+**Schema:**
+- [x] Payment model: +pixQrCode, +pixCopiaECola, +boletoUrl, +boletoBarcode, +expiresAt, +installments, +cardLastFour
+
+**Backend (TDD: 290 testes passando, 37 suites):**
+- [x] SDK `mercadopago` v2 instalado
+- [x] MercadoPagoClient: wrapper isolado do SDK — createPixPayment, createCreditCardPayment, createBoletoPayment, getPayment, verifyWebhookSignature (TDD: 13 testes)
+- [x] PaymentsService refatorado: dispatcher por método (pix/boleto/credit_card), desconto sobre subtotal (fix), webhook com double-check + verificação de valor (TDD: 18 testes)
+- [x] CreatePaymentDto: validação class-validator (orderId, method, cardToken, installments, payerEmail, payerCpf, payerName)
+- [x] PaymentsController: POST /payments/create (com DTO), POST /payments/webhook/mercadopago (assinatura HMAC), GET /payments/:orderId/status (polling)
+- [x] PaymentsModule: MercadoPagoClient registrado como provider
+
+**Credenciais de teste salvas em:** `~/.claude/projects/.../memory/reference_mercadopago_test.md`
+
+### Mercado Pago — Sprint 2+3 Frontend ✅ (04/04/2026)
+
+**Frontend:**
+- [x] SDK `@mercadopago/sdk-react` instalado
+- [x] CardPaymentForm: usa CardPayment Brick (PCI compliant, tokenização no MP)
+- [x] PixPayment: QR code base64, botão copiar copia-e-cola, countdown, polling status cada 5s, redirect ao APPROVED
+- [x] BoletoPayment: botão abrir boleto, copiar código de barras, data de vencimento
+- [x] Página `/pedido/pagamento/[id]`: renderiza componente correto por método, trata cartão rejeitado
+- [x] Checkout atualizado: formulário de cartão inline quando credit_card selecionado, redirect para /pedido/pagamento/[id]
+- [x] Fluxo: POST /orders → POST /payments/create (com token se CC) → PIX/Boleto: /pedido/pagamento → CC aprovado: /pedido/confirmacao
+
+### Segurança — Validação de Preços no Backend ✅ (04/04/2026)
+- [x] **CRITICAL FIX:** OrdersService.createOrder agora recalcula TODOS os preços do banco de dados
+- [x] Frontend envia productId + quantity. Preço, subtotal, total do frontend são IGNORADOS
+- [x] Produto inativo ou inexistente → BadRequestException
+- [x] Variação inexistente → BadRequestException
+- [x] Usa salePrice quando disponível (produto e variação)
+- [x] Desconto calculado APENAS no PaymentsService (não no createOrder)
+- [x] TDD: 5 testes de segurança no OrdersService (295 total passando)
 
 ### Admin CRUD Completo ✅ (03/04/2026)
 - [x] Todas as páginas admin mostram erros ao usuário (antes falhavam silenciosamente)
@@ -528,12 +563,23 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [x] Descrição longa + content HTML movidos para seção full-width abaixo da imagem
 - [x] AdminEditButton: botão "Editar produto" visível só para ADMIN (link para /admin/produtos/[id])
 
+#### Fix Frete + Variações ✅ (04/04/2026 noite):
+- [x] Sync Melhor Envio multi-CEP: 3 destinos regionais (SP, RJ, RS) para descobrir todas as transportadoras
+- [x] MELHOR_ENVIO_TOKEN configurado em produção + fix nome env var no docker-compose (era MELHORENVIO_TOKEN)
+- [x] Mínimos para API Melhor Envio: weight >= 0.3kg, dims >= 11/2/16cm, insurance >= R$1
+- [x] resolveShippingData(productId, variationId?) — variação herda peso/dims do pai quando null
+- [x] Quote endpoint aceita variationId opcional — preço usa salePrice ?? price da variação
+- [x] ProductVariationsAndShipping: variações selecionáveis + recálculo automático de frete
+- [x] Layout calculadora de frete estilo WooCommerce: tabela com "Tipo de entrega" / "Custo", ordenado por preço
+- [x] OLS noCacheUrl: adicionado /p/, /c/, /t/, /m/, /produtos (corrige binário corrompido ao atualizar página)
+- [x] TDD: 11 testes novos (267 total passando, 36 suites)
+
 #### Outras Pendências:
 - [ ] Blog admin: criar/editar posts (TipTap)
 - [ ] Cache Redis por rota (CacheInterceptor)
 - [ ] Testes de carga (k6/Artillery)
 - [ ] Cloudflare Origin Certificate (15 anos)
-- [ ] Mercado Pago integration (adiado)
+- [ ] Mercado Pago integration — PIX, Cartão de Crédito, Boleto (em andamento)
 
 ---
 
@@ -612,6 +658,16 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | 2026-04-04 | Frete exige seleção de variação | Produto variável (type=variable, basePrice=0) requer que o cliente selecione uma variação antes de calcular frete. O preço para seguro é salePrice ?? price da variação |
 | 2026-04-04 | Mínimos para API Melhor Envio | Payload de cotação garante: weight >= 0.3kg, width >= 11cm, height >= 2cm, length >= 16cm, insurance_value >= R$1. Zeros causavam rejeição pela API |
 | 2026-04-04 | ProductVariationsAndShipping unificado | Seleção de variação e calculadora de frete no mesmo client component para compartilhar estado. Ao mudar variação, recalcula frete automaticamente se CEP já digitado |
+| 2026-04-04 | OLS noCacheUrl para rotas públicas | /p/, /c/, /t/, /m/, /produtos adicionados ao noCacheUrl. Atualizar página causava binário corrompido (mesmo problema do /admin) |
+| 2026-04-04 | MELHOR_ENVIO_TOKEN env var com underscore | docker-compose tinha MELHORENVIO_TOKEN (sem underscore), código usa MELHOR_ENVIO_TOKEN. Corrigido para MELHOR_ENVIO_TOKEN em ambos |
+| 2026-04-04 | Mercado Pago: PIX + Cartão + Boleto | SDK backend: mercadopago (npm v2). SDK frontend: @mercadopago/sdk-react (Checkout Bricks). CardPayment Brick para cartão (PCI), PIX com QR code + polling, Boleto com URL. Webhook com verificação HMAC-SHA256. SDK React escolhido por ter componentes prontos e compatibilidade com React 19 |
+| 2026-04-04 | Desconto sobre subtotal (não total) | Desconto do método de pagamento (PIX 10%, Boleto 5%) deve ser calculado sobre subtotal (sem frete), não sobre total. Corrigido no PaymentsService: amount = subtotal - discount + shipping |
+| 2026-04-04 | MercadoPagoClient como wrapper isolado | Único arquivo que importa o SDK `mercadopago`. Facilita mock nos testes e troca de gateway no futuro. Métodos: createPixPayment, createCreditCardPayment, createBoletoPayment, getPayment, verifyWebhookSignature |
+| 2026-04-04 | Webhook double-check obrigatório | Não confiar apenas no body do webhook. Sempre buscar pagamento na API do MP (getPayment) para confirmar status real. Verificar que valor do pagamento confere com o pedido (tolerância R$0.01) |
+| 2026-04-04 | PaymentsService dispatcher pattern | createPayment recebe method e despacha para handlePixPayment, handleBoletoPayment ou handleCreditCardPayment. Cada handler cria no MP, salva dados específicos no DB, atualiza status |
+| 2026-04-04 | Boleto usa bolbradesco | Método de pagamento para boleto no MP Brasil é `bolbradesco` (Bradesco). Retorna URL + barcode |
+| 2026-04-04 | Status mapping MP → interno | approved/authorized→APPROVED, pending/in_process→PENDING, rejected→FAILED, cancelled/refunded/charged_back→CANCELLED |
+| 2026-04-04 | SECURITY: Preços recalculados no backend | OrdersService.createOrder agora busca preços no banco (product.salePrice ?? basePrice, variation.salePrice ?? price). Frontend envia IDs+quantidades, preço enviado é IGNORADO. Produto inativo ou inexistente = erro 400. Desconto calculado apenas no PaymentsService |
 
 ---
 
@@ -655,6 +711,9 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | Sync não encontrava Loggi/JeT | Cotação fictícia usava 1 só CEP destino (BH). Carriers regionais não apareciam | Sync agora cota para 3 CEPs regionais (SP, RJ, RS), deduplica resultados, continua se um falhar |
 | Frete falhava na página do produto | API Melhor Envio rejeitava peso/dimensões 0 e insurance_value 0 (produto variável com basePrice=0) | Mínimos forçados (weight 0.3, dims 11/2/16, insurance R$1). Variações resolvidas via resolveShippingData |
 | Frete sem considerar variação | Calculadora usava dados do produto pai (price=0 para variável), ignorava variação selecionada | Novo componente ProductVariationsAndShipping unifica seleção + cálculo. Backend aceita variationId no quote |
+| MELHOR_ENVIO_TOKEN 403 no quote | Token não chegava ao container. docker-compose tinha MELHORENVIO_TOKEN (sem underscore), código usa MELHOR_ENVIO_TOKEN | Corrigido nome da env var no docker-compose. Token adicionado ao .env do servidor |
+| Binário corrompido em /p/[slug] ao atualizar | OLS cache servia conteúdo comprimido corrompido nas páginas de produto | Adicionado /p/, /c/, /t/, /m/, /produtos ao noCacheUrl do vhost.conf + limpeza do cache |
+| **SECURITY: Preços aceitos do frontend** | OrdersService.createOrder salvava price, subtotal, discount, total direto do request. Atacante podia enviar total: R$1 | Backend agora busca preços no DB, recalcula subtotal/total. Preço do frontend é IGNORADO. Produto inativo ou inexistente = BadRequest |
 
 ---
 
@@ -678,7 +737,7 @@ Sempre que:
 
 2. **MELHOR_ENVIO_TOKEN configurado em produção (04/04/2026).** Token de produção ativo. Sync usa 3 CEPs regionais para descobrir todas as transportadoras.
 
-3. **Mercado Pago não integrado:** Pagamentos reais estão adiados por decisão do Rafael. O checkout funciona mas não processa pagamento de verdade.
+3. **Mercado Pago em implementação (04/04/2026).** Chaves de teste configuradas. PIX + Cartão + Boleto. Plano detalhado em `~/.claude/plans/idempotent-cuddling-wand.md`. SDK backend: `mercadopago`, SDK frontend: `@mercadopago/sdk-js`.
 
 ---
 
@@ -686,8 +745,13 @@ Sempre que:
 
 - **Data:** 04/04/2026 (noite)
 - **O que foi feito:**
-  Fix Melhor Envio: sync agora cota 3 CEPs regionais (SP, RJ, RS) para descobrir todas as transportadoras (Loggi, JeT, etc). Fix cotação de frete: mínimos para API (peso, dimensões, insurance_value), resolveShippingData() com variationId que herda do pai quando null. Frontend: ProductVariationsAndShipping unificado — variação selecionável com recálculo automático de frete. Quote endpoint aceita variationId. TDD: 11 testes novos (267 total passando, 36 suites).
+  1. Fix Melhor Envio: sync multi-CEP, mínimos API, resolveShippingData com variationId, ProductVariationsAndShipping unificado, layout tabela. TDD: 11 testes novos.
+  2. MELHOR_ENVIO_TOKEN configurado em produção + fix env var.
+  3. OLS noCacheUrl: /p/, /c/, /t/, /m/, /produtos (corrige binário corrompido).
+  4. **Mercado Pago Sprint 1 completo:** Schema (7 campos novos), SDK instalado, MercadoPagoClient (13 testes), PaymentsService refatorado com dispatcher PIX/Cartão/Boleto + fix desconto subtotal + webhook double-check (18 testes), CreatePaymentDto, Controller com assinatura HMAC.
+  5. **SECURITY FIX:** OrdersService.createOrder agora recalcula TODOS os preços do banco. Preço, subtotal, total do frontend são IGNORADOS. Produto inativo/inexistente = erro 400. (TDD: 5 testes novos)
+  6. Total: **37 suites, 295 testes passando.**
 - **O que ficou pendente:**
-  Blog admin (criar/editar posts com TipTap), cache Redis por rota, testes de carga (k6), Cloudflare Origin Certificate (15 anos), Mercado Pago, corrigir testes de email (React Email render). Deploy das correções de frete.
+  Mercado Pago Sprint 4 (resiliência: expiração BullMQ, env vars produção). Deploy e teste end-to-end com chaves de teste. Blog admin. Cache Redis.
 - **Próximo passo exato:**
-  Deploy das correções de frete e testar sync real com token de produção. Depois: blog admin com TipTap.
+  Deploy da integração Mercado Pago e testar fluxo completo: PIX (QR code), Cartão (APRO/OTHE), Boleto. Configurar MERCADOPAGO_ACCESS_TOKEN e NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY no servidor.
