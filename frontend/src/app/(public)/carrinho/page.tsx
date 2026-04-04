@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Trash2, Minus, Plus } from 'lucide-react';
+import Image from 'next/image';
+import { Trash2, Minus, Plus, Pencil, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -48,16 +49,29 @@ export default function CartPage() {
       .finally(() => setLoading(false));
   }, [setCart]);
 
-  async function handleUpdateQuantity(productId: string, quantity: number) {
+  async function handleUpdateQuantity(
+    productId: string,
+    quantity: number,
+    variationId?: string,
+    scaleId?: string,
+  ) {
     try {
-      const { data } = await api.put(`/cart/items/${productId}`, { quantity });
+      const params = new URLSearchParams();
+      if (variationId) params.set('variationId', variationId);
+      if (scaleId) params.set('scaleId', scaleId);
+      const qs = params.toString();
+      const { data } = await api.put(`/cart/items/${productId}${qs ? `?${qs}` : ''}`, { quantity });
       setCart(data.data.items, data.data.subtotal);
     } catch {}
   }
 
-  async function handleRemove(productId: string) {
+  async function handleRemove(productId: string, variationId?: string, scaleId?: string) {
     try {
-      const { data } = await api.delete(`/cart/items/${productId}`);
+      const params = new URLSearchParams();
+      if (variationId) params.set('variationId', variationId);
+      if (scaleId) params.set('scaleId', scaleId);
+      const qs = params.toString();
+      const { data } = await api.delete(`/cart/items/${productId}${qs ? `?${qs}` : ''}`);
       setCart(data.data.items, data.data.subtotal);
     } catch {}
   }
@@ -79,7 +93,7 @@ export default function CartPage() {
       });
       setCouponMsg(`Cupom aplicado! Desconto: ${formatCurrency(data.data.discount)}`);
     } catch (err) {
-      setCouponMsg((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Cupom inválido');
+      setCouponMsg((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Cupom invalido');
     }
   }
 
@@ -118,56 +132,92 @@ export default function CartPage() {
 
       {/* Items */}
       <div className="space-y-4">
-        {items.map((item) => (
-          <div
-            key={item.productId + (item.variationId ?? '')}
-            className="flex items-center gap-4 border rounded-lg p-4"
-          >
-            <div className="flex-1 min-w-0">
-              <h3 className="font-medium text-sm truncate">{item.name}</h3>
-              <p className="text-sm text-muted-foreground">
-                {formatCurrency(item.price)} un.
-              </p>
+        {items.map((item) => {
+          const itemKey = item.productId + (item.variationId ?? '') + (item.scaleId ?? '');
+          return (
+            <div key={itemKey} className="flex gap-4 border rounded-lg p-4">
+              {/* Thumbnail */}
+              {item.image && (
+                <div className="relative w-16 h-16 rounded overflow-hidden shrink-0">
+                  <Image src={item.image} alt={item.name} fill className="object-cover" sizes="64px" />
+                </div>
+              )}
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <h3 className="font-medium text-sm truncate">{item.name}</h3>
+
+                {/* Variation */}
+                {item.variationName && (
+                  <p className="text-xs text-muted-foreground">
+                    Modelo: {item.variationName}
+                  </p>
+                )}
+
+                {/* Scale */}
+                {item.scaleName && (
+                  <p className="text-xs text-muted-foreground">
+                    Escala: {item.scaleName}
+                    {item.scalePercentage && item.scalePercentage > 0 && (
+                      <span className="text-primary ml-1">(+{item.scalePercentage}%)</span>
+                    )}
+                  </p>
+                )}
+
+                {/* Unit price */}
+                <p className="text-sm text-muted-foreground mt-1">
+                  {formatCurrency(item.price)} un.
+                </p>
+              </div>
+
+              {/* Quantity controls */}
+              <div className="flex items-center border rounded-md self-center">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() =>
+                    handleUpdateQuantity(item.productId, Math.max(1, item.quantity - 1), item.variationId, item.scaleId)
+                  }
+                >
+                  <Minus className="h-3 w-3" />
+                </Button>
+                <span className="w-8 text-center text-sm">{item.quantity}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() =>
+                    handleUpdateQuantity(item.productId, item.quantity + 1, item.variationId, item.scaleId)
+                  }
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </div>
+
+              {/* Line total + remove */}
+              <div className="flex flex-col items-end justify-between self-stretch">
+                <p className="font-medium text-sm">
+                  {formatCurrency(item.price * item.quantity)}
+                </p>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive"
+                  onClick={() => handleRemove(item.productId, item.variationId, item.scaleId)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
+          );
+        })}
+      </div>
 
-            <div className="flex items-center border rounded-md">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() =>
-                  handleUpdateQuantity(item.productId, Math.max(1, item.quantity - 1))
-                }
-              >
-                <Minus className="h-3 w-3" />
-              </Button>
-              <span className="w-8 text-center text-sm">{item.quantity}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() =>
-                  handleUpdateQuantity(item.productId, item.quantity + 1)
-                }
-              >
-                <Plus className="h-3 w-3" />
-              </Button>
-            </div>
-
-            <p className="font-medium text-sm w-20 text-right">
-              {formatCurrency(item.price * item.quantity)}
-            </p>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-destructive"
-              onClick={() => handleRemove(item.productId)}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        ))}
+      {/* Production time notice */}
+      <div className="mt-4 flex items-start gap-2 bg-muted/50 rounded-lg p-3 text-xs text-muted-foreground">
+        <Info className="h-4 w-4 shrink-0 mt-0.5" />
+        <p>O prazo de entrega inclui o tempo de producao das miniaturas impressas em 3D.</p>
       </div>
 
       <Separator className="my-6" />
