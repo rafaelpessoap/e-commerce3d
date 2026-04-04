@@ -113,7 +113,7 @@ export default async function ProductPage({ params }: Props) {
 
           {/* Short description — right below name */}
           {product.shortDescription && (
-            <p className="mt-3 text-muted-foreground leading-relaxed">{product.shortDescription}</p>
+            <div className="mt-3 text-muted-foreground leading-relaxed prose prose-sm" dangerouslySetInnerHTML={{ __html: product.shortDescription }} />
           )}
 
           {/* Price */}
@@ -193,11 +193,8 @@ export default async function ProductPage({ params }: Props) {
       {(product.description || product.content) && (
         <div className="mt-12 border-t pt-8 max-w-4xl">
           <h2 className="text-xl font-bold mb-4">Descricao</h2>
-          {product.description && (
-            <p className="text-muted-foreground leading-relaxed mb-6">{product.description}</p>
-          )}
-          {product.content && (
-            <div className="prose prose-sm max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: product.content }} />
+          {(product.content || product.description) && (
+            <div className="prose prose-sm max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: product.content || product.description }} />
           )}
         </div>
       )}
