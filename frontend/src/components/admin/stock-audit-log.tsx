@@ -8,6 +8,7 @@ interface AuditEntry {
   id: string;
   productId: string;
   variationId?: string;
+  variation?: { name: string } | null;
   quantityBefore: number;
   quantityAfter: number;
   delta: number;
@@ -59,6 +60,7 @@ export function StockAuditLog({ productId }: { productId: string }) {
           <thead className="bg-muted/50">
             <tr>
               <th className="text-left p-2 font-medium">Data</th>
+              <th className="text-left p-2 font-medium">Variacao</th>
               <th className="text-left p-2 font-medium">Motivo</th>
               <th className="text-right p-2 font-medium">Antes</th>
               <th className="text-center p-2 font-medium">Delta</th>
@@ -76,6 +78,9 @@ export function StockAuditLog({ productId }: { productId: string }) {
                     hour: '2-digit',
                     minute: '2-digit',
                   })}
+                </td>
+                <td className="p-2 text-xs text-muted-foreground">
+                  {log.variation?.name ?? (log.variationId ? log.variationId.slice(0, 8) : 'Produto')}
                 </td>
                 <td className="p-2">
                   {REASON_LABELS[log.reason] ?? log.reason}

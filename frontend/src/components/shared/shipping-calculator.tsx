@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, Truck, Package } from 'lucide-react';
+import { Loader2, Package } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { formatCurrency } from '@/lib/constants';
 
@@ -19,6 +19,7 @@ interface ShippingCalculatorProps {
   selectedQuote?: ShippingQuote | null;
   onSelectQuote: (quote: ShippingQuote) => void;
   onCepChange?: (cep: string) => void;
+  initialCep?: string;
   compact?: boolean;
 }
 
@@ -27,9 +28,10 @@ export function ShippingCalculator({
   selectedQuote,
   onSelectQuote,
   onCepChange,
+  initialCep = '',
   compact = false,
 }: ShippingCalculatorProps) {
-  const [cep, setCep] = useState('');
+  const [cep, setCep] = useState(initialCep);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [quotes, setQuotes] = useState<ShippingQuote[]>([]);
@@ -120,64 +122,48 @@ export function ShippingCalculator({
         </div>
       )}
 
-      {/* Quotes list */}
+      {/* Quotes table */}
       {hasSearched && quotes.length > 0 && (
-        <div className="space-y-2">
-          {quotes.map((quote) => {
+        <div className="border rounded-lg overflow-hidden divide-y">
+          <div className="grid grid-cols-[auto_1fr_auto] gap-3 px-4 py-2 bg-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            <span></span>
+            <span>Tipo de entrega</span>
+            <span>Custo</span>
+          </div>
+          {[...quotes].sort((a, b) => a.price - b.price).map((quote) => {
             const displayPrice = freeShipping ? 0 : quote.price;
-            const isSelected =
-              selectedQuote?.serviceId === quote.serviceId;
+            const isSelected = selectedQuote?.serviceId === quote.serviceId;
 
             return (
               <label
                 key={quote.serviceId}
-                className={`flex items-center justify-between border rounded-lg p-3 cursor-pointer transition-colors ${
-                  isSelected
-                    ? 'border-primary bg-primary/5'
-                    : 'hover:border-muted-foreground/30'
+                className={`grid grid-cols-[auto_1fr_auto] gap-3 px-4 py-3 text-sm items-center cursor-pointer transition-colors ${
+                  isSelected ? 'bg-primary/5' : 'hover:bg-muted/30'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <input
-                    type="radio"
-                    name="shipping"
-                    checked={isSelected}
-                    onChange={() =>
-                      onSelectQuote({ ...quote, price: displayPrice })
-                    }
-                    className="accent-primary"
-                  />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Truck className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="font-medium text-sm">
-                        {quote.name}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        ({quote.company})
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {quote.deliveryRange.min === quote.deliveryRange.max
-                        ? `${quote.deliveryRange.min} dias úteis`
-                        : `${quote.deliveryRange.min}-${quote.deliveryRange.max} dias úteis`}
-                    </p>
-                  </div>
+                <input
+                  type="radio"
+                  name="shipping"
+                  checked={isSelected}
+                  onChange={() => onSelectQuote({ ...quote, price: displayPrice })}
+                  className="accent-primary"
+                />
+                <div>
+                  <span className="font-medium">{quote.company} {quote.name}</span>
+                  <span className="text-muted-foreground ml-1">
+                    ({quote.deliveryRange.min === quote.deliveryRange.max
+                      ? `${quote.deliveryRange.max} dias uteis`
+                      : `${quote.deliveryRange.min}-${quote.deliveryRange.max} dias uteis`})
+                  </span>
                 </div>
-                <div className="text-right">
+                <div className="text-right font-bold whitespace-nowrap">
                   {freeShipping ? (
-                    <div>
-                      <span className="text-xs text-muted-foreground line-through">
-                        {formatCurrency(quote.price)}
-                      </span>
-                      <span className="text-sm font-bold text-green-600 ml-1">
-                        Grátis
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-sm font-bold">
-                      {formatCurrency(quote.price)}
+                    <span>
+                      <span className="text-muted-foreground line-through font-normal text-xs mr-1">{formatCurrency(quote.price)}</span>
+                      <span className="text-green-600">Gratis</span>
                     </span>
+                  ) : (
+                    <span className="text-primary">{formatCurrency(quote.price)}</span>
                   )}
                 </div>
               </label>

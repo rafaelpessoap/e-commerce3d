@@ -18,7 +18,27 @@ export default function CartPage() {
   const [couponCode, setCouponCode] = useState('');
   const [couponMsg, setCouponMsg] = useState('');
   const [loading, setLoading] = useState(true);
-  const [selectedShipping, setSelectedShipping] = useState<ShippingQuote | null>(null);
+  const [selectedShipping, setSelectedShipping] = useState<ShippingQuote | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const saved = localStorage.getItem('cartShipping');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+  const [savedCep, setSavedCep] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return localStorage.getItem('cartShippingCep') ?? '';
+  });
+
+  function handleSelectShipping(quote: ShippingQuote) {
+    setSelectedShipping(quote);
+    localStorage.setItem('cartShipping', JSON.stringify(quote));
+  }
+
+  function handleCepChange(cep: string) {
+    setSavedCep(cep);
+    localStorage.setItem('cartShippingCep', cep);
+  }
 
   useEffect(() => {
     api
@@ -174,7 +194,9 @@ export default function CartPage() {
         <ShippingCalculator
           products={items.map((i) => ({ productId: i.productId, quantity: i.quantity }))}
           selectedQuote={selectedShipping}
-          onSelectQuote={setSelectedShipping}
+          onSelectQuote={handleSelectShipping}
+          onCepChange={handleCepChange}
+          initialCep={savedCep}
         />
       </div>
 

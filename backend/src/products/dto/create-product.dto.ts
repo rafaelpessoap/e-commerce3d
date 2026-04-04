@@ -72,6 +72,11 @@ export class CreateProductDto {
   stock?: number;
 
   @IsOptional()
+  @IsInt()
+  @Min(0)
+  lowStockThreshold?: number | null;
+
+  @IsOptional()
   @IsNumber()
   @IsPositive()
   weight?: number;

@@ -314,6 +314,9 @@ export class StockService {
         productId,
         ...(variationId ? { variationId } : {}),
       },
+      include: {
+        variation: { select: { name: true } },
+      },
       orderBy: { createdAt: 'desc' },
       take: 30,
     });

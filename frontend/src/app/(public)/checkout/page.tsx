@@ -43,11 +43,20 @@ export default function CheckoutPage() {
     }
   }, [user]);
 
-  // Shipping
-  const [selectedShipping, setSelectedShipping] = useState<ShippingQuote | null>(null);
+  // Shipping — restore from cart if available
+  const [selectedShipping, setSelectedShipping] = useState<ShippingQuote | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const saved = localStorage.getItem('cartShipping');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
 
-  // Address fields
-  const [zipCode, setZipCode] = useState('');
+  // Address fields — restore CEP from cart
+  const [zipCode, setZipCode] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return localStorage.getItem('cartShippingCep') ?? '';
+  });
   const [street, setStreet] = useState('');
   const [number, setNumber] = useState('');
   const [complement, setComplement] = useState('');
@@ -56,6 +65,14 @@ export default function CheckoutPage() {
   const [state, setState] = useState('');
   const [cepLoading, setCepLoading] = useState(false);
   const [cepError, setCepError] = useState('');
+
+  // Auto-fill address if CEP was saved from cart
+  useEffect(() => {
+    if (zipCode.length === 8) {
+      handleCepLookup(zipCode);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Cálculo: desconto NUNCA se aplica ao frete
   const shippingCost = selectedShipping?.price ?? 0;
@@ -202,9 +219,11 @@ export default function CheckoutPage() {
         // Non-blocking
       }
 
-      // 4. Limpar carrinho
+      // 4. Limpar carrinho + shipping cache
       await api.delete('/cart');
       clear();
+      localStorage.removeItem('cartShipping');
+      localStorage.removeItem('cartShippingCep');
 
       // 5. Redirecionar baseado no método
       const payment = paymentData.data;
