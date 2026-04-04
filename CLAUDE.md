@@ -606,11 +606,20 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [x] Produtos com manageStock=false ignoram todas as regras (estoque infinito)
 
 **Frontend:**
-- [x] StockAuditLog: componente tabela com últimas 30 movimentações (data, motivo, antes/depois, delta, referência)
+- [x] StockAuditLog: componente tabela com últimas 30 movimentações (data, motivo, variação, antes/depois, delta, referência)
 - [x] ProductForm: aba "Histórico Estoque" (só em edição), campo lowStockThreshold por produto
 - [x] /admin/estoque: dashboard estoque baixo — produtos simples + variações abaixo do threshold
 - [x] Sidebar admin: link "Estoque" com ícone BarChart3
 - [x] /admin/configuracoes: settings low_stock_threshold (global) + low_stock_email_recipients
+- [x] lowStockThreshold nos DTOs (Create/UpdateProductDto) — antes dava "should not exist"
+- [x] Audit log inclui nome da variação (relation include)
+
+#### Fixes adicionais sessão 3:
+- [x] Frete: layout tabela "Tipo de entrega" / "Custo" — igual em carrinho, checkout e página do produto
+- [x] Frete: nome mostra só displayName (sem duplicar empresa), prazo usa data máxima
+- [x] Frete carrinho → checkout: CEP + opção selecionada persistem via localStorage
+- [x] Checkout: restaura CEP do carrinho, auto-fill ViaCEP, limpa localStorage após pedido
+- [x] Schema produção atualizado (prisma db push — reservedStock, lowStockThreshold, StockAuditLog, stockReserved)
 
 #### Outras Pendências:
 - [ ] Blog admin: criar/editar posts (TipTap)
@@ -729,6 +738,9 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | 2026-04-04 | lowStockThreshold hierarquia produto > global | Produto pode ter threshold individual. Se null, usa Setting key `low_stock_threshold` (padrão 5). Admin configura em /admin/configuracoes |
 | 2026-04-04 | StockService como single source of truth | Nenhum outro service modifica stock/reservedStock diretamente. Tudo passa pelo StockService (reserveStock, confirmReservation, releaseStock, adjustStock) |
 | 2026-04-04 | MP sandbox /v1/payments retorna 500 para conta ArsenalCraft | Testado exaustivamente: token TEST funciona para GET e preferences, mas POST /v1/payments retorna internal_error 500 com qualquer payload. Credenciais de produção funcionam perfeitamente. Ticket aberto no suporte do MP |
+| 2026-04-04 | Frete: só displayName, sem duplicar empresa | Frontend mostrava `{company} {name}` que duplicava (ex: "Jadlog Jadlog"). Backend já retorna displayName no campo name. Frontend agora mostra só `{name}` |
+| 2026-04-04 | Frete: prazo usa data máxima | Prazo de entrega exibe "Entrega em ate X dias uteis" usando deliveryRange.max (pior caso). Consistente nos 3 lugares: produto, carrinho, checkout |
+| 2026-04-04 | Frete persiste carrinho → checkout via localStorage | Ao selecionar frete no carrinho, CEP e opção ficam no localStorage. Checkout restaura automaticamente. Limpa após finalizar pedido |
 
 ---
 
@@ -822,24 +834,23 @@ Sempre que:
 
 ## Última Sessão
 
-- **Data:** 04/04/2026 (sessão 3 — noite/madrugada)
+- **Data:** 04/04/2026 (sessão 3 — noite/madrugada, longa)
 - **O que foi feito:**
-  1. **Checkout UX + Bugs:** CardPaymentForm 1 clique (forwardRef), fix payer fields (first/last name), CheckoutLog system (model + service + 5 testes), fix basePrice @Min(0) para variável, estoque toggle escondido para variável, ShippingCalculator na página /carrinho.
-  2. **Webhook MP:** Configurado no painel (URL + assinatura secreta + simulação 201 OK), fix HMAC (data.id query param), fix processWebhook silencioso para ID inexistente.
-  3. **Controle de Estoque completo:** StockService (reserve/confirm/release/adjust), StockAuditLog (30 max, prune auto), integrado em OrdersService + PaymentsService, idempotência via stockReserved flag, 12 testes TDD. Frontend: aba "Histórico Estoque" no ProductForm, página /admin/estoque (low stock dashboard), settings threshold + email, campo lowStockThreshold por produto.
-  4. **Diagnóstico MP Sandbox:** Sandbox retorna 500 para POST /v1/payments. Produção funciona. Ticket aberto no suporte.
-  5. **Total: 43 suites (41 pass, 2 email pre-existentes), 339 testes passando, 0 erros TS.**
+  1. **Checkout UX:** CardPaymentForm 1 clique (forwardRef), fix payer fields (first/last name), CheckoutLog system (5 testes), fix basePrice @Min(0), estoque toggle escondido para variável, ShippingCalculator no carrinho, frete persiste carrinho → checkout via localStorage.
+  2. **Webhook MP:** Configurado no painel (URL + assinatura secreta + simulação 201 OK), fix HMAC (data.id query param), processWebhook silencioso para ID inexistente.
+  3. **Controle de Estoque completo:** StockService (reserve/confirm/release/adjust), StockAuditLog (30 max, prune auto, com variações), integrado em OrdersService + PaymentsService, idempotência, 12 testes TDD. Frontend: aba "Histórico Estoque", /admin/estoque, settings, lowStockThreshold nos DTOs.
+  4. **Frete:** Layout tabela unificado (produto/carrinho/checkout), só displayName, prazo com data máxima, ordenado por preço.
+  5. **Diagnóstico MP Sandbox:** Ticket aberto, credenciais de produção funcionam.
+  6. **Total: 43 suites (41 pass, 2 email pre-existentes), 339 testes passando, 0 erros TS.**
 - **O que ficou pendente:**
-  - **MP Sandbox:** Aguardando resposta do suporte. Decisão: usar produção ou esperar fix
-  - **Email estoque baixo:** checkLowStock retorna dados mas não envia email (falta EmailQueueService integration)
+  - **MP Sandbox:** Aguardando resposta do suporte. Decidir se usa produção
+  - **Email estoque baixo:** checkLowStock retorna dados mas não envia email (falta EmailQueueService)
   - **Expiração pedidos:** PIX 30min, Boleto 3 dias — BullMQ delayed job para cancelar e liberar estoque
   - **Blog admin:** Criar/editar posts com TipTap (baixa prioridade)
-  - **Cache Redis por rota:** CacheInterceptor (pós-deploy, baseado em métricas)
-  - **Testes de carga:** k6/Artillery (pós-deploy)
-  - **Cloudflare Origin Certificate:** 15 anos (infra)
-  - **Layout frete checkout:** Igualar ao da página do produto (tabela ordenada por preço)
+  - **Cache Redis por rota:** CacheInterceptor (pós-lançamento)
+  - **Testes de carga:** k6/Artillery (pós-lançamento)
 - **Próximo passo exato:**
-  1. Decidir com Rafael: usar credenciais de produção para pagamentos ou esperar resposta do MP
-  2. Implementar email de alerta de estoque baixo (template + EmailQueueService)
-  3. Implementar expiração automática de pedidos pendentes (BullMQ delayed job)
-  4. Blog admin com TipTap (quando Rafael quiser)
+  1. Verificar resposta do suporte MP sobre sandbox. Se não resolver, usar credenciais de produção e testar pagamentos reais (PIX R$0.50)
+  2. Implementar email de alerta de estoque baixo (template + EmailQueueService + integrar com checkLowStock)
+  3. Implementar expiração automática de pedidos pendentes (BullMQ delayed job + liberar estoque)
+  4. Testar fluxo completo: cadastrar produto com estoque → comprar → pagar → verificar estoque decrementado + audit log
