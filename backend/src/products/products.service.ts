@@ -245,4 +245,53 @@ export class ProductsService {
 
     return 0;
   }
+
+  /**
+   * Resolve dados de frete para um produto (ou variação específica).
+   * Variação herda peso/dimensões do pai quando null.
+   * Preço: salePrice ?? price (variação) ou salePrice ?? basePrice (simples).
+   */
+  async resolveShippingData(
+    productId: string,
+    variationId?: string,
+  ): Promise<{
+    weight: number | null;
+    width: number | null;
+    height: number | null;
+    length: number | null;
+    price: number;
+  }> {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      include: { variations: true },
+    });
+
+    if (!product) throw new NotFoundException('Product not found');
+
+    if (variationId) {
+      const variation = product.variations.find(
+        (v: { id: string }) => v.id === variationId,
+      );
+      if (!variation) {
+        throw new NotFoundException('Variation not found in this product');
+      }
+
+      return {
+        weight: variation.weight ?? product.weight,
+        width: variation.width ?? product.width,
+        height: variation.height ?? product.height,
+        length: variation.length ?? product.length,
+        price: variation.salePrice ?? variation.price,
+      };
+    }
+
+    // Produto simples
+    return {
+      weight: product.weight,
+      width: product.width,
+      height: product.height,
+      length: product.length,
+      price: product.salePrice ?? product.basePrice,
+    };
+  }
 }

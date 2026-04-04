@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 
-// Lista completa de serviços do Melhor Envio
+// Lista de serviços fallback (usado quando MELHOR_ENVIO_TOKEN não está configurado)
 const MELHOR_ENVIO_SERVICES = [
   { id: 1, name: 'PAC', company: 'Correios' },
   { id: 2, name: 'SEDEX', company: 'Correios' },
@@ -13,8 +13,16 @@ const MELHOR_ENVIO_SERVICES = [
   { id: 17, name: '.Package', company: 'Azul Cargo Express' },
   { id: 27, name: 'Expresso', company: 'Via Brasil' },
   { id: 28, name: 'Rodoviário', company: 'Via Brasil' },
-  { id: 33, name: 'BA Normal', company: 'Buslog' },
+  { id: 31, name: 'Express', company: 'Loggi' },
+  { id: 33, name: 'Standard', company: 'JeT' },
   { id: 34, name: 'BA Rápido', company: 'Buslog' },
+];
+
+// CEPs regionais para descobrir o máximo de transportadoras via cotação
+const SYNC_DESTINATION_CEPS = [
+  '01001000', // São Paulo, SP
+  '20040020', // Rio de Janeiro, RJ
+  '92323010', // Canoas, RS
 ];
 
 export interface ShippingProduct {
@@ -63,12 +71,12 @@ export class MelhorEnvioService {
 
   /**
    * Busca a lista real de serviços disponíveis na API do Melhor Envio.
+   * Usa múltiplos CEPs destino para descobrir o máximo de transportadoras.
    * Sincroniza com o banco (upsert para cada serviço encontrado).
    */
   async syncServicesFromApi(): Promise<{ synced: number; services: Array<{ id: number; name: string; company: string }> }> {
     if (!this.token) {
       this.logger.warn('MELHOR_ENVIO_TOKEN não configurado — usando serviços padrão');
-      // Fallback: sync hardcoded services to DB via upsert
       const services: Array<{ id: number; name: string; company: string }> = [];
       for (const svc of MELHOR_ENVIO_SERVICES) {
         services.push(svc);
@@ -95,53 +103,64 @@ export class MelhorEnvioService {
       .catch(() => null);
     const fromCep = fromCepSetting?.value ?? this.fromCep ?? '01001000';
 
-    // Faz uma cotação com dados fictícios para descobrir os serviços disponíveis
-    const body = {
-      from: { postal_code: fromCep },
-      to: { postal_code: '30130000' },
-      products: [{ id: '1', width: 15, height: 10, length: 20, weight: 0.5, insurance_value: 50, quantity: 1 }],
-    };
+    // Cotar para múltiplos destinos regionais para descobrir todas as transportadoras
+    const discoveredMap = new Map<number, { id: number; name: string; company: string }>();
 
-    const response = await fetch(
-      `${this.baseUrl}/api/v2/me/shipment/calculate`,
-      {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.token}`,
-          'User-Agent': 'ElitePinup3D (rafaelzezao@gmail.com)',
-        },
-        body: JSON.stringify(body),
-      },
-    );
+    for (const destCep of SYNC_DESTINATION_CEPS) {
+      try {
+        const body = {
+          from: { postal_code: fromCep },
+          to: { postal_code: destCep },
+          products: [{ id: '1', width: 15, height: 10, length: 20, weight: 0.5, insurance_value: 50, quantity: 1 }],
+        };
 
-    if (!response.ok) {
-      const errorBody = await response.text().catch(() => '');
-      this.logger.error(`Melhor Envio sync error: ${response.status} — ${errorBody}`);
-      throw new BadRequestException(`Não foi possível sincronizar transportadoras (${response.status})`);
+        const response = await fetch(
+          `${this.baseUrl}/api/v2/me/shipment/calculate`,
+          {
+            method: 'POST',
+            headers: {
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${this.token}`,
+              'User-Agent': 'ElitePinup3D (rafaelzezao@gmail.com)',
+            },
+            body: JSON.stringify(body),
+          },
+        );
+
+        if (!response.ok) {
+          const errorBody = await response.text().catch(() => '');
+          this.logger.warn(`Melhor Envio sync CEP ${destCep} error: ${response.status} — ${errorBody}`);
+          continue; // Tenta o próximo CEP
+        }
+
+        const data: any[] = await response.json();
+        for (const item of data) {
+          if (!item.id || !item.company?.name || item.error) continue;
+          if (!discoveredMap.has(item.id)) {
+            discoveredMap.set(item.id, { id: item.id, name: item.name, company: item.company.name });
+          }
+        }
+      } catch (err) {
+        this.logger.warn(`Melhor Envio sync CEP ${destCep} failed: ${err}`);
+        continue;
+      }
     }
 
-    const data: any[] = await response.json();
-    const services: Array<{ id: number; name: string; company: string }> = [];
-
-    for (const item of data) {
-      if (!item.id || !item.company?.name) continue;
-      const svc = { id: item.id, name: item.name, company: item.company.name };
-      services.push(svc);
-
-      // Upsert: cria novos, atualiza nome/empresa de existentes (preserva isActive/displayName/extraDays)
+    // Upsert all discovered services
+    const services = Array.from(discoveredMap.values());
+    for (const svc of services) {
       await this.prisma.shippingMethod.upsert({
-        where: { serviceId: item.id },
+        where: { serviceId: svc.id },
         create: {
-          serviceId: item.id,
-          name: item.name,
-          company: item.company.name,
+          serviceId: svc.id,
+          name: svc.name,
+          company: svc.company,
           isActive: false,
         },
         update: {
-          name: item.name,
-          company: item.company.name,
+          name: svc.name,
+          company: svc.company,
         },
       });
     }
@@ -221,17 +240,17 @@ export class MelhorEnvioService {
       .catch(() => null);
     const fromCep = fromCepSetting?.value ?? this.fromCep;
 
-    // Montar payload para a API do Melhor Envio
+    // Montar payload para a API do Melhor Envio (garantir mínimos para não rejeitar)
     const body = {
       from: { postal_code: fromCep },
       to: { postal_code: params.toCep.replace(/\D/g, '') },
       products: params.products.map((p) => ({
         id: '1',
-        width: p.width,
-        height: p.height,
-        length: p.length,
-        weight: p.weight,
-        insurance_value: p.price * p.quantity,
+        width: Math.max(p.width, 11),
+        height: Math.max(p.height, 2),
+        length: Math.max(p.length, 16),
+        weight: Math.max(p.weight, 0.3),
+        insurance_value: Math.max(p.price * p.quantity, 1),
         quantity: p.quantity,
       })),
     };
@@ -251,11 +270,12 @@ export class MelhorEnvioService {
     );
 
     if (!response.ok) {
+      const errorBody = await response.text().catch(() => '');
       this.logger.error(
-        `Melhor Envio API error: ${response.status} ${response.statusText}`,
+        `Melhor Envio API error: ${response.status} ${response.statusText} — ${errorBody}`,
       );
       throw new BadRequestException(
-        'Não foi possível calcular o frete. Tente novamente.',
+        `Não foi possível calcular o frete (${response.status}). Tente novamente.`,
       );
     }
 

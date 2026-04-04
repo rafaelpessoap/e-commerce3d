@@ -25,6 +25,7 @@ export class ShippingController {
       zipCode: string;
       products: Array<{
         productId: string;
+        variationId?: string;
         quantity: number;
       }>;
     },
@@ -34,8 +35,6 @@ export class ShippingController {
     const shippingProducts: ShippingProduct[] = [];
 
     for (const item of dto.products) {
-      const product = await this.productsService.findById(item.productId);
-
       const extraDays = await this.productsService.resolveExtraDays(
         item.productId,
       );
@@ -43,13 +42,19 @@ export class ShippingController {
         maxExtraDays = extraDays;
       }
 
+      // Resolve peso/dimensões/preço (variação herda do pai quando null)
+      const shippingData = await this.productsService.resolveShippingData(
+        item.productId,
+        item.variationId,
+      );
+
       shippingProducts.push({
-        weight: product.weight ?? 0.3, // default 300g
-        width: product.width ?? 11,
-        height: product.height ?? 5,
-        length: product.length ?? 16,
+        weight: shippingData.weight ?? 0.3,
+        width: shippingData.width ?? 11,
+        height: shippingData.height ?? 5,
+        length: shippingData.length ?? 16,
         quantity: item.quantity,
-        price: product.salePrice ?? product.basePrice,
+        price: shippingData.price,
       });
     }
 

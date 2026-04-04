@@ -200,6 +200,7 @@ describe('MelhorEnvioService', () => {
         ok: false,
         status: 422,
         statusText: 'Unprocessable Entity',
+        text: async () => 'Validation error',
       });
       (prisma.shippingMethod.findMany as jest.Mock).mockResolvedValue([]);
 
@@ -259,6 +260,140 @@ describe('MelhorEnvioService', () => {
       expect(services[0]).toHaveProperty('id');
       expect(services[0]).toHaveProperty('name');
       expect(services[0]).toHaveProperty('company');
+    });
+  });
+
+  describe('syncServicesFromApi', () => {
+    it('should use multiple destination CEPs to discover more carriers', async () => {
+      // First call returns Correios only, second call returns Loggi too
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => [
+            { id: 1, name: 'PAC', company: { id: 1, name: 'Correios' }, error: null },
+            { id: 2, name: 'SEDEX', company: { id: 1, name: 'Correios' }, error: null },
+          ],
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => [
+            { id: 1, name: 'PAC', company: { id: 1, name: 'Correios' }, error: null },
+            { id: 31, name: 'Express', company: { id: 9, name: 'Loggi' }, error: null },
+          ],
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => [
+            { id: 1, name: 'PAC', company: { id: 1, name: 'Correios' }, error: null },
+            { id: 33, name: 'Standard', company: { id: 10, name: 'JeT' }, error: null },
+          ],
+        });
+
+      (prisma.shippingMethod.upsert as jest.Mock).mockImplementation(async (args: { create: { serviceId: number; name: string; company: string } }) => args.create);
+
+      const result = await service.syncServicesFromApi();
+
+      // Should discover services from ALL destinations (deduplicated)
+      const serviceIds = result.services.map((s) => s.id);
+      expect(serviceIds).toContain(1);  // PAC from first call
+      expect(serviceIds).toContain(2);  // SEDEX from first call
+      expect(serviceIds).toContain(31); // Loggi from second call
+      expect(serviceIds).toContain(33); // JeT from third call
+
+      // Should have called fetch multiple times (multiple destinations)
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+
+    it('should deduplicate services found across multiple destinations', async () => {
+      // PAC appears in all responses
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => [
+          { id: 1, name: 'PAC', company: { id: 1, name: 'Correios' }, error: null },
+        ],
+      });
+
+      (prisma.shippingMethod.upsert as jest.Mock).mockImplementation(async (args: { create: { serviceId: number; name: string; company: string } }) => args.create);
+
+      const result = await service.syncServicesFromApi();
+
+      // PAC should only appear once despite being in all responses
+      const pacCount = result.services.filter((s) => s.id === 1).length;
+      expect(pacCount).toBe(1);
+    });
+
+    it('should skip services with errors in sync responses', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => [
+          { id: 1, name: 'PAC', company: { id: 1, name: 'Correios' }, error: null },
+          { id: 99, name: 'Indisponível', error: 'Não disponível', company: { id: 3, name: 'Teste' } },
+        ],
+      });
+
+      (prisma.shippingMethod.upsert as jest.Mock).mockImplementation(async (args: { create: { serviceId: number; name: string; company: string } }) => args.create);
+
+      const result = await service.syncServicesFromApi();
+
+      const serviceIds = result.services.map((s) => s.id);
+      expect(serviceIds).toContain(1);
+      expect(serviceIds).not.toContain(99);
+    });
+  });
+
+  describe('getQuotes — edge cases', () => {
+    it('should enforce minimum weight and dimensions for API call', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => [
+          { id: 1, name: 'PAC', price: '20.00', delivery_time: 5, delivery_range: { min: 4, max: 6 }, company: { name: 'Correios' }, error: null },
+        ],
+      });
+      (prisma.shippingMethod.findMany as jest.Mock).mockResolvedValue([
+        { serviceId: 1, name: 'PAC', company: 'Correios', isActive: true, displayName: null, extraDays: 0 },
+      ]);
+
+      await service.getQuotes({
+        toCep: '92323010',
+        products: [
+          { weight: 0, width: 0, height: 0, length: 0, quantity: 1, price: 0 },
+        ],
+      });
+
+      // Check that the API was called with enforced minimums, not zeros
+      const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const product = callBody.products[0];
+      expect(product.weight).toBeGreaterThan(0);
+      expect(product.width).toBeGreaterThan(0);
+      expect(product.height).toBeGreaterThan(0);
+      expect(product.length).toBeGreaterThan(0);
+      expect(product.insurance_value).toBeGreaterThan(0);
+    });
+
+    it('should continue even if one destination fails during sync', async () => {
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => [
+            { id: 1, name: 'PAC', company: { id: 1, name: 'Correios' }, error: null },
+          ],
+        })
+        .mockResolvedValueOnce({ ok: false, status: 500, text: async () => 'Error' })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => [
+            { id: 31, name: 'Express', company: { id: 9, name: 'Loggi' }, error: null },
+          ],
+        });
+
+      (prisma.shippingMethod.upsert as jest.Mock).mockImplementation(async (args: { create: { serviceId: number; name: string; company: string } }) => args.create);
+
+      const result = await service.syncServicesFromApi();
+
+      // Should still have results from successful calls
+      const serviceIds = result.services.map((s) => s.id);
+      expect(serviceIds).toContain(1);
+      expect(serviceIds).toContain(31);
     });
   });
 });

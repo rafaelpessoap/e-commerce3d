@@ -167,6 +167,14 @@ Cada transição: registra histórico + dispara email personalizado.
 Prazo de produção: 3 dias úteis.
 Admin pode cadastrar novos status.
 
+### Variações e Frete (REGRA CRÍTICA)
+Produto variável (`type=variable`) tem `basePrice=0`. O preço vem da variação selecionada.
+Para calcular frete, o cliente **DEVE selecionar uma variação** (escala) primeiro.
+- Peso/dimensões da variação: se null, **herda do produto pai**
+- Preço para seguro do frete: `variação.salePrice ?? variação.price` (salePrice tem prioridade)
+- Backend: `resolveShippingData(productId, variationId?)` resolve tudo com fallback
+- Mínimos para API Melhor Envio: peso >= 0.3kg, largura >= 11cm, altura >= 2cm, comprimento >= 16cm
+
 ### Frete Grátis
 Regras configuráveis por faixa de CEP + valor mínimo.
 Exemplo: CEPs 01000-000 a 09999-999 → grátis acima de R$150.
@@ -590,7 +598,7 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | 2026-04-04 | Tags/Categories extraDays no frontend | Campo "Dias de produção" editável na criação e edição de tags e categorias. Completa a hierarquia produto > tag > categoria |
 | 2026-04-04 | Settings genérico key-value | Endpoint GET/PUT /shipping/settings agora aceita qualquer chave. Usado para: shop_cep, store_name, contact_email, pix_discount, boleto_discount, base_production_days |
 | 2026-04-04 | Cupons com restrições de categoria/tag/cliente | Cada cupom pode ter categoryId (desconto só nessa categoria), tagId (só nessa tag), userId (exclusivo para um cliente). Validação no backend impede uso por outro user |
-| 2026-04-04 | Melhor Envio sync via cotação fictícia | Para descobrir serviços disponíveis, faz cotação com dados dummy e extrai os serviços retornados. Upsert no banco sem alterar isActive de existentes |
+| 2026-04-04 | Melhor Envio sync multi-CEP | Sync faz cotações fictícias para 3 CEPs regionais (SP, RJ, RS) para descobrir mais transportadoras. Deduplica resultados. Se uma cotação falha, continua com as próximas |
 | 2026-04-04 | Checkout coleta dados pessoais | Nome, CPF (máscara 000.000.000-00), telefone (máscara (00) 00000-0000) obrigatórios. Email read-only do perfil. Após pedido, salva cpf/phone no perfil do user |
 | 2026-04-04 | Controllers devem wrappear em { data } | Todos os controllers devem retornar { data: result } para consistência. Frontend faz data.data. Sem wrapper, data.data era undefined → listas vazias |
 | 2026-04-04 | Admin rotas :id DEPOIS de /me | NestJS match por ordem de declaração. Se PUT :id vem antes de PUT me, 'me' casa como :id. Rotas estáticas (/me, /me/password) devem ser declaradas primeiro |
@@ -600,6 +608,10 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | 2026-04-04 | ProductShipping na página do produto | Componente client-side que cota frete por CEP direto na página do produto. Mostra opções com preço e prazo |
 | 2026-04-04 | AdminEditButton na página do produto | Botão "Editar produto" visível apenas para ADMIN. Client component que checa useAuthStore |
 | 2026-04-04 | Descrição longa full-width abaixo da imagem | Na página /p/[slug], descrição + content HTML ficam abaixo do grid 2 colunas (não na lateral). Descrição curta fica logo abaixo do nome |
+| 2026-04-04 | Variação herda peso/dims do pai | ProductVariation.weight/width/height/length são opcionais. Se null, herda do Product pai. resolveShippingData() no ProductsService implementa o fallback |
+| 2026-04-04 | Frete exige seleção de variação | Produto variável (type=variable, basePrice=0) requer que o cliente selecione uma variação antes de calcular frete. O preço para seguro é salePrice ?? price da variação |
+| 2026-04-04 | Mínimos para API Melhor Envio | Payload de cotação garante: weight >= 0.3kg, width >= 11cm, height >= 2cm, length >= 16cm, insurance_value >= R$1. Zeros causavam rejeição pela API |
+| 2026-04-04 | ProductVariationsAndShipping unificado | Seleção de variação e calculadora de frete no mesmo client component para compartilhar estado. Ao mudar variação, recalcula frete automaticamente se CEP já digitado |
 
 ---
 
@@ -640,6 +652,9 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | Sidebar admin footer sumia | aside sem h-screen, crescia com conteúdo principal | h-screen sticky top-0, nav overflow-y-auto, header/footer flex-shrink-0 |
 | Rotas /me e /:id conflitavam | PUT :id declarado antes de PUT me, NestJS casava 'me' como :id | Reordenar: rotas /me primeiro, /:id por último |
 | Transportadoras incompletas no admin frete | GET /methods iterava array hardcoded (11 itens) em vez do DB. Sync só criava, não atualizava | GET lê do DB, sync faz upsert real (cria + atualiza nome/empresa, preserva isActive) |
+| Sync não encontrava Loggi/JeT | Cotação fictícia usava 1 só CEP destino (BH). Carriers regionais não apareciam | Sync agora cota para 3 CEPs regionais (SP, RJ, RS), deduplica resultados, continua se um falhar |
+| Frete falhava na página do produto | API Melhor Envio rejeitava peso/dimensões 0 e insurance_value 0 (produto variável com basePrice=0) | Mínimos forçados (weight 0.3, dims 11/2/16, insurance R$1). Variações resolvidas via resolveShippingData |
+| Frete sem considerar variação | Calculadora usava dados do produto pai (price=0 para variável), ignorava variação selecionada | Novo componente ProductVariationsAndShipping unifica seleção + cálculo. Backend aceita variationId no quote |
 
 ---
 
@@ -661,7 +676,7 @@ Sempre que:
 
 1. **Testes de email falhando (2 suites, 21 testes):** `email.service.spec.ts` e `templates.spec.ts` falham por causa de `@react-email/render` que requer `--experimental-vm-modules`. Os templates React Email funcionam em produção, mas o `render()` nos testes Jest falha com erro de ESM. Não afeta nenhum outro teste. Solução futura: migrar esses testes para Vitest ou ajustar o mock do render.
 
-2. **MELHOR_ENVIO_TOKEN não configurado em produção:** O token da API do Melhor Envio ainda não foi configurado no `.env` de produção. O sync de transportadoras funciona com fallback (lista hardcoded de 11 serviços), mas para ter a lista completa e cotações reais, o token precisa ser cadastrado em https://melhorenvio.com.br → Integrações → Gerar token. Adicionar `MELHOR_ENVIO_TOKEN=xxx` no `.env` do servidor.
+2. **MELHOR_ENVIO_TOKEN configurado em produção (04/04/2026).** Token de produção ativo. Sync usa 3 CEPs regionais para descobrir todas as transportadoras.
 
 3. **Mercado Pago não integrado:** Pagamentos reais estão adiados por decisão do Rafael. O checkout funciona mas não processa pagamento de verdade.
 
@@ -669,10 +684,10 @@ Sempre que:
 
 ## Última Sessão
 
-- **Data:** 04/04/2026 (tarde)
+- **Data:** 04/04/2026 (noite)
 - **O que foi feito:**
-  Corrigidos 7 bugs do admin (sidebar scroll, galeria zoom, emails não carregava, escalas lista vazia, sync transportadoras, clientes sem edit/endereços, transportadoras incompletas). Implementadas 4 melhorias na página pública do produto: calculadora de frete, descrição curta abaixo do nome, descrição longa full-width abaixo da imagem, botão "Editar produto" para ADMIN. TDD: 4 testes novos no UsersService (304 total passando).
+  Fix Melhor Envio: sync agora cota 3 CEPs regionais (SP, RJ, RS) para descobrir todas as transportadoras (Loggi, JeT, etc). Fix cotação de frete: mínimos para API (peso, dimensões, insurance_value), resolveShippingData() com variationId que herda do pai quando null. Frontend: ProductVariationsAndShipping unificado — variação selecionável com recálculo automático de frete. Quote endpoint aceita variationId. TDD: 11 testes novos (267 total passando, 36 suites).
 - **O que ficou pendente:**
-  Blog admin (criar/editar posts com TipTap), cache Redis por rota, testes de carga (k6), Cloudflare Origin Certificate (15 anos), Mercado Pago, corrigir testes de email (React Email render).
+  Blog admin (criar/editar posts com TipTap), cache Redis por rota, testes de carga (k6), Cloudflare Origin Certificate (15 anos), Mercado Pago, corrigir testes de email (React Email render). Deploy das correções de frete.
 - **Próximo passo exato:**
-  Configurar `MELHOR_ENVIO_TOKEN` no servidor de produção e testar sync real de transportadoras. Depois: implementar o blog admin com TipTap (criar/editar posts).
+  Deploy das correções de frete e testar sync real com token de produção. Depois: blog admin com TipTap.

@@ -8,7 +8,7 @@ import { WishlistButton } from '@/components/product/wishlist-button';
 import { ReviewsSection } from '@/components/product/reviews-section';
 import { AddToCartButton } from './add-to-cart-button';
 import { ProductGallery } from './product-gallery';
-import { ProductShipping } from './product-shipping';
+import { ProductVariationsAndShipping } from './product-variations-shipping';
 import { AdminEditButton } from './admin-edit-button';
 import type { Product } from '@/types/product';
 import type { ApiResponse } from '@/types/api';
@@ -131,22 +131,12 @@ export default async function ProductPage({ params }: Props) {
             </p>
           </div>
 
-          {/* Variations */}
-          {variations.length > 0 && (
-            <div className="mt-6">
-              <h3 className="text-sm font-medium mb-3">Escalas disponiveis</h3>
-              <div className="flex flex-wrap gap-2">
-                {variations.map((v: { id: string; name: string; price: number; salePrice?: number; image?: string; scale: { name: string } }) => (
-                  <div key={v.id} className="rounded border px-3 py-2 text-sm cursor-pointer hover:border-primary transition-colors">
-                    <span className="font-medium">{v.scale?.name ?? v.name}</span>
-                    <span className="text-muted-foreground ml-2">
-                      {formatCurrency(v.salePrice ?? v.price)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Variations + Shipping Calculator (shared state) */}
+          <ProductVariationsAndShipping
+            productId={product.id}
+            productType={product.type ?? 'simple'}
+            variations={variations}
+          />
 
           {/* Tags */}
           {tags.length > 0 && (
@@ -181,9 +171,6 @@ export default async function ProductPage({ params }: Props) {
               )}
             </p>
           </div>
-
-          {/* Shipping Calculator */}
-          <ProductShipping productId={product.id} />
 
           {/* Attributes */}
           {attributes.length > 0 && (

@@ -313,4 +313,106 @@ describe('ProductsService', () => {
       expect(days).toBe(0);
     });
   });
+
+  describe('resolveShippingData', () => {
+    const mockVariableProduct = {
+      ...mockProduct,
+      type: 'variable',
+      basePrice: 0,
+      weight: 0.5,
+      width: 15,
+      height: 10,
+      length: 20,
+      variations: [
+        {
+          id: 'var1',
+          name: '28mm',
+          price: 49.9,
+          salePrice: 39.9,
+          weight: 0.8,
+          width: 20,
+          height: 15,
+          length: 25,
+        },
+        {
+          id: 'var2',
+          name: '32mm',
+          price: 69.9,
+          salePrice: null,
+          weight: null,
+          width: null,
+          height: null,
+          length: null,
+        },
+      ],
+    };
+
+    it('should use variation weight/dimensions when provided', async () => {
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue(mockVariableProduct);
+
+      const data = await service.resolveShippingData('prod1', 'var1');
+
+      expect(data.weight).toBe(0.8);
+      expect(data.width).toBe(20);
+      expect(data.height).toBe(15);
+      expect(data.length).toBe(25);
+    });
+
+    it('should fallback to parent weight/dimensions when variation has null', async () => {
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue(mockVariableProduct);
+
+      const data = await service.resolveShippingData('prod1', 'var2');
+
+      expect(data.weight).toBe(0.5); // parent
+      expect(data.width).toBe(15);   // parent
+      expect(data.height).toBe(10);  // parent
+      expect(data.length).toBe(20);  // parent
+    });
+
+    it('should use variation salePrice when available', async () => {
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue(mockVariableProduct);
+
+      const data = await service.resolveShippingData('prod1', 'var1');
+
+      expect(data.price).toBe(39.9); // salePrice
+    });
+
+    it('should use variation price when no salePrice', async () => {
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue(mockVariableProduct);
+
+      const data = await service.resolveShippingData('prod1', 'var2');
+
+      expect(data.price).toBe(69.9); // regular price
+    });
+
+    it('should use parent product data when no variationId', async () => {
+      const simpleProduct = {
+        ...mockProduct,
+        type: 'simple',
+        weight: 0.4,
+        width: 12,
+        height: 8,
+        length: 18,
+        salePrice: 39.9,
+        variations: [],
+      };
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue(simpleProduct);
+
+      const data = await service.resolveShippingData('prod1');
+
+      expect(data.weight).toBe(0.4);
+      expect(data.width).toBe(12);
+      expect(data.height).toBe(8);
+      expect(data.length).toBe(18);
+      expect(data.price).toBe(39.9); // salePrice
+    });
+
+    it('should throw when variationId does not belong to product', async () => {
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue(mockVariableProduct);
+
+      await expect(
+        service.resolveShippingData('prod1', 'var-nonexistent'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
 });
