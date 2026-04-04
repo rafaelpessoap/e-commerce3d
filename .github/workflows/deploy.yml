@@ -117,6 +117,7 @@ jobs:
           build-args: |
             NEXT_PUBLIC_API_URL=https://elitepinup3d.com.br
             NEXT_PUBLIC_APP_VERSION=${{ steps.version.outputs.version }}
+            NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY=TEST-74913e0d-d2e2-44b4-a25e-db0e933c4934
 
   release:
     name: Create Release
