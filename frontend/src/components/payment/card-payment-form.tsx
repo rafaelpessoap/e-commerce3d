@@ -39,8 +39,9 @@ export function CardPaymentForm({
   const [paymentMethodId, setPaymentMethodId] = useState('');
   const [tokenizing, setTokenizing] = useState(false);
   const [tokenized, setTokenized] = useState(false);
+  // MercadoPago JS SDK is untyped — suppress any warnings
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mpRef = useRef<Record<string, (...args: unknown[]) => Promise<unknown>>>(null);
+  const mpRef = useRef<any>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !MP_PUBLIC_KEY) return;
@@ -49,8 +50,8 @@ export function CardPaymentForm({
       try {
         const { loadMercadoPago } = await import('@mercadopago/sdk-js');
         await loadMercadoPago();
-        const win = window as unknown as Record<string, new (...args: unknown[]) => Record<string, (...a: unknown[]) => Promise<unknown>>>;
-        mpRef.current = new win.MercadoPago(MP_PUBLIC_KEY, { locale: 'pt-BR' });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        mpRef.current = new (window as any).MercadoPago(MP_PUBLIC_KEY, { locale: 'pt-BR' });
       } catch (err) {
         console.error('Failed to load MercadoPago SDK:', err);
       }
