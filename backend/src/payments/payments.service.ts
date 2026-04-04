@@ -237,7 +237,14 @@ export class PaymentsService {
    */
   async processWebhook(mpPaymentId: string) {
     // 1. Double-check: buscar pagamento real na API do MP
-    const mpPayment = await this.mpClient.getPayment(mpPaymentId);
+    let mpPayment;
+    try {
+      mpPayment = await this.mpClient.getPayment(mpPaymentId);
+    } catch {
+      // Pagamento não encontrado no MP (ex: ID fictício de simulação)
+      this.logger.warn(`Webhook ignorado: pagamento ${mpPaymentId} não encontrado no MP`);
+      return;
+    }
     const mpStatus = mpPayment.status as string | undefined;
     if (!mpStatus) return;
     const newStatus = WEBHOOK_STATUS_MAP[mpStatus];
