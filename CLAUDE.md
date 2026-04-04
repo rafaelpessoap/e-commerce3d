@@ -585,6 +585,15 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [x] Endpoint admin: GET /payments/:orderId/logs
 - [x] TDD: 5 testes CheckoutLog (327 total passando, 42 suites — 2 email pre-existentes)
 
+#### Bugfixes + Checkout UX + Webhook ✅ (04/04/2026 sessão 3):
+- [x] UpdateProductDto: @IsPositive → @Min(0) para basePrice (produto variável tem basePrice=0)
+- [x] ProductForm: toggle "Gerenciar estoque" escondido para produto variável (estoque é por variação)
+- [x] Carrinho /carrinho: ShippingCalculator integrado com custo no resumo do total
+- [x] Webhook HMAC: lê data.id do query param (spec MP) com fallback para body
+- [x] Webhook processWebhook: trata pagamento não encontrado silenciosamente (simulação MP retorna 200)
+- [x] Webhook configurado no painel MP: URL produção + assinatura secreta + simulação testada 201 OK
+- [x] MERCADOPAGO_WEBHOOK_SECRET configurado no servidor
+
 #### Outras Pendências:
 - [ ] Blog admin: criar/editar posts (TipTap)
 - [ ] Cache Redis por rota (CacheInterceptor)
@@ -592,8 +601,8 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [ ] Cloudflare Origin Certificate (15 anos)
 - [x] Mercado Pago integration — PIX, Cartão, Boleto (Sprint 1-3 concluídos, Sprint 4 resiliência pendente)
 - [ ] Mercado Pago Sprint 4 — expiração BullMQ (PIX 30min, Boleto 3 dias), testes E2E com cartões teste
-- [ ] Checkout UX restante — frete no carrinho, layout de frete igual página produto
-- [ ] MP App config — aplicação "elitepinup" precisa de catalog_product_id (Checkout API) no painel do MP
+- [x] Checkout UX — frete no carrinho com ShippingCalculator
+- [ ] Controle de estoque — campos existem mas sem validação/decremento (não implementar ainda, planejar com Rafael)
 
 ---
 
@@ -689,6 +698,13 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | 2026-04-04 | PIX/CC payer incompleto | PIX faltava last_name, CC faltava first_name e last_name. MP pode rejeitar sem esses campos. Corrigido nos 3 métodos |
 | 2026-04-04 | CheckoutLog model para debug | Rafael pediu sistema de log detalhado do checkout. Model Prisma + service fire-and-forget, sanitiza dados sensíveis. Integrado em orders+payments controllers |
 | 2026-04-04 | MP internal_error 500 em todos os métodos | Aplicação "elitepinup" no painel MP tem catalog_product_id null — não foi configurada com tipo de integração. Token funciona para GET, falha para POST /payments. Solução: configurar "Checkout API" no painel |
+| 2026-04-04 | Webhooks (não IPN) para notificações MP | IPN será descontinuado. Webhooks oferecem verificação HMAC via assinatura secreta (header x-signature). Mais seguro e recomendado pela doc oficial |
+| 2026-04-04 | Webhook data.id vem como query param | A doc do MP diz que data.id para HMAC vem como query param na URL (?data.id=xxx), não no body. Implementado fallback: tenta query param primeiro, depois body |
+| 2026-04-04 | Webhook processWebhook silencioso para ID inexistente | Simulação do MP envia ID fictício (123456789). Double-check fazia getPayment que jogava BadRequestException → 400. Agora captura o erro e retorna silenciosamente com log warning |
+| 2026-04-04 | Produto variável não tem estoque próprio | Produto type=variable não deve ter toggle "Gerenciar estoque" nem campo de quantidade. Estoque é por variação. Toggle escondido no frontend, mensagem explicativa |
+| 2026-04-04 | UpdateProductDto basePrice @IsPositive → @Min(0) | Produto variável tem basePrice=0 (preço vem das variações). CreateDto já aceitava 0, UpdateDto não. Inconsistência corrigida |
+| 2026-04-04 | Controle de estoque não implementado | Campos existem (Product.stock, ProductVariation.stock, Product.manageStock) mas sem lógica: não valida antes do pedido, não decrementa, não incrementa em cancelamento. Planejar com Rafael antes de implementar |
+| 2026-04-04 | MP sandbox /v1/payments retorna 500 para conta ArsenalCraft | Testado exaustivamente: token TEST funciona para GET e preferences, mas POST /v1/payments retorna internal_error 500 com qualquer payload. Credenciais de produção funcionam perfeitamente. Ticket aberto no suporte do MP |
 
 ---
 
@@ -742,6 +758,11 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | CardPaymentForm passo extra "Validar cartão" | Fluxo tinha 2 etapas: validar → confirmar. Nenhuma loja faz isso, confunde o cliente | Reescrito com forwardRef + useImperativeHandle. Checkout chama tokenize() no submit. Um clique só |
 | PIX sem last_name, CC sem first_name/last_name | MercadoPagoClient enviava payer incompleto. MP pode rejeitar | Adicionados os campos faltantes nos 3 métodos. Nome parseado uma vez no PaymentsService |
 | import type vs import para Request (express) | CI com isolatedModules + emitDecoratorMetadata requer `import type` para tipos usados em decorated signatures | Trocado para `import type { Request }` nos controllers |
+| UpdateProductDto rejeita basePrice=0 | @IsPositive() não aceita 0. Produto variável tem basePrice=0 porque preço vem das variações | Trocado para @Min(0), igual ao CreateProductDto |
+| Toggle "Gerenciar estoque" aparecia para variável | ProductForm mostrava stock toggle para todos os tipos. Produto variável não tem estoque próprio | Escondido quando type=variable, mensagem "estoque gerenciado nas variações" |
+| Webhook retornava 401 na simulação MP | Verificação HMAC falhava porque data.id era lido do body, mas MP calcula HMAC com data.id do query param | Leitura do query param (@Query) com fallback para body |
+| Webhook retornava 400 na simulação MP | processWebhook fazia getPayment(123456789) que não existe → BadRequestException | try/catch no getPayment, retorna silenciosamente com log warning |
+| MP sandbox /v1/payments 500 para conta ArsenalCraft | Testado: GET endpoints OK, POST preferences OK, POST /v1/payments 500 com qualquer payload e qualquer email. Credenciais de produção funcionam | Ticket aberto no suporte MP. Problema específico do sandbox para esta conta (criada em 2007, CNPJ) |
 
 ---
 
@@ -767,28 +788,31 @@ Sempre que:
 
 3. **Mercado Pago Sprint 1-3 concluídos (04/04/2026).** Backend + Frontend implementados e deployados. Todos os 3 métodos retornam `internal_error` 500 do MP — **problema na configuração da aplicação no painel do MP** (catalog_product_id é null, precisa selecionar "Checkout API"). Token válido (GET endpoints funcionam, POST payments falha). Não é problema de código.
 
-4. **Checkout UX:** Frete no carrinho pendente. Sistema de log estruturado implementado (CheckoutLog model + service). Testes E2E com cartões de teste do MP desejados.
+4. **MP Sandbox 500 (ticket aberto 04/04/2026).** POST /v1/payments retorna internal_error 500 com credenciais TEST para todos os métodos. Credenciais de produção funcionam. Aplicação está configurada corretamente (Checkout Transparente + API Pagamentos). Diagnóstico completo enviado ao suporte do MP. Problema específico do sandbox para conta ArsenalCraft (ID 43265870, criada 2007).
 
-5. **MP App precisa de configuração:** Acessar https://www.mercadopago.com.br/developers/panel/app → editar "elitepinup" → selecionar "Checkout API" como produto → salvar → testar novamente.
+5. **Controle de estoque não implementado.** Campos existem no banco (Product.stock, ProductVariation.stock, Product.manageStock) mas sem lógica de negócio: não valida disponibilidade antes do pedido, não decrementa ao pagar, não incrementa ao cancelar. Rafael quer planejar antes de implementar.
+
+6. **Webhook configurado e testado (04/04/2026).** URL: `https://elitepinup3d.com.br/api/v1/payments/webhook/mercadopago`. Assinatura secreta configurada. Simulação MP retornou 201 OK. HMAC verificado com sucesso.
 
 ---
 
 ## Última Sessão
 
-- **Data:** 04/04/2026 (sessão 2 — noite/madrugada)
+- **Data:** 04/04/2026 (sessão 3 — noite)
 - **O que foi feito:**
-  1. **CardPaymentForm UX:** Removido passo "Validar cartão". Agora tokeniza direto no "Confirmar Pedido" via forwardRef/useImperativeHandle. Um clique, como qualquer loja.
-  2. **MP Payer Fields:** PIX agora envia last_name. Cartão agora envia first_name e last_name. Parsing de nome centralizado no PaymentsService.
-  3. **CheckoutLog System:** Model Prisma + CheckoutLogService (fire-and-forget, sanitiza dados sensíveis). Integrado em OrdersController e PaymentsController. Endpoint admin GET /payments/:orderId/logs. TDD: 5 testes novos.
-  4. **Diagnóstico MP:** Investigação profunda revelou que o `internal_error` 500 vem da configuração da aplicação no painel do MP (catalog_product_id null), não do código. Token funciona para GET, falha para POST /payments.
-  5. **Total: 42 suites (40 pass, 2 email pre-existentes), 327 testes passando, 0 erros TS, 0 erros lint.**
+  1. **Checkout UX + Bugs:** Removido passo "Validar cartão" (1 clique), fix payer fields (first/last name nos 3 métodos), CheckoutLog system (model + service + 5 testes), fix basePrice @Min(0) para variável, estoque toggle escondido para variável, ShippingCalculator na página /carrinho.
+  2. **Webhook MP:** Configurado no painel (URL + assinatura secreta), fix HMAC (data.id do query param), fix processWebhook (silencioso para ID inexistente). Simulação MP retornou 201 OK.
+  3. **Diagnóstico MP Sandbox:** Investigação exaustiva — sandbox retorna 500 para POST /v1/payments (qualquer payload). Produção funciona. Ticket aberto no suporte do MP com diagnóstico completo.
+  4. **Total: 42 suites (40 pass, 2 email pre-existentes), 327+ testes passando, 0 erros TS.**
 - **O que ficou pendente:**
-  - **BLOQUEANTE:** Configurar produto "Checkout API" na aplicação MP (painel developer) — sem isso, nenhum pagamento funciona
-  - Checkout UX: frete no carrinho, layout frete igual página produto
-  - Mercado Pago Sprint 4: expiração BullMQ (PIX 30min, Boleto 3 dias), testes E2E com cartões teste
-  - Blog admin (TipTap), cache Redis, testes de carga
+  - **BLOQUEANTE:** MP sandbox não funciona — aguardando resposta do suporte
+  - Decidir: usar credenciais de produção (pagamentos reais) ou esperar fix do sandbox
+  - Blog admin: criar/editar posts (TipTap)
+  - Controle de estoque: planejar com Rafael antes de implementar
+  - Mercado Pago Sprint 4: expiração BullMQ (PIX 30min, Boleto 3 dias)
+  - Cache Redis, testes de carga
 - **Próximo passo exato:**
-  1. Rafael configura "Checkout API" no painel MP → testa PIX/Cartão/Boleto em produção.
-  2. Verificar checkout_logs no banco para debug detalhado.
-  3. Igualar layout de frete do checkout com o da página do produto.
-  4. Adicionar calculadora de frete na página do carrinho.
+  1. Aguardar resposta do suporte MP sobre sandbox. Se não resolver, considerar usar credenciais de produção.
+  2. Blog admin com TipTap (criar/editar posts).
+  3. Planejar controle de estoque com Rafael (validação, decremento, incremento).
+  4. Igualar layout de frete do checkout com o da página do produto.
