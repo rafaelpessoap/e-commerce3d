@@ -15,11 +15,12 @@ export function useCart() {
   }, [setCart]);
 
   const addItem = useCallback(
-    async (productId: string, quantity = 1, variationId?: string) => {
+    async (productId: string, quantity = 1, variationId?: string, scaleId?: string) => {
       const { data } = await api.post('/cart/items', {
         productId,
         quantity,
         variationId,
+        scaleId,
       });
       setCart(data.data.items, data.data.subtotal);
     },
@@ -27,16 +28,24 @@ export function useCart() {
   );
 
   const removeItem = useCallback(
-    async (productId: string) => {
-      const { data } = await api.delete(`/cart/items/${productId}`);
+    async (productId: string, variationId?: string, scaleId?: string) => {
+      const params = new URLSearchParams();
+      if (variationId) params.set('variationId', variationId);
+      if (scaleId) params.set('scaleId', scaleId);
+      const qs = params.toString();
+      const { data } = await api.delete(`/cart/items/${productId}${qs ? `?${qs}` : ''}`);
       setCart(data.data.items, data.data.subtotal);
     },
     [setCart],
   );
 
   const updateQuantity = useCallback(
-    async (productId: string, quantity: number) => {
-      const { data } = await api.put(`/cart/items/${productId}`, { quantity });
+    async (productId: string, quantity: number, variationId?: string, scaleId?: string) => {
+      const params = new URLSearchParams();
+      if (variationId) params.set('variationId', variationId);
+      if (scaleId) params.set('scaleId', scaleId);
+      const qs = params.toString();
+      const { data } = await api.put(`/cart/items/${productId}${qs ? `?${qs}` : ''}`, { quantity });
       setCart(data.data.items, data.data.subtotal);
     },
     [setCart],
