@@ -68,23 +68,23 @@ export class MelhorEnvioService {
   async syncServicesFromApi(): Promise<{ synced: number; services: Array<{ id: number; name: string; company: string }> }> {
     if (!this.token) {
       this.logger.warn('MELHOR_ENVIO_TOKEN não configurado — usando serviços padrão');
-      // Fallback: sync hardcoded services to DB
+      // Fallback: sync hardcoded services to DB via upsert
       const services: Array<{ id: number; name: string; company: string }> = [];
       for (const svc of MELHOR_ENVIO_SERVICES) {
         services.push(svc);
-        const existing = await this.prisma.shippingMethod.findUnique({
+        await this.prisma.shippingMethod.upsert({
           where: { serviceId: svc.id },
+          create: {
+            serviceId: svc.id,
+            name: svc.name,
+            company: svc.company,
+            isActive: false,
+          },
+          update: {
+            name: svc.name,
+            company: svc.company,
+          },
         });
-        if (!existing) {
-          await this.prisma.shippingMethod.create({
-            data: {
-              serviceId: svc.id,
-              name: svc.name,
-              company: svc.company,
-              isActive: false,
-            },
-          });
-        }
       }
       return { synced: services.length, services };
     }
@@ -130,20 +130,20 @@ export class MelhorEnvioService {
       const svc = { id: item.id, name: item.name, company: item.company.name };
       services.push(svc);
 
-      // Upsert no banco — cria se não existir, não altera isActive de existentes
-      const existing = await this.prisma.shippingMethod.findUnique({
+      // Upsert: cria novos, atualiza nome/empresa de existentes (preserva isActive/displayName/extraDays)
+      await this.prisma.shippingMethod.upsert({
         where: { serviceId: item.id },
+        create: {
+          serviceId: item.id,
+          name: item.name,
+          company: item.company.name,
+          isActive: false,
+        },
+        update: {
+          name: item.name,
+          company: item.company.name,
+        },
       });
-      if (!existing) {
-        await this.prisma.shippingMethod.create({
-          data: {
-            serviceId: item.id,
-            name: item.name,
-            company: item.company.name,
-            isActive: false,
-          },
-        });
-      }
     }
 
     return { synced: services.length, services };

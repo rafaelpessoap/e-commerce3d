@@ -187,6 +187,11 @@ export default function AdminShippingPage() {
 
           {methodsLoading ? (
             <p className="text-muted-foreground">Carregando...</p>
+          ) : !methods?.length ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>Nenhuma transportadora cadastrada.</p>
+              <p className="text-sm mt-1">Clique em &quot;Sincronizar Transportadoras&quot; para buscar os servicos disponiveis.</p>
+            </div>
           ) : (
             <div className="border rounded-lg overflow-hidden">
               <Table>

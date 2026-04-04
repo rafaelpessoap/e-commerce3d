@@ -96,24 +96,19 @@ export class ShippingController {
   @Roles('ADMIN')
   @Get('methods')
   async getMethods() {
-    const allServices = this.melhorEnvioService.getAvailableServices();
-    const enabled = await this.melhorEnvioService.getAllMethods();
-    const enabledMap = new Map(enabled.map((m) => [m.serviceId, m]));
+    // List all methods from DB (populated by sync or manual toggle)
+    const methods = await this.melhorEnvioService.getAllMethods();
 
-    // Merge: todos os serviços com status de habilitação
-    const merged = allServices.map((svc) => {
-      const method = enabledMap.get(svc.id);
-      return {
-        serviceId: svc.id,
-        name: svc.name,
-        company: svc.company,
-        isActive: method?.isActive ?? false,
-        displayName: method?.displayName ?? '',
-        extraDays: method?.extraDays ?? 0,
-      };
-    });
+    const result = methods.map((m) => ({
+      serviceId: m.serviceId,
+      name: m.name,
+      company: m.company,
+      isActive: m.isActive,
+      displayName: m.displayName ?? '',
+      extraDays: m.extraDays ?? 0,
+    }));
 
-    return { data: merged };
+    return { data: result };
   }
 
   @Roles('ADMIN')
