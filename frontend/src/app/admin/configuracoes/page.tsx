@@ -189,6 +189,26 @@ export default function AdminSettingsPage() {
             },
           ]}
         />
+
+        <SettingsCard
+          title="Estoque"
+          values={values}
+          fields={[
+            {
+              key: 'low_stock_threshold',
+              label: 'Limite estoque baixo (global)',
+              type: 'number',
+              placeholder: '5',
+              suffix: 'unidades',
+            },
+            {
+              key: 'low_stock_email_recipients',
+              label: 'Emails para alerta de estoque baixo',
+              type: 'text',
+              placeholder: 'admin@elitepinup3d.com.br',
+            },
+          ]}
+        />
       </div>
     </div>
   );

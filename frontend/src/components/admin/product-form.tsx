@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save, Plus, Package, Clock, Layers, GitBranch, CheckCircle, ExternalLink } from 'lucide-react';
+import { Save, Plus, Package, Clock, Layers, GitBranch, CheckCircle, ExternalLink, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,7 @@ import { RichTextEditor } from './rich-text-editor';
 import { ImageUpload, type ProductImageData } from './image-upload';
 import { VariationEditor, type VariationData } from './variation-editor';
 import { AttributeSelector } from './attribute-selector';
+import { StockAuditLog } from './stock-audit-log';
 import slugify from 'slug';
 
 interface ProductFormProps {
@@ -27,7 +28,7 @@ const DATA_TABS = [
   { id: 'attributes', label: 'Atributos', icon: Layers },
 ] as const;
 
-type DataTabId = (typeof DATA_TABS)[number]['id'] | 'variations';
+type DataTabId = (typeof DATA_TABS)[number]['id'] | 'variations' | 'stock-log';
 
 export function ProductForm({ productId }: ProductFormProps) {
   const router = useRouter();
@@ -47,6 +48,7 @@ export function ProductForm({ productId }: ProductFormProps) {
   const [gtin, setGtin] = useState('');
   const [manageStock, setManageStock] = useState(true);
   const [stock, setStock] = useState('0');
+  const [lowStockThreshold, setLowStockThreshold] = useState('');
   const [weight, setWeight] = useState('');
   const [width, setWidth] = useState('');
   const [height, setHeight] = useState('');
@@ -123,6 +125,7 @@ export function ProductForm({ productId }: ProductFormProps) {
       setGtin(existingProduct.gtin ?? '');
       setManageStock(existingProduct.manageStock ?? true);
       setStock(String(existingProduct.stock ?? 0));
+      setLowStockThreshold(existingProduct.lowStockThreshold != null ? String(existingProduct.lowStockThreshold) : '');
       setWeight(existingProduct.weight ? String(existingProduct.weight) : '');
       setWidth(existingProduct.width ? String(existingProduct.width) : '');
       setHeight(existingProduct.height ? String(existingProduct.height) : '');
@@ -247,6 +250,7 @@ export function ProductForm({ productId }: ProductFormProps) {
       gtin: gtin || undefined,
       manageStock,
       stock: manageStock ? parseInt(stock, 10) : undefined,
+      lowStockThreshold: lowStockThreshold ? parseInt(lowStockThreshold, 10) : null,
       weight: weight ? parseFloat(weight) : undefined,
       width: width ? parseFloat(width) : undefined,
       height: height ? parseFloat(height) : undefined,
@@ -286,6 +290,7 @@ export function ProductForm({ productId }: ProductFormProps) {
   const allDataTabs: Array<{ id: DataTabId; label: string; icon: typeof Package }> = [
     ...DATA_TABS,
     ...(type === 'variable' ? [{ id: 'variations' as DataTabId, label: 'Variações', icon: GitBranch }] : []),
+    ...(isEdit ? [{ id: 'stock-log' as DataTabId, label: 'Histórico Estoque', icon: History }] : []),
   ];
 
   return (
@@ -448,9 +453,16 @@ export function ProductForm({ productId }: ProductFormProps) {
                           <Label className="text-sm font-medium">Gerenciar estoque</Label>
                         </div>
                         {manageStock && (
-                          <div className="space-y-2">
-                            <Label className="text-sm font-medium">Quantidade em estoque</Label>
-                            <Input type="number" min="0" value={stock} onChange={(e) => setStock(e.target.value)} className="max-w-[160px]" />
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Quantidade em estoque</Label>
+                              <Input type="number" min="0" value={stock} onChange={(e) => setStock(e.target.value)} className="max-w-[160px]" />
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Limite estoque baixo</Label>
+                              <Input type="number" min="0" value={lowStockThreshold} onChange={(e) => setLowStockThreshold(e.target.value)} className="max-w-[160px]" placeholder="Padrao global" />
+                              <p className="text-xs text-muted-foreground">Deixe vazio para usar o valor global das configuracoes.</p>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -529,6 +541,13 @@ export function ProductForm({ productId }: ProductFormProps) {
                     <div className="p-6 space-y-4">
                       <p className="text-sm text-muted-foreground">Cada variacao tem sua propria escala, preco, SKU e estoque.</p>
                       <VariationEditor variations={variations} onChange={setVariations} />
+                    </div>
+                  </div>
+
+                  {/* Histórico Estoque */}
+                  <div className={activeDataTab === 'stock-log' ? 'block' : 'hidden'}>
+                    <div className="p-6">
+                      {isEdit && <StockAuditLog productId={productId!} />}
                     </div>
                   </div>
                 </div>
