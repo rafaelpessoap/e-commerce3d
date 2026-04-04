@@ -131,6 +131,24 @@ export class CreateProductDto {
     order: number;
   }>;
 
+  // Variações (para produto type=variable)
+  @IsOptional()
+  @IsArray()
+  variations?: Array<{
+    name: string;
+    sku?: string;
+    gtin?: string;
+    price: number;
+    salePrice?: number;
+    stock?: number;
+    weight?: number;
+    width?: number;
+    height?: number;
+    length?: number;
+    image?: string;
+    scaleId?: string;
+  }>;
+
   // Status
   @IsOptional()
   @IsBoolean()

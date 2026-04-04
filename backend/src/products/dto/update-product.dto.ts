@@ -121,6 +121,25 @@ export class UpdateProductDto {
     order: number;
   }>;
 
+  // Variações (para produto type=variable)
+  @IsOptional()
+  @IsArray()
+  variations?: Array<{
+    id?: string;
+    name: string;
+    sku?: string;
+    gtin?: string;
+    price: number;
+    salePrice?: number | null;
+    stock?: number;
+    weight?: number;
+    width?: number;
+    height?: number;
+    length?: number;
+    image?: string;
+    scaleId?: string;
+  }>;
+
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;

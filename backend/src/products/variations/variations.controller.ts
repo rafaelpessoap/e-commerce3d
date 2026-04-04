@@ -28,10 +28,10 @@ export class VariationsController {
     @Body()
     dto: {
       name: string;
-      scaleId: string;
-      sku: string;
+      scaleId?: string;
+      sku?: string;
       price: number;
-      stock: number;
+      stock?: number;
     },
   ) {
     return await this.variationsService.create(productId, dto);

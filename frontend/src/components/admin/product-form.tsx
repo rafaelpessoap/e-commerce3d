@@ -269,6 +269,24 @@ export function ProductForm({ productId }: ProductFormProps) {
       featured,
     };
 
+    // Include variations for variable products
+    if (type === 'variable') {
+      body.variations = variations.map((v) => ({
+        ...(v.id ? { id: v.id } : {}),
+        name: v.name,
+        sku: v.sku || undefined,
+        gtin: v.gtin || undefined,
+        price: v.price,
+        salePrice: v.salePrice ?? undefined,
+        stock: v.stock ?? 0,
+        weight: v.weight ?? undefined,
+        width: v.width ?? undefined,
+        height: v.height ?? undefined,
+        length: v.length ?? undefined,
+        image: v.image || undefined,
+      }));
+    }
+
     try {
       if (isEdit) {
         await api.put(`/products/${productId}`, body);

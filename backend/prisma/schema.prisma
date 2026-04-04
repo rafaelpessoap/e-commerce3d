@@ -223,10 +223,10 @@ model ProductVariation {
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   name      String // ex: "Heroic Scale (28mm)"
-  scaleId   String
-  scale     Scale  @relation(fields: [scaleId], references: [id])
+  scaleId   String?
+  scale     Scale?  @relation(fields: [scaleId], references: [id])
 
-  sku       String
+  sku       String  @default("")
   gtin      String?
   price         Float // preco com ajuste de escala
   salePrice     Float?

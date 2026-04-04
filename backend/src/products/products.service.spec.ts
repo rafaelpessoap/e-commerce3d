@@ -25,6 +25,16 @@ describe('ProductsService', () => {
               deleteMany: jest.fn(),
               createMany: jest.fn(),
             },
+            productImage: {
+              deleteMany: jest.fn(),
+              createMany: jest.fn(),
+            },
+            productVariation: {
+              findMany: jest.fn(),
+              deleteMany: jest.fn(),
+              createMany: jest.fn(),
+              update: jest.fn(),
+            },
           },
         },
       ],
@@ -413,6 +423,76 @@ describe('ProductsService', () => {
       await expect(
         service.resolveShippingData('prod1', 'var-nonexistent'),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('create with variations', () => {
+    it('should create product and its variations', async () => {
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue(null);
+      (prisma.product.create as jest.Mock).mockResolvedValue({
+        ...mockProduct,
+        id: 'prod-new',
+        type: 'variable',
+      });
+      (prisma.productVariation.createMany as jest.Mock).mockResolvedValue({ count: 2 });
+
+      await service.create({
+        name: 'Variable Product',
+        description: 'Has variations',
+        basePrice: 0,
+        type: 'variable',
+        variations: [
+          { name: '28mm', price: 49.9, stock: 10 },
+          { name: '32mm', price: 69.9, stock: 5, sku: 'VAR-32' },
+        ],
+      });
+
+      expect(prisma.productVariation.createMany).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({ productId: 'prod-new', name: '28mm', price: 49.9, stock: 10 }),
+          expect.objectContaining({ productId: 'prod-new', name: '32mm', price: 69.9, stock: 5, sku: 'VAR-32' }),
+        ],
+      });
+    });
+  });
+
+  describe('update with variations', () => {
+    it('should upsert variations: update existing, create new, delete removed', async () => {
+      // Existing variations in DB
+      (prisma.productVariation.findMany as jest.Mock).mockResolvedValue([
+        { id: 'v1', productId: 'prod1', name: '28mm', price: 49.9, stock: 10 },
+        { id: 'v2', productId: 'prod1', name: '32mm', price: 69.9, stock: 5 },
+      ]);
+      (prisma.productVariation.update as jest.Mock).mockResolvedValue({});
+      (prisma.productVariation.createMany as jest.Mock).mockResolvedValue({ count: 1 });
+      (prisma.productVariation.deleteMany as jest.Mock).mockResolvedValue({ count: 1 });
+      (prisma.product.update as jest.Mock).mockResolvedValue(mockProduct);
+
+      await service.update('prod1', {
+        variations: [
+          { id: 'v1', name: '28mm', price: 59.9, stock: 15 }, // update existing
+          // v2 removed
+          { name: '75mm', price: 99.9, stock: 3 }, // new
+        ],
+      });
+
+      // Should update v1
+      expect(prisma.productVariation.update).toHaveBeenCalledWith({
+        where: { id: 'v1' },
+        data: expect.objectContaining({ name: '28mm', price: 59.9, stock: 15 }),
+      });
+
+      // Should delete v2 (not in new list)
+      expect(prisma.productVariation.deleteMany).toHaveBeenCalledWith({
+        where: { id: { in: ['v2'] } },
+      });
+
+      // Should create new 75mm
+      expect(prisma.productVariation.createMany).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({ productId: 'prod1', name: '75mm', price: 99.9, stock: 3 }),
+        ],
+      });
     });
   });
 });

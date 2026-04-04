@@ -17,10 +17,10 @@ export class VariationsService {
     productId: string,
     dto: {
       name: string;
-      scaleId: string;
-      sku: string;
+      scaleId?: string;
+      sku?: string;
       price: number;
-      stock: number;
+      stock?: number;
     },
   ) {
     const product = await this.prisma.product.findUnique({

@@ -20,7 +20,7 @@ export class ProductsService {
       throw new ConflictException('Product slug already exists');
     }
 
-    const { tagIds, attributeValueIds, images, ...productData } = dto;
+    const { tagIds, attributeValueIds, images, variations, ...productData } = dto;
 
     const product = await this.prisma.product.create({
       data: {
@@ -54,6 +54,27 @@ export class ProductsService {
         attributes: { include: { attributeValue: { include: { attribute: true } } } },
       },
     });
+
+    // Create variations after product exists
+    if (variations?.length) {
+      await this.prisma.productVariation.createMany({
+        data: variations.map((v) => ({
+          productId: product.id,
+          name: v.name,
+          sku: v.sku ?? '',
+          gtin: v.gtin,
+          price: v.price,
+          salePrice: v.salePrice,
+          stock: v.stock ?? 0,
+          weight: v.weight,
+          width: v.width,
+          height: v.height,
+          length: v.length,
+          image: v.image,
+          scaleId: v.scaleId,
+        })),
+      });
+    }
 
     return product;
   }
@@ -155,7 +176,7 @@ export class ProductsService {
   }
 
   async update(id: string, dto: UpdateProductDto) {
-    const { tagIds, attributeValueIds, images, ...updateData } = dto;
+    const { tagIds, attributeValueIds, images, variations, ...updateData } = dto;
 
     // Se nome mudou e slug não foi enviado, auto-gera
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -199,6 +220,67 @@ export class ProductsService {
       }
     }
 
+    // Sync variations: update existing, create new, delete removed
+    if (variations !== undefined) {
+      const existingVariations = await this.prisma.productVariation.findMany({
+        where: { productId: id },
+      });
+
+      const incomingIds = variations.filter((v) => v.id).map((v) => v.id!);
+      const toDelete = existingVariations.filter((ev) => !incomingIds.includes(ev.id));
+      const toUpdate = variations.filter((v) => v.id);
+      const toCreate = variations.filter((v) => !v.id);
+
+      // Delete removed
+      if (toDelete.length > 0) {
+        await this.prisma.productVariation.deleteMany({
+          where: { id: { in: toDelete.map((v) => v.id) } },
+        });
+      }
+
+      // Update existing
+      for (const v of toUpdate) {
+        await this.prisma.productVariation.update({
+          where: { id: v.id },
+          data: {
+            name: v.name,
+            sku: v.sku ?? '',
+            gtin: v.gtin,
+            price: v.price,
+            salePrice: v.salePrice,
+            stock: v.stock ?? 0,
+            weight: v.weight,
+            width: v.width,
+            height: v.height,
+            length: v.length,
+            image: v.image,
+            scaleId: v.scaleId,
+          },
+        });
+      }
+
+      // Create new
+      if (toCreate.length > 0) {
+        await this.prisma.productVariation.createMany({
+          data: toCreate.map((v) => ({
+            productId: id,
+            name: v.name,
+            sku: v.sku ?? '',
+            gtin: v.gtin,
+            price: v.price,
+            salePrice: v.salePrice,
+            stock: v.stock ?? 0,
+            weight: v.weight,
+            width: v.width,
+            height: v.height,
+            length: v.length,
+            image: v.image,
+            scaleId: v.scaleId,
+          })),
+        });
+      }
+    }
+
     return this.prisma.product.update({
       where: { id },
       data,
@@ -207,6 +289,7 @@ export class ProductsService {
         brand: true,
         tags: true,
         images: { include: { mediaFile: true }, orderBy: { order: 'asc' } },
+        variations: true,
         attributes: { include: { attributeValue: { include: { attribute: true } } } },
       },
     });
