@@ -441,29 +441,15 @@ export default function CheckoutPage() {
 
               {/* Formulário de cartão inline */}
               {paymentMethod === 'credit_card' && (
-                <div className="mt-4 border rounded-lg p-4">
-                  {cardData ? (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-green-600 font-medium">Cartao preenchido ({cardData.installments}x)</span>
-                      <button
-                        type="button"
-                        className="text-xs text-primary underline"
-                        onClick={() => setCardData(null)}
-                      >
-                        Alterar cartao
-                      </button>
-                    </div>
-                  ) : (
-                    <CardPaymentForm
-                      amount={total}
-                      onSubmit={(data) => {
-                        setCardData(data);
-                        setError('');
-                      }}
-                      onError={(msg) => setError(msg)}
-                      disabled={loading}
-                    />
-                  )}
+                <div className="mt-4">
+                  <CardPaymentForm
+                    amount={total}
+                    onCardReady={(data) => {
+                      setCardData(data);
+                      setError('');
+                    }}
+                    onError={(msg) => setError(msg)}
+                  />
                 </div>
               )}
             </CardContent>
