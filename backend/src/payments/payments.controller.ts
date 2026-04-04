@@ -5,6 +5,7 @@ import {
   Body,
   Param,
   Headers,
+  Query,
   Req,
   UnauthorizedException,
   Logger,
@@ -88,23 +89,37 @@ export class PaymentsController {
   async mpWebhook(
     @Headers('x-signature') xSignature: string,
     @Headers('x-request-id') xRequestId: string,
+    @Query('data.id') dataIdQuery: string,
     @Body() body: { data?: { id?: string }; action?: string; type?: string },
   ) {
-    // Verificar assinatura do Mercado Pago
-    const dataId = body.data?.id ? String(body.data.id) : '';
-    if (xSignature) {
-      const isValid = this.mpClient.verifyWebhookSignature({
-        xSignature,
-        xRequestId: xRequestId ?? '',
-        dataId,
-      });
+    // data.id: query param para HMAC (doc MP), body para processamento
+    const dataIdFromQuery = dataIdQuery ?? '';
+    const dataIdFromBody = body.data?.id ? String(body.data.id) : '';
+    const dataId = dataIdFromQuery || dataIdFromBody;
 
-      if (!isValid) {
-        this.logger.warn('Webhook com assinatura inválida', {
+    if (xSignature) {
+      // Tentar verificar com query param primeiro, depois com body
+      const isValidQuery =
+        dataIdFromQuery &&
+        this.mpClient.verifyWebhookSignature({
           xSignature,
-          xRequestId,
-          dataId,
+          xRequestId: xRequestId ?? '',
+          dataId: dataIdFromQuery,
         });
+
+      const isValidBody =
+        !isValidQuery &&
+        dataIdFromBody &&
+        this.mpClient.verifyWebhookSignature({
+          xSignature,
+          xRequestId: xRequestId ?? '',
+          dataId: dataIdFromBody,
+        });
+
+      if (!isValidQuery && !isValidBody) {
+        this.logger.warn(
+          `Webhook assinatura invalida | dataId=${dataId} | sig=${xSignature}`,
+        );
         throw new UnauthorizedException('Assinatura inválida');
       }
     }
