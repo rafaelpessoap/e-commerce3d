@@ -500,7 +500,8 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [x] Escalas: controller { data } wrapper (data.data retornava vazio)
 - [x] Shipping sync: fallback hardcoded sem token, log detalhado, CEP do banco
 - [x] Clientes: adminUpdateUser + adminGetUserAddresses (TDD: 4 testes, 13 total), frontend edit+endereços
-- [x] Total: 40 test suites, 304 testes passando, 0 lint errors
+- [x] Shipping methods: GET agora lê do DB (não hardcoded), sync faz upsert real, empty state no frontend
+- [x] Total: 40 test suites, 304 testes passando (38 suites OK, 2 email pre-existentes), 0 lint errors
 
 ### Pendências — Próxima Sessão
 
@@ -595,6 +596,10 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | 2026-04-04 | Admin rotas :id DEPOIS de /me | NestJS match por ordem de declaração. Se PUT :id vem antes de PUT me, 'me' casa como :id. Rotas estáticas (/me, /me/password) devem ser declaradas primeiro |
 | 2026-04-04 | Sidebar admin deve ser sticky | Sidebar cresce com conteúdo se não tiver h-screen. Solução: h-screen sticky top-0 + overflow-y-auto na nav + flex-shrink-0 no header/footer |
 | 2026-04-04 | Shipping sync fallback sem token | MELHOR_ENVIO_TOKEN pode estar vazio. Em vez de falhar, sync faz fallback para lista hardcoded de serviços e insere no banco |
+| 2026-04-04 | Shipping methods listam do DB (não hardcoded) | GET /shipping/methods agora lê do banco. Lista hardcoded era incompleta (11 serviços). Sync busca todos da API do Melhor Envio e faz upsert |
+| 2026-04-04 | ProductShipping na página do produto | Componente client-side que cota frete por CEP direto na página do produto. Mostra opções com preço e prazo |
+| 2026-04-04 | AdminEditButton na página do produto | Botão "Editar produto" visível apenas para ADMIN. Client component que checa useAuthStore |
+| 2026-04-04 | Descrição longa full-width abaixo da imagem | Na página /p/[slug], descrição + content HTML ficam abaixo do grid 2 colunas (não na lateral). Descrição curta fica logo abaixo do nome |
 
 ---
 
@@ -634,6 +639,7 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | Galeria zoom muito pequeno | Dialog usava aspect-[4/3] fixo + imagem gallery (800px) + sizes="800px" | Removido aspect ratio, usar imagem full (1600px), max-h-[80vh], tag img nativa |
 | Sidebar admin footer sumia | aside sem h-screen, crescia com conteúdo principal | h-screen sticky top-0, nav overflow-y-auto, header/footer flex-shrink-0 |
 | Rotas /me e /:id conflitavam | PUT :id declarado antes de PUT me, NestJS casava 'me' como :id | Reordenar: rotas /me primeiro, /:id por último |
+| Transportadoras incompletas no admin frete | GET /methods iterava array hardcoded (11 itens) em vez do DB. Sync só criava, não atualizava | GET lê do DB, sync faz upsert real (cria + atualiza nome/empresa, preserva isActive) |
 
 ---
 
@@ -648,3 +654,25 @@ Sempre que:
 
 **Comando sugerido:** Ao final de cada sessão de trabalho, peça ao Claude:
 "Atualize o CLAUDE.md com o progresso de hoje e qualquer decisão nova que tomamos."
+
+---
+
+## Notas / Problemas Conhecidos
+
+1. **Testes de email falhando (2 suites, 21 testes):** `email.service.spec.ts` e `templates.spec.ts` falham por causa de `@react-email/render` que requer `--experimental-vm-modules`. Os templates React Email funcionam em produção, mas o `render()` nos testes Jest falha com erro de ESM. Não afeta nenhum outro teste. Solução futura: migrar esses testes para Vitest ou ajustar o mock do render.
+
+2. **MELHOR_ENVIO_TOKEN não configurado em produção:** O token da API do Melhor Envio ainda não foi configurado no `.env` de produção. O sync de transportadoras funciona com fallback (lista hardcoded de 11 serviços), mas para ter a lista completa e cotações reais, o token precisa ser cadastrado em https://melhorenvio.com.br → Integrações → Gerar token. Adicionar `MELHOR_ENVIO_TOKEN=xxx` no `.env` do servidor.
+
+3. **Mercado Pago não integrado:** Pagamentos reais estão adiados por decisão do Rafael. O checkout funciona mas não processa pagamento de verdade.
+
+---
+
+## Última Sessão
+
+- **Data:** 04/04/2026 (tarde)
+- **O que foi feito:**
+  Corrigidos 7 bugs do admin (sidebar scroll, galeria zoom, emails não carregava, escalas lista vazia, sync transportadoras, clientes sem edit/endereços, transportadoras incompletas). Implementadas 4 melhorias na página pública do produto: calculadora de frete, descrição curta abaixo do nome, descrição longa full-width abaixo da imagem, botão "Editar produto" para ADMIN. TDD: 4 testes novos no UsersService (304 total passando).
+- **O que ficou pendente:**
+  Blog admin (criar/editar posts com TipTap), cache Redis por rota, testes de carga (k6), Cloudflare Origin Certificate (15 anos), Mercado Pago, corrigir testes de email (React Email render).
+- **Próximo passo exato:**
+  Configurar `MELHOR_ENVIO_TOKEN` no servidor de produção e testar sync real de transportadoras. Depois: implementar o blog admin com TipTap (criar/editar posts).
