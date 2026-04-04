@@ -493,16 +493,25 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [x] Checkout: salva cpf/phone no perfil do user após pedido
 - [x] Total: 40 test suites, 300 testes passando, 0 lint errors
 
-### Pendências — Próxima Sessão (05/04/2026)
+### Bugfixes Sessão 04/04/2026 (tarde) ✅
+- [x] Sidebar admin: h-screen sticky + overflow-y-auto nav + footer fixo
+- [x] Galeria zoom: full image (1600px) + max-h-[80vh] + sem aspect ratio fixo
+- [x] Email templates: controller { data } wrapper + error handling + safe JSON.parse
+- [x] Escalas: controller { data } wrapper (data.data retornava vazio)
+- [x] Shipping sync: fallback hardcoded sem token, log detalhado, CEP do banco
+- [x] Clientes: adminUpdateUser + adminGetUserAddresses (TDD: 4 testes, 13 total), frontend edit+endereços
+- [x] Total: 40 test suites, 304 testes passando, 0 lint errors
 
-#### Bugs encontrados pelo Rafael (prioridade alta):
-- [ ] Botão "Sincronizar Transportadoras" no frete não funciona (verificar API Melhor Envio + erro no sync)
-- [ ] /admin/clientes: não é possível editar ou excluir clientes (falta endpoint admin PUT /users/:id)
-- [ ] /admin/clientes: sem cadastro de endereço (exibir endereços do cliente nos detalhes)
-- [ ] /admin/galeria: imagem amplia muito pequena — clicar na imagem deve ampliar grande (sem botão separado)
-- [ ] /admin/emails: página de edição de layout de email não carrega
-- [ ] /admin/escalas: escalas não são editáveis na tela (inline edit pode estar quebrado)
-- [ ] Sidebar admin: quando conteúdo fica muito alto, sidebar cresce junto e "Voltar à loja" + versão desaparecem — sidebar deve ter scroll próprio e footer fixo
+### Pendências — Próxima Sessão
+
+#### Bugs encontrados pelo Rafael (prioridade alta) — TODOS RESOLVIDOS ✅ (04/04/2026):
+- [x] Botão "Sincronizar Transportadoras": fallback para serviços hardcoded sem token, error logging detalhado
+- [x] /admin/clientes: PUT /users/:id (admin edit) + GET /users/:id/addresses (TDD: 4 testes novos, 13 total)
+- [x] /admin/clientes: dialog com endereços do cliente + formulário de edição (nome, CPF, telefone, ativo)
+- [x] /admin/galeria: zoom usa imagem full (1600px) com max-h-[80vh], sem aspect ratio fixo
+- [x] /admin/emails: controller wraps { data }, error handling, safe JSON.parse
+- [x] /admin/escalas: controller findAll/create/update agora retorna { data } (frontend fazia data.data)
+- [x] Sidebar admin: h-screen sticky top-0, nav overflow-y-auto, footer flex-shrink-0
 
 #### Melhorias na página pública do produto /p/[slug]:
 - [ ] Calcular frete na página do produto (componente ShippingCalculator)
@@ -582,6 +591,10 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | 2026-04-04 | Cupons com restrições de categoria/tag/cliente | Cada cupom pode ter categoryId (desconto só nessa categoria), tagId (só nessa tag), userId (exclusivo para um cliente). Validação no backend impede uso por outro user |
 | 2026-04-04 | Melhor Envio sync via cotação fictícia | Para descobrir serviços disponíveis, faz cotação com dados dummy e extrai os serviços retornados. Upsert no banco sem alterar isActive de existentes |
 | 2026-04-04 | Checkout coleta dados pessoais | Nome, CPF (máscara 000.000.000-00), telefone (máscara (00) 00000-0000) obrigatórios. Email read-only do perfil. Após pedido, salva cpf/phone no perfil do user |
+| 2026-04-04 | Controllers devem wrappear em { data } | Todos os controllers devem retornar { data: result } para consistência. Frontend faz data.data. Sem wrapper, data.data era undefined → listas vazias |
+| 2026-04-04 | Admin rotas :id DEPOIS de /me | NestJS match por ordem de declaração. Se PUT :id vem antes de PUT me, 'me' casa como :id. Rotas estáticas (/me, /me/password) devem ser declaradas primeiro |
+| 2026-04-04 | Sidebar admin deve ser sticky | Sidebar cresce com conteúdo se não tiver h-screen. Solução: h-screen sticky top-0 + overflow-y-auto na nav + flex-shrink-0 no header/footer |
+| 2026-04-04 | Shipping sync fallback sem token | MELHOR_ENVIO_TOKEN pode estar vazio. Em vez de falhar, sync faz fallback para lista hardcoded de serviços e insere no banco |
 
 ---
 
@@ -616,6 +629,11 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | categoryId/brandId/tagIds must be UUID | DTOs usavam @IsUUID mas Prisma gera CUIDs | Trocado para @IsString |
 | Atributos: valor não aparecia após criar | invalidateQueries não forçava re-fetch imediato | Trocado para refetchQueries com await, form fica aberto para adicionar vários valores |
 | Actions Node.js 20 deprecated | docker/login-action@v3, docker/build-push-action@v6 usam Node 20 | Atualizado para v4 e v7 respectivamente |
+| Escalas não apareciam na tela admin | ScalesController.findAll retornava array puro, frontend fazia data.data que era undefined | Wrapper { data: ... } no controller |
+| Email templates admin não carregava | EmailTemplateController retornava array puro sem { data: ... } | Wrapper { data: ... } + error handling no frontend + try/catch no JSON.parse |
+| Galeria zoom muito pequeno | Dialog usava aspect-[4/3] fixo + imagem gallery (800px) + sizes="800px" | Removido aspect ratio, usar imagem full (1600px), max-h-[80vh], tag img nativa |
+| Sidebar admin footer sumia | aside sem h-screen, crescia com conteúdo principal | h-screen sticky top-0, nav overflow-y-auto, header/footer flex-shrink-0 |
+| Rotas /me e /:id conflitavam | PUT :id declarado antes de PUT me, NestJS casava 'me' como :id | Reordenar: rotas /me primeiro, /:id por último |
 
 ---
 
