@@ -192,6 +192,11 @@ model Product {
   // Entrega
   extraDays Int? // dias adicionais (override categoria/tag)
 
+  // Escalas
+  scaleRuleSetId String?
+  scaleRuleSet   ScaleRuleSet? @relation(fields: [scaleRuleSetId], references: [id], onDelete: SetNull)
+  noScales       Boolean       @default(false) // se true, escalas NAO se aplicam
+
   // Status
   isActive Boolean @default(true)
   featured Boolean @default(false)
@@ -309,6 +314,10 @@ model Category {
   products Product[]
   coupons  Coupon[]
 
+  // Escalas
+  scaleRuleSetId String?
+  scaleRuleSet   ScaleRuleSet? @relation(fields: [scaleRuleSetId], references: [id], onDelete: SetNull)
+
   isActive  Boolean @default(true)
   extraDays Int? // dias adicionais de produção
 
@@ -327,6 +336,11 @@ model Tag {
 
   products Product[] @relation("ProductToTag")
   coupons  Coupon[]
+
+  // Escalas
+  scaleRuleSetId String?
+  scaleRuleSet   ScaleRuleSet? @relation(fields: [scaleRuleSetId], references: [id], onDelete: SetNull)
+  noScales       Boolean       @default(false)
 
   isActive  Boolean @default(true)
   extraDays Int? // dias adicionais de produção
@@ -360,11 +374,12 @@ model Scale {
   name       String  @unique // ex: "Heroic Scale (28mm)"
   code       String  @unique // ex: "HEROIC_28"
   baseSize   Float // tamanho base em mm
-  multiplier Float @default(1.0) // multiplicador de preco
+  multiplier Float @default(1.0) // multiplicador de preco (legado)
   priority   Int   @default(0) // para ordenacao
 
-  variations ProductVariation[]
-  scaleRules ScaleRule[]
+  variations     ProductVariation[]
+  scaleRules     ScaleRule[] // legado
+  scaleRuleItems ScaleRuleItem[]
 
   isActive Boolean @default(true)
 
@@ -374,13 +389,47 @@ model Scale {
   @@map("scales")
 }
 
+// ── Novo sistema de regras de escala ──
+
+model ScaleRuleSet {
+  id   String @id @default(cuid())
+  name String @unique // "Miniaturas Padrao", "Veiculos", etc.
+
+  items      ScaleRuleItem[]
+  products   Product[]
+  tags       Tag[]
+  categories Category[]
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("scale_rule_sets")
+}
+
+model ScaleRuleItem {
+  id        String       @id @default(cuid())
+  ruleSetId String
+  ruleSet   ScaleRuleSet @relation(fields: [ruleSetId], references: [id], onDelete: Cascade)
+
+  scaleId String
+  scale   Scale  @relation(fields: [scaleId], references: [id])
+
+  percentageIncrease Float @default(0) // 0=base, 15=+15%, 80=+80%, 150=+150%
+
+  @@unique([ruleSetId, scaleId])
+  @@map("scale_rule_items")
+}
+
+// ── Legado (mantido para migration history) ──
+
 model ScaleRule {
   id      String @id @default(cuid())
   scaleId String
   scale   Scale  @relation(fields: [scaleId], references: [id], onDelete: Cascade)
 
-  appliesTo RuleScope // PRODUCT, TAG, CATEGORY, GLOBAL
-  targetId  String? // ID do produto, tag ou categoria
+  appliesTo RuleScope
+  targetId  String?
 
   priceMultiplier Float @default(1.0)
   stockMultiplier Float @default(1.0)

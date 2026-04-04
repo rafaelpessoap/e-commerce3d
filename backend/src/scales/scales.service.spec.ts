@@ -22,6 +22,19 @@ describe('ScalesService', () => {
               findMany: jest.fn(),
               create: jest.fn(),
             },
+            scaleRuleSet: {
+              create: jest.fn(),
+              findMany: jest.fn(),
+              findUnique: jest.fn(),
+              update: jest.fn(),
+            },
+            scaleRuleItem: {
+              deleteMany: jest.fn(),
+              createMany: jest.fn(),
+            },
+            product: {
+              findUnique: jest.fn(),
+            },
           },
         },
       ],
@@ -161,6 +174,179 @@ describe('ScalesService', () => {
       );
 
       expect(price).toBe(133.3); // 100 * 1.333 = 133.3 rounded
+    });
+  });
+
+  // ── Novo sistema ScaleRuleSet ──
+
+  describe('createRuleSet', () => {
+    it('should create a rule set with items', async () => {
+      (prisma.scaleRuleSet.create as jest.Mock).mockResolvedValue({
+        id: 'rs1',
+        name: 'Miniaturas Padrao',
+        items: [
+          { id: 'i1', scaleId: 's1', percentageIncrease: 0 },
+          { id: 'i2', scaleId: 's2', percentageIncrease: 15 },
+        ],
+      });
+
+      const result = await service.createRuleSet({
+        name: 'Miniaturas Padrao',
+        items: [
+          { scaleId: 's1', percentageIncrease: 0 },
+          { scaleId: 's2', percentageIncrease: 15 },
+        ],
+      });
+
+      expect(result.name).toBe('Miniaturas Padrao');
+      expect(prisma.scaleRuleSet.create).toHaveBeenCalledWith({
+        data: {
+          name: 'Miniaturas Padrao',
+          items: {
+            create: [
+              { scaleId: 's1', percentageIncrease: 0 },
+              { scaleId: 's2', percentageIncrease: 15 },
+            ],
+          },
+        },
+        include: { items: { include: { scale: true } } },
+      });
+    });
+  });
+
+  describe('findAllRuleSets', () => {
+    it('should return active rule sets with items', async () => {
+      (prisma.scaleRuleSet.findMany as jest.Mock).mockResolvedValue([
+        { id: 'rs1', name: 'Miniaturas Padrao', items: [] },
+      ]);
+
+      const result = await service.findAllRuleSets();
+
+      expect(result).toHaveLength(1);
+      expect(prisma.scaleRuleSet.findMany).toHaveBeenCalledWith({
+        where: { isActive: true },
+        include: { items: { include: { scale: true } } },
+        orderBy: { name: 'asc' },
+      });
+    });
+  });
+
+  describe('resolveScaleRule', () => {
+    it('should return null if product has noScales=true', async () => {
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue({
+        id: 'p1',
+        noScales: true,
+        scaleRuleSetId: 'rs1',
+        tags: [],
+        category: null,
+      });
+
+      const result = await service.resolveScaleRule('p1');
+      expect(result).toBeNull();
+    });
+
+    it('should return product rule set if defined (highest priority)', async () => {
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue({
+        id: 'p1',
+        noScales: false,
+        scaleRuleSetId: 'rs1',
+        scaleRuleSet: {
+          id: 'rs1',
+          name: 'Product Rule',
+          items: [{ scaleId: 's1', percentageIncrease: 0, scale: { name: '28mm' } }],
+        },
+        tags: [{ scaleRuleSetId: 'rs2', noScales: false }],
+        category: { scaleRuleSetId: 'rs3' },
+      });
+
+      const result = await service.resolveScaleRule('p1');
+      expect(result!.name).toBe('Product Rule');
+    });
+
+    it('should return null if any tag has noScales=true', async () => {
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue({
+        id: 'p1',
+        noScales: false,
+        scaleRuleSetId: null,
+        scaleRuleSet: null,
+        tags: [{ scaleRuleSetId: 'rs2', noScales: true }],
+        category: { scaleRuleSetId: 'rs3' },
+      });
+
+      const result = await service.resolveScaleRule('p1');
+      expect(result).toBeNull();
+    });
+
+    it('should fallback to tag rule set', async () => {
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue({
+        id: 'p1',
+        noScales: false,
+        scaleRuleSetId: null,
+        scaleRuleSet: null,
+        tags: [
+          { scaleRuleSetId: null, noScales: false },
+          {
+            scaleRuleSetId: 'rs2',
+            noScales: false,
+            scaleRuleSet: {
+              id: 'rs2',
+              name: 'Tag Rule',
+              items: [{ scaleId: 's1', percentageIncrease: 10 }],
+            },
+          },
+        ],
+        category: { scaleRuleSetId: 'rs3' },
+      });
+
+      const result = await service.resolveScaleRule('p1');
+      expect(result!.name).toBe('Tag Rule');
+    });
+
+    it('should fallback to category rule set', async () => {
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue({
+        id: 'p1',
+        noScales: false,
+        scaleRuleSetId: null,
+        scaleRuleSet: null,
+        tags: [],
+        category: {
+          scaleRuleSetId: 'rs3',
+          scaleRuleSet: {
+            id: 'rs3',
+            name: 'Category Rule',
+            items: [{ scaleId: 's1', percentageIncrease: 20 }],
+          },
+        },
+      });
+
+      const result = await service.resolveScaleRule('p1');
+      expect(result!.name).toBe('Category Rule');
+    });
+
+    it('should return null when no rule applies', async () => {
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue({
+        id: 'p1',
+        noScales: false,
+        scaleRuleSetId: null,
+        scaleRuleSet: null,
+        tags: [],
+        category: { scaleRuleSetId: null },
+      });
+
+      const result = await service.resolveScaleRule('p1');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('calculateScalePrice', () => {
+    it('should apply percentage increase', () => {
+      expect(service.calculateScalePrice(100, 15)).toBe(115);
+      expect(service.calculateScalePrice(79, 80)).toBe(142.2);
+      expect(service.calculateScalePrice(49.9, 150)).toBe(124.75);
+    });
+
+    it('should return base price for 0% increase', () => {
+      expect(service.calculateScalePrice(100, 0)).toBe(100);
     });
   });
 });

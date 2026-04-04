@@ -49,13 +49,50 @@ export class ScalesController {
     return await this.scalesService.createRule(dto);
   }
 
+  // ── ScaleRuleSet CRUD ──
+
   @Public()
-  @Get('price/:productId/:scaleId')
-  async calculatePrice(
-    @Param('productId') _productId: string,
-    @Param('scaleId') _scaleId: string,
+  @Get('rule-sets')
+  async findAllRuleSets() {
+    return { data: await this.scalesService.findAllRuleSets() };
+  }
+
+  @Public()
+  @Get('rule-sets/:id')
+  async findRuleSetById(@Param('id') id: string) {
+    return { data: await this.scalesService.findRuleSetById(id) };
+  }
+
+  @Roles('ADMIN')
+  @Post('rule-sets')
+  async createRuleSet(
+    @Body() dto: { name: string; items: Array<{ scaleId: string; percentageIncrease: number }> },
   ) {
-    // Preço base vem do banco, NUNCA do frontend
-    return { message: 'Use product endpoint for price with scale' };
+    return { data: await this.scalesService.createRuleSet(dto) };
+  }
+
+  @Roles('ADMIN')
+  @Put('rule-sets/:id')
+  async updateRuleSet(
+    @Param('id') id: string,
+    @Body() dto: { name?: string; items?: Array<{ scaleId: string; percentageIncrease: number }> },
+  ) {
+    return { data: await this.scalesService.updateRuleSet(id, dto) };
+  }
+
+  @Roles('ADMIN')
+  @Delete('rule-sets/:id')
+  async removeRuleSet(@Param('id') id: string) {
+    await this.scalesService.removeRuleSet(id);
+    return { data: { message: 'Scale rule set deactivated' } };
+  }
+
+  // ── Endpoint publico: escalas aplicaveis a um produto ──
+
+  @Public()
+  @Get('for-product/:productId')
+  async forProduct(@Param('productId') productId: string) {
+    const ruleSet = await this.scalesService.resolveScaleRule(productId);
+    return { data: ruleSet };
   }
 }
