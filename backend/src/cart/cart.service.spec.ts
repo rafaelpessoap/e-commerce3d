@@ -2,12 +2,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CartService } from './cart.service';
 import { RedisService } from '../redis/redis.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ScalesService } from '../scales/scales.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('CartService', () => {
   let service: CartService;
   let redis: RedisService;
   let prisma: PrismaService;
+  let scalesService: ScalesService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -27,6 +29,16 @@ describe('CartService', () => {
             product: {
               findUnique: jest.fn(),
             },
+            productVariation: {
+              findUnique: jest.fn(),
+            },
+          },
+        },
+        {
+          provide: ScalesService,
+          useValue: {
+            resolveScaleRule: jest.fn(),
+            calculateScalePrice: jest.fn(),
           },
         },
       ],
@@ -35,6 +47,7 @@ describe('CartService', () => {
     service = module.get<CartService>(CartService);
     redis = module.get<RedisService>(RedisService);
     prisma = module.get<PrismaService>(PrismaService);
+    scalesService = module.get<ScalesService>(ScalesService);
   });
 
   const userId = 'user1';
@@ -150,6 +163,121 @@ describe('CartService', () => {
       await service.clear(userId);
 
       expect(redis.del).toHaveBeenCalledWith('cart:user1');
+    });
+  });
+
+  describe('addItem with variation', () => {
+    it('should use variation price and name when variationId provided', async () => {
+      (redis.getJson as jest.Mock).mockResolvedValue(null);
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue({
+        ...mockProduct,
+        type: 'variable',
+        basePrice: 0,
+      });
+      (prisma.productVariation.findUnique as jest.Mock).mockResolvedValue({
+        id: 'var1',
+        name: 'Modelo A',
+        price: 79,
+        salePrice: null,
+        image: 'https://cdn/img.webp',
+      });
+      (scalesService.resolveScaleRule as jest.Mock).mockResolvedValue(null);
+
+      const result = await service.addItem(userId, {
+        productId: 'prod1',
+        variationId: 'var1',
+        quantity: 1,
+      });
+
+      expect(result.items[0].price).toBe(79);
+      expect(result.items[0].variationName).toBe('Modelo A');
+      expect(result.items[0].image).toBe('https://cdn/img.webp');
+    });
+  });
+
+  describe('addItem with scale', () => {
+    it('should apply scale percentage increase to price', async () => {
+      (redis.getJson as jest.Mock).mockResolvedValue(null);
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue(mockProduct);
+      (scalesService.resolveScaleRule as jest.Mock).mockResolvedValue({
+        id: 'rs1',
+        name: 'Miniaturas Padrao',
+        items: [
+          { scaleId: 's1', scale: { id: 's1', name: '28mm' }, percentageIncrease: 0 },
+          { scaleId: 's2', scale: { id: 's2', name: '32mm' }, percentageIncrease: 15 },
+        ],
+      });
+      (scalesService.calculateScalePrice as jest.Mock).mockReturnValue(57.39);
+
+      const result = await service.addItem(userId, {
+        productId: 'prod1',
+        scaleId: 's2',
+        quantity: 1,
+      });
+
+      expect(result.items[0].price).toBe(57.39);
+      expect(result.items[0].scaleName).toBe('32mm');
+      expect(result.items[0].scaleId).toBe('s2');
+      expect(scalesService.calculateScalePrice).toHaveBeenCalledWith(49.9, 15);
+    });
+
+    it('should treat same product with different scales as separate items', async () => {
+      const existingCart = {
+        items: [
+          { productId: 'prod1', scaleId: 's1', quantity: 1, price: 49.9, name: 'Warrior', scaleName: '28mm' },
+        ],
+      };
+      (redis.getJson as jest.Mock).mockResolvedValue(existingCart);
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue(mockProduct);
+      (scalesService.resolveScaleRule as jest.Mock).mockResolvedValue({
+        id: 'rs1',
+        items: [
+          { scaleId: 's2', scale: { id: 's2', name: '32mm' }, percentageIncrease: 15 },
+        ],
+      });
+      (scalesService.calculateScalePrice as jest.Mock).mockReturnValue(57.39);
+
+      const result = await service.addItem(userId, {
+        productId: 'prod1',
+        scaleId: 's2',
+        quantity: 1,
+      });
+
+      expect(result.items).toHaveLength(2);
+    });
+  });
+
+  describe('removeItem with composite key', () => {
+    it('should remove by productId + variationId + scaleId', async () => {
+      const cart = {
+        items: [
+          { productId: 'prod1', variationId: 'v1', scaleId: 's1', quantity: 1, price: 49.9, name: 'A' },
+          { productId: 'prod1', variationId: 'v1', scaleId: 's2', quantity: 1, price: 57.39, name: 'A' },
+        ],
+      };
+      (redis.getJson as jest.Mock).mockResolvedValue(cart);
+
+      const result = await service.removeItem(userId, 'prod1', 'v1', 's2');
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].scaleId).toBe('s1');
+    });
+  });
+
+  describe('updateQuantity with composite key', () => {
+    it('should update by productId + variationId + scaleId', async () => {
+      const cart = {
+        items: [
+          { productId: 'prod1', variationId: 'v1', scaleId: 's1', quantity: 1, price: 49.9, name: 'A' },
+          { productId: 'prod1', variationId: 'v1', scaleId: 's2', quantity: 1, price: 57.39, name: 'A' },
+        ],
+      };
+      (redis.getJson as jest.Mock).mockResolvedValue(cart);
+
+      const result = await service.updateQuantity(userId, 'prod1', 5, 'v1', 's2');
+
+      expect(result.items[1].quantity).toBe(5);
+      expect(result.items[0].quantity).toBe(1); // untouched
     });
   });
 });

@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   Headers,
   HttpCode,
   HttpStatus,
@@ -19,9 +20,6 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 
-  /**
-   * Resolve cart key: uses userId if logged in, sessionId header if anonymous.
-   */
   private getCartKey(
     user: { id: string } | undefined,
     sessionId: string | undefined,
@@ -44,7 +42,13 @@ export class CartController {
   async addItem(
     @CurrentUser() user: { id: string } | undefined,
     @Headers('x-session-id') sessionId: string | undefined,
-    @Body() dto: { productId: string; variationId?: string; quantity: number },
+    @Body()
+    dto: {
+      productId: string;
+      variationId?: string;
+      scaleId?: string;
+      quantity: number;
+    },
   ) {
     const key = this.getCartKey(user, sessionId);
     return { data: await this.cartService.addItem(key, dto) };
@@ -55,11 +59,19 @@ export class CartController {
     @CurrentUser() user: { id: string } | undefined,
     @Headers('x-session-id') sessionId: string | undefined,
     @Param('productId') productId: string,
-    @Body() dto: { quantity: number },
+    @Query('variationId') variationId?: string,
+    @Query('scaleId') scaleId?: string,
+    @Body() dto?: { quantity: number },
   ) {
     const key = this.getCartKey(user, sessionId);
     return {
-      data: await this.cartService.updateQuantity(key, productId, dto.quantity),
+      data: await this.cartService.updateQuantity(
+        key,
+        productId,
+        dto!.quantity,
+        variationId,
+        scaleId,
+      ),
     };
   }
 
@@ -68,9 +80,13 @@ export class CartController {
     @CurrentUser() user: { id: string } | undefined,
     @Headers('x-session-id') sessionId: string | undefined,
     @Param('productId') productId: string,
+    @Query('variationId') variationId?: string,
+    @Query('scaleId') scaleId?: string,
   ) {
     const key = this.getCartKey(user, sessionId);
-    return { data: await this.cartService.removeItem(key, productId) };
+    return {
+      data: await this.cartService.removeItem(key, productId, variationId, scaleId),
+    };
   }
 
   @Delete()
@@ -84,10 +100,6 @@ export class CartController {
     return { data: { message: 'Cart cleared' } };
   }
 
-  /**
-   * Merge anonymous cart into user cart on login.
-   * Called by frontend after login with the sessionId.
-   */
   @Post('merge')
   async mergeCart(
     @CurrentUser() user: { id: string },
@@ -102,6 +114,7 @@ export class CartController {
         await this.cartService.addItem(user.id, {
           productId: item.productId,
           variationId: item.variationId,
+          scaleId: item.scaleId,
           quantity: item.quantity,
         });
       }
