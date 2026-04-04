@@ -1,9 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, Truck, Package } from 'lucide-react';
+import { Loader2, Truck, Package, ShoppingCart, Minus, Plus, Heart } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api-client';
+import { useCartStore } from '@/store/cart-store';
 import { formatCurrency } from '@/lib/constants';
+import { WishlistButton } from '@/components/product/wishlist-button';
 
 interface Variation {
   id: string;
@@ -11,7 +14,20 @@ interface Variation {
   price: number;
   salePrice?: number | null;
   image?: string;
+  stock: number;
   scale?: { name: string };
+}
+
+interface ScaleItem {
+  scaleId: string;
+  percentageIncrease: number;
+  scale: { id: string; name: string; baseSize: number };
+}
+
+interface ScaleData {
+  id: string;
+  name: string;
+  items: ScaleItem[];
 }
 
 interface ShippingQuote {
@@ -25,147 +41,252 @@ interface ShippingQuote {
 
 interface Props {
   productId: string;
+  productSlug: string;
   productType: string;
+  productName: string;
+  basePrice: number;
+  salePrice?: number | null;
   variations: Variation[];
+  scaleData: ScaleData | null;
 }
 
-export function ProductVariationsAndShipping({ productId, productType, variations }: Props) {
+export function ProductVariationsAndShipping({
+  productId,
+  productSlug,
+  productType,
+  productName,
+  basePrice,
+  salePrice,
+  variations,
+  scaleData,
+}: Props) {
+  const setCart = useCartStore((s) => s.setCart);
+
+  // Variation state
   const [selectedVariation, setSelectedVariation] = useState<Variation | null>(null);
+  const isVariable = productType === 'variable' && variations.length > 0;
+
+  // Scale state
+  const hasScales = scaleData !== null && scaleData.items.length > 0;
+  const [selectedScaleItem, setSelectedScaleItem] = useState<ScaleItem | null>(
+    hasScales ? scaleData!.items.find((i) => i.percentageIncrease === 0) ?? scaleData!.items[0] : null,
+  );
+
+  // Cart state
+  const [quantity, setQuantity] = useState(1);
+  const [addingToCart, setAddingToCart] = useState(false);
+  const [addedToCart, setAddedToCart] = useState(false);
+
+  // Shipping state
   const [cep, setCep] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [shippingLoading, setShippingLoading] = useState(false);
+  const [shippingError, setShippingError] = useState('');
   const [quotes, setQuotes] = useState<ShippingQuote[]>([]);
   const [freeShipping, setFreeShipping] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
-  const isVariable = productType === 'variable' && variations.length > 0;
-  const needsVariation = isVariable && !selectedVariation;
+  // ── Price calculation ──
+  const rawBasePrice = isVariable
+    ? (selectedVariation ? (selectedVariation.salePrice ?? selectedVariation.price) : 0)
+    : (salePrice ?? basePrice);
 
-  async function handleCalculate(cepValue?: string) {
-    const cleaned = (cepValue ?? cep).replace(/\D/g, '');
-    if (cleaned.length !== 8) {
-      setError('CEP deve ter 8 digitos');
-      return;
+  const scalePercentage = selectedScaleItem?.percentageIncrease ?? 0;
+  const finalPrice = hasScales && scalePercentage > 0
+    ? Math.round(rawBasePrice * (1 + scalePercentage / 100) * 100) / 100
+    : rawBasePrice;
+
+  const scaleExtraPrice = finalPrice - rawBasePrice;
+
+  // Can add to cart?
+  const canAdd = (!isVariable || selectedVariation !== null) && finalPrice > 0;
+
+  // Find base scale for comparison
+  const baseScale = hasScales ? scaleData!.items.find((i) => i.percentageIncrease === 0) ?? scaleData!.items[0] : null;
+
+  // ── Handlers ──
+
+  function handleSelectVariation(v: Variation) {
+    setSelectedVariation(v);
+    setQuotes([]);
+    setHasSearched(false);
+    // Recalc shipping if CEP already entered
+    const cleaned = cep.replace(/\D/g, '');
+    if (cleaned.length === 8) {
+      doShippingCalc(cleaned, v.id);
     }
+  }
 
-    if (needsVariation) {
-      setError('Selecione uma escala para calcular o frete');
-      return;
+  async function handleAddToCart() {
+    if (!canAdd) return;
+    setAddingToCart(true);
+    try {
+      const { data } = await api.post('/cart/items', {
+        productId,
+        variationId: selectedVariation?.id,
+        scaleId: selectedScaleItem?.scaleId,
+        quantity,
+      });
+      setCart(data.data.items, data.data.subtotal);
+      setAddedToCart(true);
+      setTimeout(() => setAddedToCart(false), 2000);
+    } catch {
+      // TODO: toast
+    } finally {
+      setAddingToCart(false);
     }
+  }
 
-    setLoading(true);
-    setError('');
+  async function doShippingCalc(cleanedCep: string, variationId?: string) {
+    setShippingLoading(true);
+    setShippingError('');
     setHasSearched(true);
-
     try {
       const { data } = await api.post('/shipping/quote', {
-        zipCode: cleaned,
+        zipCode: cleanedCep,
         products: [{
           productId,
-          variationId: selectedVariation?.id,
+          variationId: variationId ?? selectedVariation?.id,
           quantity: 1,
         }],
       });
-
       const result = data.data;
       setQuotes(result.quotes);
       setFreeShipping(result.freeShipping);
-    } catch (err: unknown) {
-      const resp = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data;
-      const msg = resp?.error?.message ?? 'Erro ao calcular frete. Verifique o CEP e tente novamente.';
-      setError(msg);
+    } catch {
+      setShippingError('Erro ao calcular frete. Verifique o CEP.');
       setQuotes([]);
     } finally {
-      setLoading(false);
+      setShippingLoading(false);
     }
   }
 
   function handleCepInput(value: string) {
     const cleaned = value.replace(/\D/g, '');
     setCep(cleaned);
-    if (cleaned.length === 8 && !needsVariation) {
-      handleCalculate(cleaned);
+    if (cleaned.length === 8 && canAdd) {
+      doShippingCalc(cleaned);
     }
   }
 
-  function handleSelectAndRecalc(variation: Variation) {
-    setSelectedVariation(variation);
-    setQuotes([]);
-    setHasSearched(false);
+  function handleCalculate() {
     const cleaned = cep.replace(/\D/g, '');
-    if (cleaned.length === 8) {
-      // Calcular direto com a variação selecionada
-      setLoading(true);
-      setError('');
-      setHasSearched(true);
-      api.post('/shipping/quote', {
-        zipCode: cleaned,
-        products: [{
-          productId,
-          variationId: variation.id,
-          quantity: 1,
-        }],
-      }).then(({ data }) => {
-        const result = data.data;
-        setQuotes(result.quotes);
-        setFreeShipping(result.freeShipping);
-      }).catch((err: unknown) => {
-        const resp = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data;
-        const msg = resp?.error?.message ?? 'Erro ao calcular frete. Verifique o CEP e tente novamente.';
-        setError(msg);
-        setQuotes([]);
-      }).finally(() => {
-        setLoading(false);
-      });
+    if (cleaned.length !== 8) {
+      setShippingError('CEP deve ter 8 digitos');
+      return;
     }
+    if (isVariable && !selectedVariation) {
+      setShippingError('Selecione uma variacao primeiro');
+      return;
+    }
+    doShippingCalc(cleaned);
   }
 
   return (
     <>
-      {/* Variation Selector */}
+      {/* ── Price Display ── */}
+      <div className="mt-6">
+        {isVariable && !selectedVariation ? (
+          <p className="text-lg text-muted-foreground">
+            A partir de{' '}
+            <span className="text-2xl font-bold text-primary">
+              {formatCurrency(Math.min(...variations.map((v) => v.salePrice ?? v.price)))}
+            </span>
+          </p>
+        ) : (
+          <>
+            {finalPrice > 0 && (
+              <>
+                <p className="text-3xl font-bold text-primary">
+                  {formatCurrency(finalPrice)}
+                </p>
+                {hasScales && scaleExtraPrice > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Preco base: {formatCurrency(rawBasePrice)} + escala: +{formatCurrency(scaleExtraPrice)}
+                  </p>
+                )}
+                <p className="text-sm text-muted-foreground mt-1">
+                  ou {formatCurrency(finalPrice * 0.9)} no PIX (10% off)
+                </p>
+              </>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ── Variation Dropdown ── */}
       {isVariable && (
         <div className="mt-6">
-          <h3 className="text-sm font-medium mb-3">Escalas disponiveis</h3>
-          <div className="flex flex-wrap gap-2">
-            {variations.map((v) => {
-              const isSelected = selectedVariation?.id === v.id;
-              return (
-                <button
-                  key={v.id}
-                  onClick={() => handleSelectAndRecalc(v)}
-                  className={`rounded border px-3 py-2 text-sm cursor-pointer transition-colors ${
-                    isSelected
-                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                      : 'hover:border-primary'
-                  }`}
-                >
-                  <span className="font-medium">{v.scale?.name ?? v.name}</span>
-                  <span className="text-muted-foreground ml-2">
-                    {formatCurrency(v.salePrice ?? v.price)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          {selectedVariation && (
-            <div className="mt-3">
-              <p className="text-2xl font-bold text-primary">
-                {formatCurrency(selectedVariation.salePrice ?? selectedVariation.price)}
-              </p>
-              {selectedVariation.salePrice && selectedVariation.salePrice < selectedVariation.price && (
-                <p className="text-sm text-muted-foreground line-through">
-                  {formatCurrency(selectedVariation.price)}
-                </p>
-              )}
-              <p className="text-sm text-muted-foreground">
-                ou {formatCurrency((selectedVariation.salePrice ?? selectedVariation.price) * 0.9)} no PIX (10% off)
-              </p>
-            </div>
-          )}
+          <label className="text-sm font-medium flex items-center gap-2">
+            Modelo:
+            <select
+              value={selectedVariation?.id ?? ''}
+              onChange={(e) => {
+                const v = variations.find((v) => v.id === e.target.value);
+                if (v) handleSelectVariation(v);
+              }}
+              className="flex-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">Escolha uma opcao</option>
+              {variations.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name} — {formatCurrency(v.salePrice ?? v.price)}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       )}
 
-      {/* Shipping Calculator */}
+      {/* ── Scale Radio Buttons ── */}
+      {hasScales && (
+        <div className="mt-6">
+          <h3 className="text-sm font-medium">Escala</h3>
+          <p className="text-xs text-muted-foreground mb-3">Selecione a escala de impressao</p>
+          <div className="space-y-2">
+            {scaleData!.items
+              .sort((a, b) => a.scale.baseSize - b.scale.baseSize)
+              .map((item) => {
+                const isSelected = selectedScaleItem?.scaleId === item.scaleId;
+                const extraPct = item.percentageIncrease;
+                const extraPrice = rawBasePrice > 0
+                  ? Math.round(rawBasePrice * extraPct / 100 * 100) / 100
+                  : 0;
+
+                return (
+                  <label
+                    key={item.scaleId}
+                    className={`flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer transition-colors ${
+                      isSelected ? 'border-primary bg-primary/5' : 'hover:border-muted-foreground/30'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="scale"
+                      checked={isSelected}
+                      onChange={() => setSelectedScaleItem(item)}
+                      className="accent-primary"
+                    />
+                    <div className="flex-1">
+                      <span className="font-medium text-sm">{item.scale.name}</span>
+                      {extraPct > 0 && baseScale && (
+                        <span className="text-xs text-muted-foreground ml-2">
+                          {Math.round(((item.scale.baseSize / baseScale.scale.baseSize) - 1) * 100)}% maior do que a de {baseScale.scale.name}
+                        </span>
+                      )}
+                    </div>
+                    {extraPct > 0 && rawBasePrice > 0 && (
+                      <span className="text-sm font-medium text-primary">
+                        +{formatCurrency(extraPrice)}
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Shipping Calculator ── */}
       <div className="mt-6 border rounded-lg p-4">
         <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
           <Truck className="h-4 w-4" />
@@ -182,19 +303,15 @@ export function ProductVariationsAndShipping({ productId, productType, variation
             className="w-36 rounded-md border border-input bg-background px-3 py-2 text-sm"
           />
           <button
-            onClick={() => handleCalculate()}
-            disabled={loading || cep.replace(/\D/g, '').length !== 8 || needsVariation}
+            onClick={handleCalculate}
+            disabled={shippingLoading || cep.replace(/\D/g, '').length !== 8}
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Calcular'}
+            {shippingLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Calcular'}
           </button>
         </div>
 
-        {needsVariation && cep.replace(/\D/g, '').length === 8 && (
-          <p className="text-xs text-amber-600 mt-2">Selecione uma escala acima para calcular o frete</p>
-        )}
-
-        {error && <p className="text-xs text-destructive mt-2">{error}</p>}
+        {shippingError && <p className="text-xs text-destructive mt-2">{shippingError}</p>}
 
         {freeShipping && hasSearched && (
           <div className="bg-green-50 text-green-700 border border-green-200 rounded-md px-3 py-2 text-sm flex items-center gap-2 mt-3">
@@ -210,10 +327,7 @@ export function ProductVariationsAndShipping({ productId, productType, variation
               <span>Custo</span>
             </div>
             {[...quotes].sort((a, b) => a.price - b.price).map((quote) => (
-              <div
-                key={quote.serviceId}
-                className="grid grid-cols-[1fr_auto] gap-4 px-4 py-3 text-sm items-center"
-              >
+              <div key={quote.serviceId} className="grid grid-cols-[1fr_auto] gap-4 px-4 py-3 text-sm items-center">
                 <div>
                   <span className="font-medium">{quote.name}</span>
                   <span className="text-muted-foreground ml-1">
@@ -235,10 +349,39 @@ export function ProductVariationsAndShipping({ productId, productType, variation
           </div>
         )}
 
-        {hasSearched && !loading && quotes.length === 0 && !error && (
-          <p className="text-xs text-muted-foreground mt-2">
-            Nenhuma opcao de frete para este CEP.
-          </p>
+        {hasSearched && !shippingLoading && quotes.length === 0 && !shippingError && (
+          <p className="text-xs text-muted-foreground mt-2">Nenhuma opcao de frete para este CEP.</p>
+        )}
+      </div>
+
+      {/* ── Quantity + Add to Cart + Wishlist ── */}
+      <div className="mt-8 space-y-4">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium">Quantidade:</span>
+          <div className="flex items-center border rounded-md">
+            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setQuantity(Math.max(1, quantity - 1))} disabled={quantity <= 1}>
+              <Minus className="h-4 w-4" />
+            </Button>
+            <span className="w-10 text-center text-sm font-medium">{quantity}</span>
+            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setQuantity(quantity + 1)}>
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+          <WishlistButton productId={productId} productSlug={productSlug} className="h-10 w-10 ml-auto" />
+        </div>
+
+        <Button
+          size="lg"
+          className="w-full"
+          onClick={handleAddToCart}
+          disabled={addingToCart || !canAdd}
+        >
+          <ShoppingCart className="mr-2 h-5 w-5" />
+          {addedToCart ? 'Adicionado!' : addingToCart ? 'Adicionando...' : 'Adicionar ao Carrinho'}
+        </Button>
+
+        {isVariable && !selectedVariation && (
+          <p className="text-xs text-center text-muted-foreground">Selecione um modelo para adicionar ao carrinho</p>
         )}
       </div>
     </>

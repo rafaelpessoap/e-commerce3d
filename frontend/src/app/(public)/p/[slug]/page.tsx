@@ -4,9 +4,7 @@ import { api } from '@/lib/api-client';
 import { formatCurrency, ROUTES } from '@/lib/constants';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ProductCard } from '@/components/product/product-card';
-import { WishlistButton } from '@/components/product/wishlist-button';
 import { ReviewsSection } from '@/components/product/reviews-section';
-import { AddToCartButton } from './add-to-cart-button';
 import { ProductGallery } from './product-gallery';
 import { ProductVariationsAndShipping } from './product-variations-shipping';
 import { AdminEditButton } from './admin-edit-button';
@@ -62,6 +60,15 @@ async function getDeliveryInfo(productId: string) {
   }
 }
 
+async function getScaleData(productId: string) {
+  try {
+    const { data } = await api.get(`/scales/for-product/${productId}`);
+    return data.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params;
   const product = await getProduct(slug);
@@ -74,15 +81,17 @@ export default async function ProductPage({ params }: Props) {
     );
   }
 
-  const [related, delivery] = await Promise.all([
+  const [related, delivery, scaleData] = await Promise.all([
     getRelatedProducts(product.categoryId, product.id),
     getDeliveryInfo(product.id),
+    getScaleData(product.id),
   ]);
 
   const images = product.images ?? [];
   const variations = product.variations ?? [];
   const tags = product.tags ?? [];
   const attributes = product.attributes ?? [];
+  const isVariable = product.type === 'variable';
   const currentPrice = product.salePrice ?? product.basePrice;
   const hasDiscount = product.salePrice && product.salePrice < product.basePrice;
 
@@ -111,31 +120,38 @@ export default async function ProductPage({ params }: Props) {
             </Link>
           )}
 
-          {/* Short description — right below name */}
+          {/* Short description */}
           {product.shortDescription && (
             <div className="mt-3 text-muted-foreground leading-relaxed prose prose-sm" dangerouslySetInnerHTML={{ __html: product.shortDescription }} />
           )}
 
-          {/* Price */}
-          <div className="mt-6">
-            {hasDiscount && (
-              <p className="text-lg text-muted-foreground line-through">
-                {formatCurrency(product.basePrice)}
+          {/* Static price — only for simple products (variable price is in the client component) */}
+          {!isVariable && (
+            <div className="mt-6">
+              {hasDiscount && (
+                <p className="text-lg text-muted-foreground line-through">
+                  {formatCurrency(product.basePrice)}
+                </p>
+              )}
+              <p className="text-3xl font-bold text-primary">
+                {formatCurrency(currentPrice)}
               </p>
-            )}
-            <p className="text-3xl font-bold text-primary">
-              {formatCurrency(currentPrice)}
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              ou {formatCurrency(currentPrice * 0.9)} no PIX (10% off)
-            </p>
-          </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                ou {formatCurrency(currentPrice * 0.9)} no PIX (10% off)
+              </p>
+            </div>
+          )}
 
-          {/* Variations + Shipping Calculator (shared state) */}
+          {/* Variations + Scales + Shipping + Add to Cart (all in one client component) */}
           <ProductVariationsAndShipping
             productId={product.id}
+            productSlug={product.slug}
             productType={product.type ?? 'simple'}
+            productName={product.name}
+            basePrice={product.basePrice}
+            salePrice={product.salePrice}
             variations={variations}
+            scaleData={scaleData}
           />
 
           {/* Tags */}
@@ -154,20 +170,12 @@ export default async function ProductPage({ params }: Props) {
             </div>
           )}
 
-          {/* Add to cart + Wishlist */}
-          <div className="mt-8 flex items-start gap-3">
-            <div className="flex-1">
-              <AddToCartButton productId={product.id} productName={product.name} />
-            </div>
-            <WishlistButton productId={product.id} productSlug={product.slug} className="h-12 w-12" />
-          </div>
-
           {/* Delivery info */}
           <div className="mt-6 bg-muted/50 rounded-lg p-4 text-sm">
             <p>
-              📦 Entrega em <span className="font-bold">{delivery.totalDays} dias uteis</span>
+              Entrega em <span className="font-bold">{delivery.totalDays} dias uteis</span>
               {delivery.extraDays > 0 && (
-                <span className="text-muted-foreground"> (3 base + {delivery.extraDays} adicionais)</span>
+                <span className="text-muted-foreground"> (inclui {delivery.extraDays} dias de producao)</span>
               )}
             </p>
           </div>
@@ -189,7 +197,7 @@ export default async function ProductPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Long description — full width below image */}
+      {/* Long description */}
       {(product.description || product.content) && (
         <div className="mt-12 border-t pt-8 max-w-4xl">
           <h2 className="text-xl font-bold mb-4">Descricao</h2>
