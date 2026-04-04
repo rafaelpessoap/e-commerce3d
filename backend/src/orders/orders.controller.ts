@@ -8,7 +8,7 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { OrdersService } from './orders.service';
 import { CheckoutLogService } from '../payments/checkout-log.service';
 import { CreateOrderDto } from './dto/create-order.dto';

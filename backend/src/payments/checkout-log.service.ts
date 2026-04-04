@@ -39,9 +39,9 @@ function safeStringify(data: unknown): string | undefined {
 function formatError(err: unknown): string {
   if (err instanceof Error) {
     const extra =
-      (err as Record<string, unknown>).cause ??
-      (err as Record<string, unknown>).response ??
-      (err as Record<string, unknown>).body;
+      (err as unknown as Record<string, unknown>).cause ??
+      (err as unknown as Record<string, unknown>).response ??
+      (err as unknown as Record<string, unknown>).body;
     let msg = err.message;
     if (extra) {
       try {

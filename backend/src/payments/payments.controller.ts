@@ -9,7 +9,7 @@ import {
   UnauthorizedException,
   Logger,
 } from '@nestjs/common';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { PaymentsService } from './payments.service';
 import { MercadoPagoClient } from './mercadopago.client';
 import { CheckoutLogService } from './checkout-log.service';
