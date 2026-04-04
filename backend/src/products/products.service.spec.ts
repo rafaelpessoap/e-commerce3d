@@ -35,6 +35,11 @@ describe('ProductsService', () => {
               createMany: jest.fn(),
               update: jest.fn(),
             },
+            stockAuditLog: {
+              create: jest.fn(),
+              findMany: jest.fn().mockResolvedValue([]),
+              deleteMany: jest.fn(),
+            },
           },
         },
       ],
@@ -453,6 +458,47 @@ describe('ProductsService', () => {
           expect.objectContaining({ productId: 'prod-new', name: '32mm', price: 69.9, stock: 5, sku: 'VAR-32' }),
         ],
       });
+    });
+  });
+
+  describe('update stock creates audit log', () => {
+    it('should create audit log when stock changes via product form', async () => {
+      // Current product state
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue({
+        ...mockProduct,
+        stock: 50,
+      });
+      (prisma.product.update as jest.Mock).mockResolvedValue({
+        ...mockProduct,
+        stock: 30,
+      });
+      (prisma.stockAuditLog.create as jest.Mock).mockResolvedValue({});
+      (prisma.stockAuditLog.findMany as jest.Mock).mockResolvedValue([]);
+
+      await service.update('prod1', { stock: 30 }, 'admin1');
+
+      expect(prisma.stockAuditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          productId: 'prod1',
+          quantityBefore: 50,
+          quantityAfter: 30,
+          delta: -20,
+          reason: 'ADMIN_ADJUSTMENT',
+          referenceId: 'admin1',
+        }),
+      });
+    });
+
+    it('should NOT create audit log when stock does not change', async () => {
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue({
+        ...mockProduct,
+        stock: 50,
+      });
+      (prisma.product.update as jest.Mock).mockResolvedValue(mockProduct);
+
+      await service.update('prod1', { name: 'Renamed' }, 'admin1');
+
+      expect(prisma.stockAuditLog.create).not.toHaveBeenCalled();
     });
   });
 

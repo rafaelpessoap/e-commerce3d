@@ -13,6 +13,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('api/v1/products')
 export class ProductsController {
@@ -67,8 +68,12 @@ export class ProductsController {
 
   @Roles('ADMIN')
   @Put(':id')
-  async update(@Param('id') id: string, @Body() dto: UpdateProductDto) {
-    return await this.productsService.update(id, dto);
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateProductDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    return await this.productsService.update(id, dto, user.id);
   }
 
   @Roles('ADMIN')

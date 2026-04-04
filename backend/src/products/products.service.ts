@@ -175,7 +175,7 @@ export class ProductsService {
     };
   }
 
-  async update(id: string, dto: UpdateProductDto) {
+  async update(id: string, dto: UpdateProductDto, adminUserId?: string) {
     const { tagIds, attributeValueIds, images, variations, ...updateData } = dto;
 
     // Se nome mudou e slug não foi enviado, auto-gera
@@ -220,6 +220,36 @@ export class ProductsService {
       }
     }
 
+    // Audit log for stock changes (product-level)
+    if (dto.stock !== undefined && adminUserId) {
+      const current = await this.prisma.product.findUnique({ where: { id } });
+      if (current && current.stock !== dto.stock) {
+        const delta = dto.stock - current.stock;
+        await this.prisma.stockAuditLog.create({
+          data: {
+            productId: id,
+            quantityBefore: current.stock,
+            quantityAfter: dto.stock,
+            delta,
+            reason: 'ADMIN_ADJUSTMENT',
+            referenceId: adminUserId,
+          },
+        });
+        // Prune: keep only last 30
+        const old = await this.prisma.stockAuditLog.findMany({
+          where: { productId: id, variationId: null },
+          orderBy: { createdAt: 'desc' as const },
+          skip: 30,
+          select: { id: true },
+        });
+        if (old.length > 0) {
+          await this.prisma.stockAuditLog.deleteMany({
+            where: { id: { in: old.map((l: { id: string }) => l.id) } },
+          });
+        }
+      }
+    }
+
     // Sync variations: update existing, create new, delete removed
     if (variations !== undefined) {
       const existingVariations = await this.prisma.productVariation.findMany({
@@ -238,8 +268,11 @@ export class ProductsService {
         });
       }
 
-      // Update existing
+      // Update existing (with audit log for stock changes)
       for (const v of toUpdate) {
+        const existing = existingVariations.find((ev) => ev.id === v.id);
+        const newStock = v.stock ?? 0;
+
         await this.prisma.productVariation.update({
           where: { id: v.id },
           data: {
@@ -248,7 +281,7 @@ export class ProductsService {
             gtin: v.gtin,
             price: v.price,
             salePrice: v.salePrice,
-            stock: v.stock ?? 0,
+            stock: newStock,
             weight: v.weight,
             width: v.width,
             height: v.height,
@@ -257,6 +290,21 @@ export class ProductsService {
             scaleId: v.scaleId,
           },
         });
+
+        // Audit log if stock changed
+        if (existing && existing.stock !== newStock && adminUserId) {
+          await this.prisma.stockAuditLog.create({
+            data: {
+              productId: id,
+              variationId: v.id,
+              quantityBefore: existing.stock,
+              quantityAfter: newStock,
+              delta: newStock - existing.stock,
+              reason: 'ADMIN_ADJUSTMENT',
+              referenceId: adminUserId,
+            },
+          });
+        }
       }
 
       // Create new
