@@ -1,10 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { initMercadoPago, CardPayment } from '@mercadopago/sdk-react';
 import { Loader2 } from 'lucide-react';
 
 const MP_PUBLIC_KEY = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY ?? '';
+
+// Init SDK once at module level (not in effect)
+let mpInitialized = false;
+if (typeof window !== 'undefined' && MP_PUBLIC_KEY && !mpInitialized) {
+  initMercadoPago(MP_PUBLIC_KEY, { locale: 'pt-BR' });
+  mpInitialized = true;
+}
 
 interface CardPaymentFormProps {
   amount: number;
@@ -24,28 +30,10 @@ export function CardPaymentForm({
   onError,
   disabled,
 }: CardPaymentFormProps) {
-  const [initialized, setInitialized] = useState(false);
-
-  useEffect(() => {
-    if (MP_PUBLIC_KEY) {
-      initMercadoPago(MP_PUBLIC_KEY, { locale: 'pt-BR' });
-      setInitialized(true);
-    }
-  }, []);
-
-  if (!MP_PUBLIC_KEY) {
+  if (!MP_PUBLIC_KEY || !mpInitialized) {
     return (
       <div className="text-sm text-destructive p-4 border rounded-lg">
         Pagamento com cartao indisponivel no momento.
-      </div>
-    );
-  }
-
-  if (!initialized) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-sm text-muted-foreground">Carregando formulario de pagamento...</span>
       </div>
     );
   }
