@@ -513,11 +513,11 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [x] /admin/escalas: controller findAll/create/update agora retorna { data } (frontend fazia data.data)
 - [x] Sidebar admin: h-screen sticky top-0, nav overflow-y-auto, footer flex-shrink-0
 
-#### Melhorias na página pública do produto /p/[slug]:
-- [ ] Calcular frete na página do produto (componente ShippingCalculator)
-- [ ] Descrição principal (longa) abaixo da imagem
-- [ ] Descrição curta abaixo do nome do produto
-- [ ] Botão "Editar produto" visível quando logado como ADMIN (link para /admin/produtos/[id])
+#### Melhorias na página pública do produto /p/[slug] ✅ (04/04/2026):
+- [x] ProductShipping: calculadora de frete na página do produto (CEP → cotações com preço/prazo)
+- [x] Descrição curta movida para logo abaixo do nome (antes do preço)
+- [x] Descrição longa + content HTML movidos para seção full-width abaixo da imagem
+- [x] AdminEditButton: botão "Editar produto" visível só para ADMIN (link para /admin/produtos/[id])
 
 #### Outras Pendências:
 - [ ] Blog admin: criar/editar posts (TipTap)
