@@ -435,7 +435,7 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 ### Integrações Externas
 - [x] Melhor Envio — integração completa (cotação, serviços habilitáveis, CEP de origem, dias extras por método)
 - [x] SMTP — mail.cyberpersons.com:587, testado e funcionando
-- [ ] Mercado Pago — PIX + Cartão + Boleto (plano em `~/.claude/plans/idempotent-cuddling-wand.md`)
+- [x] Mercado Pago — Sprint 1 (backend) + Sprint 2+3 (frontend) concluídos. Sprint 4 (resiliência) pendente
 
 ### Mercado Pago — Sprint 1 Backend ✅ (04/04/2026)
 
@@ -455,8 +455,8 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 ### Mercado Pago — Sprint 2+3 Frontend ✅ (04/04/2026)
 
 **Frontend:**
-- [x] SDK `@mercadopago/sdk-react` instalado
-- [x] CardPaymentForm: usa CardPayment Brick (PCI compliant, tokenização no MP)
+- [x] SDK `@mercadopago/sdk-react` + `@mercadopago/sdk-js` instalados
+- [x] CardPaymentForm: reescrito com SDK JS vanilla (Core Methods) — formulário customizado sem botão duplicado, fluxo validar→confirmar, parcelas via getInstallments
 - [x] PixPayment: QR code base64, botão copiar copia-e-cola, countdown, polling status cada 5s, redirect ao APPROVED
 - [x] BoletoPayment: botão abrir boleto, copiar código de barras, data de vencimento
 - [x] Página `/pedido/pagamento/[id]`: renderiza componente correto por método, trata cartão rejeitado
@@ -579,7 +579,9 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 - [ ] Cache Redis por rota (CacheInterceptor)
 - [ ] Testes de carga (k6/Artillery)
 - [ ] Cloudflare Origin Certificate (15 anos)
-- [ ] Mercado Pago integration — PIX, Cartão de Crédito, Boleto (em andamento)
+- [x] Mercado Pago integration — PIX, Cartão, Boleto (Sprint 1-3 concluídos, Sprint 4 resiliência pendente)
+- [ ] Mercado Pago Sprint 4 — expiração BullMQ (PIX 30min, Boleto 3 dias), testes E2E com cartões teste
+- [ ] Checkout UX — frete no carrinho, layout de frete igual página produto, sistema de log de erros do checkout
 
 ---
 
@@ -668,6 +670,9 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | 2026-04-04 | Boleto usa bolbradesco | Método de pagamento para boleto no MP Brasil é `bolbradesco` (Bradesco). Retorna URL + barcode |
 | 2026-04-04 | Status mapping MP → interno | approved/authorized→APPROVED, pending/in_process→PENDING, rejected→FAILED, cancelled/refunded/charged_back→CANCELLED |
 | 2026-04-04 | SECURITY: Preços recalculados no backend | OrdersService.createOrder agora busca preços no banco (product.salePrice ?? basePrice, variation.salePrice ?? price). Frontend envia IDs+quantidades, preço enviado é IGNORADO. Produto inativo ou inexistente = erro 400. Desconto calculado apenas no PaymentsService |
+| 2026-04-04 | CardPaymentForm com SDK JS vanilla (não Brick) | CardPayment Brick do SDK React tem botão próprio de "Pagar" que conflita com o "Confirmar Pedido" do checkout. Reescrito com Core Methods (createCardToken, getInstallments) do @mercadopago/sdk-js para controle total do fluxo. Formulário customizado + botão "Validar dados do cartão" antes do submit |
+| 2026-04-04 | Serialização de erros do MP SDK | SDK do MP retorna objetos de erro complexos. Logger com ${err} mostrava [object Object]. Criado helper serializeError() que extrai message + cause/response/body em JSON |
+| 2026-04-04 | NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY no build | Variável NEXT_PUBLIC_* precisa estar no build time do Next.js (não runtime). Adicionado ARG/ENV no frontend.Dockerfile + build-arg no workflow de deploy |
 
 ---
 
@@ -714,6 +719,9 @@ Plano detalhado em: `~/.claude/plans/memoized-riding-platypus.md`
 | MELHOR_ENVIO_TOKEN 403 no quote | Token não chegava ao container. docker-compose tinha MELHORENVIO_TOKEN (sem underscore), código usa MELHOR_ENVIO_TOKEN | Corrigido nome da env var no docker-compose. Token adicionado ao .env do servidor |
 | Binário corrompido em /p/[slug] ao atualizar | OLS cache servia conteúdo comprimido corrompido nas páginas de produto | Adicionado /p/, /c/, /t/, /m/, /produtos ao noCacheUrl do vhost.conf + limpeza do cache |
 | **SECURITY: Preços aceitos do frontend** | OrdersService.createOrder salvava price, subtotal, discount, total direto do request. Atacante podia enviar total: R$1 | Backend agora busca preços no DB, recalcula subtotal/total. Preço do frontend é IGNORADO. Produto inativo ou inexistente = BadRequest |
+| PIX payment error: [object Object] | MercadoPagoClient logava erros do SDK com template literal ${err}, SDK retorna objetos complexos | Helper serializeError() extrai message + JSON.stringify de cause/response/body |
+| CardPayment Brick botão duplicado | Brick do SDK React renderizava botão "Pagar" próprio + "Confirmar Pedido" do checkout. Confuso para o cliente | Reescrito com Core Methods (SDK JS vanilla): formulário customizado sem botão do MP. Fluxo: validar cartão → confirmar pedido |
+| Desconto aplicado sobre total (com frete) | calculateMethodDiscount usava order.total que inclui shipping. PIX 10% descontava do frete também | Corrigido: desconto sobre order.subtotal apenas. amount = subtotal - discount + shipping |
 
 ---
 
@@ -737,7 +745,9 @@ Sempre que:
 
 2. **MELHOR_ENVIO_TOKEN configurado em produção (04/04/2026).** Token de produção ativo. Sync usa 3 CEPs regionais para descobrir todas as transportadoras.
 
-3. **Mercado Pago em implementação (04/04/2026).** Chaves de teste configuradas. PIX + Cartão + Boleto. Plano detalhado em `~/.claude/plans/idempotent-cuddling-wand.md`. SDK backend: `mercadopago`, SDK frontend: `@mercadopago/sdk-js`.
+3. **Mercado Pago Sprint 1-3 concluídos (04/04/2026).** Backend + Frontend implementados e deployados. PIX deu erro "Erro ao criar pagamento PIX" no primeiro teste — logs agora mostram erro real (serializado). Cartão: fluxo reescrito com SDK JS vanilla (sem Brick). Sprint 4 (resiliência BullMQ) pendente. Precisa testar novamente após fix de logging.
+
+4. **Checkout UX pendente:** Frete no checkout deve usar mesmo layout tabela da página do produto. Carrinho (/carrinho) precisa de calculadora de frete. Sistema de log estruturado para erros do checkout (backend + frontend) solicitado pelo Rafael. Testes E2E automatizados com cartões de teste do MP desejados.
 
 ---
 
@@ -745,13 +755,18 @@ Sempre que:
 
 - **Data:** 04/04/2026 (noite)
 - **O que foi feito:**
-  1. Fix Melhor Envio: sync multi-CEP, mínimos API, resolveShippingData com variationId, ProductVariationsAndShipping unificado, layout tabela. TDD: 11 testes novos.
-  2. MELHOR_ENVIO_TOKEN configurado em produção + fix env var.
-  3. OLS noCacheUrl: /p/, /c/, /t/, /m/, /produtos (corrige binário corrompido).
-  4. **Mercado Pago Sprint 1 completo:** Schema (7 campos novos), SDK instalado, MercadoPagoClient (13 testes), PaymentsService refatorado com dispatcher PIX/Cartão/Boleto + fix desconto subtotal + webhook double-check (18 testes), CreatePaymentDto, Controller com assinatura HMAC.
-  5. **SECURITY FIX:** OrdersService.createOrder agora recalcula TODOS os preços do banco. Preço, subtotal, total do frontend são IGNORADOS. Produto inativo/inexistente = erro 400. (TDD: 5 testes novos)
-  6. Total: **37 suites, 295 testes passando.**
+  1. **Fix Frete:** Sync multi-CEP (SP/RJ/RS), mínimos API, resolveShippingData com variationId, ProductVariationsAndShipping unificado, layout tabela WooCommerce, OLS noCacheUrl para rotas públicas. TDD: 11 testes novos.
+  2. **Mercado Pago completo (Sprints 1-3):** Backend: MercadoPagoClient (PIX/Cartão/Boleto/webhook HMAC), PaymentsService dispatcher, CreatePaymentDto. Frontend: CardPaymentForm (SDK JS vanilla), PixPayment (QR+polling), BoletoPayment, página /pedido/pagamento/[id], checkout integrado.
+  3. **SECURITY:** OrdersService recalcula TODOS os preços do banco. Frontend envia IDs+quantidades — preço/subtotal/total IGNORADOS. Fix desconto sobre subtotal (não total com frete).
+  4. **Infra:** MELHOR_ENVIO_TOKEN + MERCADOPAGO_ACCESS_TOKEN configurados no servidor. Dockerfile + deploy workflow atualizados com NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY. Schema produção atualizado (7 campos novos).
+  5. **Total: 37 suites, 295 testes passando, 0 erros lint, 0 erros TS.**
 - **O que ficou pendente:**
-  Mercado Pago Sprint 4 (resiliência: expiração BullMQ, env vars produção). Deploy e teste end-to-end com chaves de teste. Blog admin. Cache Redis.
+  - Testar PIX/Cartão/Boleto em produção (PIX deu erro no primeiro teste — logs agora detalhados)
+  - Checkout UX: frete no carrinho, layout frete igual página produto, sistema de log estruturado de erros
+  - Mercado Pago Sprint 4: expiração BullMQ (PIX 30min, Boleto 3 dias), testes E2E com cartões teste
+  - Blog admin (TipTap), cache Redis, testes de carga
 - **Próximo passo exato:**
-  Deploy da integração Mercado Pago e testar fluxo completo: PIX (QR code), Cartão (APRO/OTHE), Boleto. Configurar MERCADOPAGO_ACCESS_TOKEN e NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY no servidor.
+  1. Testar checkout em produção (PIX, Cartão com APRO, Boleto) e verificar logs de erro reais.
+  2. Criar sistema de log estruturado para erros de pagamento (modelo PaymentLog ou logger dedicado).
+  3. Igualar layout de frete do checkout com o da página do produto (tabela ordenada por preço).
+  4. Adicionar calculadora de frete na página do carrinho.
