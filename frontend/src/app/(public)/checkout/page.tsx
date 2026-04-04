@@ -420,26 +420,23 @@ export default function CheckoutPage() {
             </CardContent>
           </Card>
 
-          {/* Frete */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Opções de Frete</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {zipCode.length >= 8 ? (
+          {/* Frete — auto-calculated from address CEP */}
+          {zipCode.replace(/\D/g, '').length >= 8 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Opções de Frete</CardTitle>
+              </CardHeader>
+              <CardContent>
                 <ShippingCalculator
                   products={cartProducts}
                   selectedQuote={selectedShipping}
                   onSelectQuote={setSelectedShipping}
+                  externalCep={zipCode}
                   compact
                 />
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Preencha o CEP acima para ver as opções de frete.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Pagamento */}
           <Card>

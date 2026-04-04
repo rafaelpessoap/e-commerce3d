@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Loader2, Package } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { formatCurrency } from '@/lib/constants';
@@ -20,6 +20,8 @@ interface ShippingCalculatorProps {
   onSelectQuote: (quote: ShippingQuote) => void;
   onCepChange?: (cep: string) => void;
   initialCep?: string;
+  /** When provided, hides the CEP input and auto-calculates using this CEP */
+  externalCep?: string;
   compact?: boolean;
 }
 
@@ -29,6 +31,7 @@ export function ShippingCalculator({
   onSelectQuote,
   onCepChange,
   initialCep = '',
+  externalCep,
   compact = false,
 }: ShippingCalculatorProps) {
   const [cep, setCep] = useState(initialCep);
@@ -37,9 +40,12 @@ export function ShippingCalculator({
   const [quotes, setQuotes] = useState<ShippingQuote[]>([]);
   const [freeShipping, setFreeShipping] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const lastCalculatedCep = useRef('');
+
+  const effectiveCep = externalCep ?? cep;
 
   async function handleCalculate(cepValue?: string) {
-    const cleaned = (cepValue ?? cep).replace(/\D/g, '');
+    const cleaned = (cepValue ?? effectiveCep).replace(/\D/g, '');
     if (cleaned.length !== 8) {
       setError('CEP deve ter 8 dígitos');
       return;
@@ -48,6 +54,7 @@ export function ShippingCalculator({
     setLoading(true);
     setError('');
     setHasSearched(true);
+    lastCalculatedCep.current = cleaned;
 
     try {
       const { data } = await api.post('/shipping/quote', {
@@ -79,6 +86,16 @@ export function ShippingCalculator({
     }
   }
 
+  // Auto-calculate when externalCep changes to a valid 8-digit CEP
+  useEffect(() => {
+    if (!externalCep) return;
+    const cleaned = externalCep.replace(/\D/g, '');
+    if (cleaned.length === 8 && cleaned !== lastCalculatedCep.current) {
+      handleCalculate(cleaned);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalCep]);
+
   function handleCepInput(value: string) {
     const cleaned = value.replace(/\D/g, '');
     setCep(cleaned);
@@ -89,28 +106,30 @@ export function ShippingCalculator({
 
   return (
     <div className="space-y-3">
-      {/* CEP input */}
-      <div className="flex gap-2">
-        <input
-          type="text"
-          placeholder="Digite seu CEP"
-          value={cep}
-          onChange={(e) => handleCepInput(e.target.value)}
-          maxLength={9}
-          className={`rounded-md border border-input bg-background px-3 py-2 text-sm ${compact ? 'flex-1' : 'w-40'}`}
-        />
-        <button
-          onClick={() => handleCalculate()}
-          disabled={loading || cep.replace(/\D/g, '').length !== 8}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-        >
-          {loading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            'Calcular'
-          )}
-        </button>
-      </div>
+      {/* CEP input — hidden when externalCep is provided */}
+      {!externalCep && (
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Digite seu CEP"
+            value={cep}
+            onChange={(e) => handleCepInput(e.target.value)}
+            maxLength={9}
+            className={`rounded-md border border-input bg-background px-3 py-2 text-sm ${compact ? 'flex-1' : 'w-40'}`}
+          />
+          <button
+            onClick={() => handleCalculate()}
+            disabled={loading || cep.replace(/\D/g, '').length !== 8}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              'Calcular'
+            )}
+          </button>
+        </div>
+      )}
 
       {error && <p className="text-xs text-destructive">{error}</p>}
 
