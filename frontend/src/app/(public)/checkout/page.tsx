@@ -39,12 +39,21 @@ function isValidCpf(cpf: string): boolean {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, subtotal, clear } = useCartStore();
+  const { items, subtotal, clear, setCart } = useCartStore();
   const { user } = useAuthStore();
   const [paymentMethod, setPaymentMethod] = useState('pix');
   const [loading, setLoading] = useState(false);
+  const [cartLoading, setCartLoading] = useState(true);
   const [error, setError] = useState('');
   const cardFormRef = useRef<CardPaymentFormRef>(null);
+
+  // Reload cart from backend on mount (handles page refresh)
+  useEffect(() => {
+    api.get('/cart')
+      .then(({ data }) => setCart(data.data.items, data.data.subtotal))
+      .catch(() => {})
+      .finally(() => setCartLoading(false));
+  }, [setCart]);
 
   // Personal data
   const [fullName, setFullName] = useState('');
@@ -306,6 +315,14 @@ export default function CheckoutPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (cartLoading) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-16 text-center text-muted-foreground">
+        Carregando checkout...
+      </div>
+    );
   }
 
   if (items.length === 0) {

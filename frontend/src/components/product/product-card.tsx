@@ -61,13 +61,35 @@ export function ProductCard({ product }: ProductCardProps) {
           {product.name}
         </h3>
 
-        <p className="mt-2 text-base font-bold">
-          {formatCurrency(product.basePrice)}
-        </p>
+        {product.type === 'variable' && variations.length > 0 ? (() => {
+          const prices = variations.map((v) => v.salePrice ?? v.price);
+          const min = Math.min(...prices);
+          const max = Math.max(...prices);
+          return (
+            <p className="mt-2 text-base font-bold text-primary">
+              {min === max
+                ? formatCurrency(min)
+                : `${formatCurrency(min)} – ${formatCurrency(max)}`}
+            </p>
+          );
+        })() : (
+          <p className="mt-2 text-base font-bold">
+            {product.salePrice && product.salePrice < product.basePrice ? (
+              <>
+                <span className="text-muted-foreground line-through text-sm font-normal mr-2">
+                  {formatCurrency(product.basePrice)}
+                </span>
+                <span className="text-primary">{formatCurrency(product.salePrice)}</span>
+              </>
+            ) : (
+              formatCurrency(product.basePrice)
+            )}
+          </p>
+        )}
 
         {variations.length > 0 && (
           <p className="text-xs text-muted-foreground mt-1">
-            {variations.length} escala{variations.length > 1 ? 's' : ''}
+            {variations.length} {variations.length > 1 ? 'variações' : 'variação'}
           </p>
         )}
       </div>
