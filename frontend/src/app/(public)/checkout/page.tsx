@@ -56,12 +56,12 @@ export default function CheckoutPage() {
     if (user) {
       if (user.name) setFullName(user.name);
       if (user.email) setEmail(user.email);
-      if ((user as any).cpf) {
-        const d = (user as any).cpf.replace(/\D/g, '');
+      if (user.cpf) {
+        const d = user.cpf.replace(/\D/g, '');
         if (d.length === 11) setCpf(`${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`);
       }
-      if ((user as any).phone) {
-        const d = (user as any).phone.replace(/\D/g, '');
+      if (user.phone) {
+        const d = user.phone.replace(/\D/g, '');
         if (d.length >= 10) setPhone(d.length === 11 ? `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}` : `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`);
       }
     }
