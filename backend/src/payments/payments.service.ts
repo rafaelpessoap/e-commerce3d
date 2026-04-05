@@ -61,10 +61,12 @@ export class PaymentsService {
 
     if (!order) throw new NotFoundException('Order not found');
 
-    // Desconto sobre SUBTOTAL (não total que inclui frete)
+    // Desconto do método de pagamento sobre SUBTOTAL (não total que inclui frete)
     const discount = this.calculateMethodDiscount(method, order.subtotal);
+    // order.discount = cupom (já calculado pelo PricingService)
+    const couponDiscount = order.discount ?? 0;
     const amount =
-      Math.round((order.subtotal - discount + order.shipping) * 100) / 100;
+      Math.round((order.subtotal - discount - couponDiscount + order.shipping) * 100) / 100;
 
     // Criar registro local PENDING
     const payment = await this.prisma.payment.create({

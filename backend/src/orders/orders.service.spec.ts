@@ -2,11 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { OrdersService } from './orders.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StockService } from '../stock/stock.service';
+import { PricingService } from '../pricing/pricing.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('OrdersService', () => {
   let service: OrdersService;
   let prisma: PrismaService;
+  let pricingService: any;
 
   const mockStockService = {
     reserveStock: jest.fn().mockResolvedValue(undefined),
@@ -14,7 +16,33 @@ describe('OrdersService', () => {
     confirmReservation: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockPricingResult = {
+    items: [
+      {
+        productId: 'prod1',
+        variationId: undefined,
+        scaleId: undefined,
+        quantity: 2,
+        basePrice: 49.9,
+        scalePercentage: 0,
+        unitPrice: 49.9,
+        lineTotal: 99.8,
+      },
+    ],
+    subtotal: 99.8,
+    couponDiscount: 0,
+    couponId: undefined,
+    isFreeShipping: false,
+    shipping: 0,
+    paymentDiscount: 0,
+    total: 99.8,
+  };
+
   beforeEach(async () => {
+    pricingService = {
+      calculateOrderPricing: jest.fn().mockResolvedValue(mockPricingResult),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OrdersService,
@@ -28,18 +56,13 @@ describe('OrdersService', () => {
               update: jest.fn(),
               count: jest.fn(),
             },
-            product: {
-              findUnique: jest.fn(),
-            },
             orderStatusHistory: {
               create: jest.fn(),
             },
           },
         },
-        {
-          provide: StockService,
-          useValue: mockStockService,
-        },
+        { provide: StockService, useValue: mockStockService },
+        { provide: PricingService, useValue: pricingService },
       ],
     }).compile();
 
@@ -84,146 +107,123 @@ describe('OrdersService', () => {
   });
 
   describe('createOrder', () => {
-    it('should create order with generated order number', async () => {
-      (prisma.product.findUnique as jest.Mock).mockResolvedValue({
-        id: 'prod1',
-        basePrice: 49.9,
-        salePrice: null,
-        isActive: true,
-        manageStock: false,
-        variations: [],
-      });
+    it('should delegate pricing to PricingService and create order', async () => {
       (prisma.order.create as jest.Mock).mockImplementation(async (args: any) => ({
         id: 'order1',
-        number: 'ORD-20260402-ABC123',
+        number: 'ORD-20260405-ABC',
         status: 'PENDING',
         ...args.data,
       }));
 
       const result = await service.createOrder({
         userId: 'user1',
-        items: [{ productId: 'prod1', quantity: 2, price: 49.9 }],
-        subtotal: 99.8,
-        total: 99.8,
+        items: [{ productId: 'prod1', quantity: 2 }],
       });
 
-      expect(result).toHaveProperty('number');
+      expect(pricingService.calculateOrderPricing).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user1',
+          items: [{ productId: 'prod1', quantity: 2 }],
+        }),
+      );
+      expect(result.subtotal).toBe(99.8);
       expect(result.status).toBe('PENDING');
-      expect(result.subtotal).toBe(99.8); // recalculado do banco
     });
 
-    it('should recalculate prices from DB — ignore frontend prices', async () => {
-      // Produto no banco custa R$50, mas frontend envia R$1
-      (prisma.product.findUnique as jest.Mock).mockResolvedValue({
-        id: 'prod1',
-        basePrice: 50,
-        salePrice: null,
-        isActive: true,
-        manageStock: false,
-      });
-
+    it('should pass scaleId and couponCode to PricingService', async () => {
       (prisma.order.create as jest.Mock).mockImplementation(async (args: any) => ({
         id: 'order1',
-        number: 'ORD-20260404-SEC1',
+        number: 'ORD-20260405-SC',
         status: 'PENDING',
         ...args.data,
       }));
 
-      const result = await service.createOrder({
+      await service.createOrder({
         userId: 'user1',
-        items: [{ productId: 'prod1', quantity: 2, price: 1 }], // Atacante envia price: 1
-        subtotal: 2, // Atacante envia subtotal falso
-        total: 2, // Atacante envia total falso
+        items: [{ productId: 'prod1', variationId: 'v1', scaleId: 'item2', quantity: 1 }],
+        couponCode: 'DESC10',
+        shipping: 15,
+        paymentMethod: 'pix',
       });
 
-      // Backend deve usar preço do banco (R$50), não do frontend (R$1)
-      expect(result.subtotal).toBe(100); // 50 * 2
-      expect(result.total).toBe(100); // recalculado
+      expect(pricingService.calculateOrderPricing).toHaveBeenCalledWith(
+        expect.objectContaining({
+          items: [{ productId: 'prod1', variationId: 'v1', scaleId: 'item2', quantity: 1 }],
+          couponCode: 'DESC10',
+          shippingAmount: 15,
+          paymentMethod: 'pix',
+        }),
+      );
     });
 
-    it('should use salePrice when available (promotional price)', async () => {
-      (prisma.product.findUnique as jest.Mock).mockResolvedValue({
-        id: 'prod1',
-        basePrice: 100,
-        salePrice: 79.9,
-        isActive: true,
-        manageStock: false,
-      });
-
-      (prisma.order.create as jest.Mock).mockImplementation(async (args: any) => ({
-        id: 'order1',
-        number: 'ORD-20260404-SALE',
-        status: 'PENDING',
-        ...args.data,
-      }));
-
-      const result = await service.createOrder({
-        userId: 'user1',
-        items: [{ productId: 'prod1', quantity: 1, price: 100 }],
+    it('should store coupon discount from PricingService', async () => {
+      pricingService.calculateOrderPricing.mockResolvedValue({
+        ...mockPricingResult,
         subtotal: 100,
-        total: 100,
-      });
-
-      expect(result.subtotal).toBe(79.9); // usa salePrice
-    });
-
-    it('should use variation price when variationId is provided', async () => {
-      (prisma.product.findUnique as jest.Mock).mockResolvedValue({
-        id: 'prod1',
-        basePrice: 0,
-        salePrice: null,
-        isActive: true,
-        manageStock: false,
-        variations: [
-          { id: 'var1', price: 69.9, salePrice: 59.9, stock: 10 },
-        ],
+        couponDiscount: 10,
+        couponId: 'c1',
+        shipping: 15,
+        total: 105, // 100 - 10 + 15
       });
 
       (prisma.order.create as jest.Mock).mockImplementation(async (args: any) => ({
         id: 'order1',
-        number: 'ORD-20260404-VAR',
-        status: 'PENDING',
         ...args.data,
       }));
 
       const result = await service.createOrder({
         userId: 'user1',
-        items: [{ productId: 'prod1', variationId: 'var1', quantity: 1, price: 1 }],
-        subtotal: 1,
-        total: 1,
+        items: [{ productId: 'prod1', quantity: 1 }],
+        couponCode: 'DESC10',
+        shipping: 15,
       });
 
-      expect(result.subtotal).toBe(59.9); // variation salePrice
+      expect(result.discount).toBe(10);
+      expect(result.couponId).toBe('c1');
+      expect(result.total).toBe(105);
     });
 
-    it('should throw when product is inactive', async () => {
-      (prisma.product.findUnique as jest.Mock).mockResolvedValue({
-        id: 'prod1',
-        basePrice: 50,
-        isActive: false,
-      });
+    it('should propagate PricingService errors (inactive product)', async () => {
+      pricingService.calculateOrderPricing.mockRejectedValue(
+        new BadRequestException('Product is not available'),
+      );
 
       await expect(
         service.createOrder({
           userId: 'user1',
-          items: [{ productId: 'prod1', quantity: 1, price: 50 }],
-          subtotal: 50,
-          total: 50,
+          items: [{ productId: 'prod1', quantity: 1 }],
         }),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw when product does not exist', async () => {
-      (prisma.product.findUnique as jest.Mock).mockResolvedValue(null);
+    it('should propagate PricingService errors (product not found)', async () => {
+      pricingService.calculateOrderPricing.mockRejectedValue(
+        new NotFoundException('Product not found'),
+      );
 
       await expect(
         service.createOrder({
           userId: 'user1',
-          items: [{ productId: 'fake', quantity: 1, price: 50 }],
-          subtotal: 50,
-          total: 50,
+          items: [{ productId: 'fake', quantity: 1 }],
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should reserve stock after creating order', async () => {
+      (prisma.order.create as jest.Mock).mockImplementation(async (args: any) => ({
+        id: 'order1',
+        ...args.data,
+      }));
+
+      await service.createOrder({
+        userId: 'user1',
+        items: [{ productId: 'prod1', quantity: 2 }],
+      });
+
+      expect(mockStockService.reserveStock).toHaveBeenCalledWith(
+        'order1',
+        [{ productId: 'prod1', variationId: undefined, quantity: 2 }],
+      );
     });
   });
 
@@ -239,11 +239,7 @@ describe('OrdersService', () => {
       });
       (prisma.orderStatusHistory.create as jest.Mock).mockResolvedValue({});
 
-      const result = await service.updateStatus(
-        'order1',
-        'CONFIRMED',
-        'admin1',
-      );
+      const result = await service.updateStatus('order1', 'CONFIRMED', 'admin1');
 
       expect(result.status).toBe('CONFIRMED');
       expect(prisma.orderStatusHistory.create).toHaveBeenCalledWith({
@@ -274,6 +270,25 @@ describe('OrdersService', () => {
         service.updateStatus('fake', 'CONFIRMED', 'admin1'),
       ).rejects.toThrow(NotFoundException);
     });
+
+    it('should release stock on CANCELLED', async () => {
+      (prisma.order.findUnique as jest.Mock).mockResolvedValue({
+        id: 'order1',
+        status: 'PENDING',
+      });
+      (prisma.order.update as jest.Mock).mockResolvedValue({
+        id: 'order1',
+        status: 'CANCELLED',
+      });
+      (prisma.orderStatusHistory.create as jest.Mock).mockResolvedValue({});
+
+      await service.updateStatus('order1', 'CANCELLED', 'admin1');
+
+      expect(mockStockService.releaseStock).toHaveBeenCalledWith(
+        'order1',
+        'ORDER_CANCELLED',
+      );
+    });
   });
 
   describe('findAll', () => {
@@ -281,11 +296,7 @@ describe('OrdersService', () => {
       (prisma.order.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.order.count as jest.Mock).mockResolvedValue(0);
 
-      const result = await service.findAll({
-        page: 1,
-        perPage: 10,
-        userId: 'user1',
-      });
+      const result = await service.findAll({ page: 1, perPage: 10, userId: 'user1' });
 
       expect(result.meta).toHaveProperty('total', 0);
       expect(result.meta).toHaveProperty('page', 1);

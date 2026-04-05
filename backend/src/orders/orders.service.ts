@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StockService } from '../stock/stock.service';
+import { PricingService } from '../pricing/pricing.service';
 import { randomBytes } from 'crypto';
 
 // State machine: valid transitions
@@ -23,6 +24,7 @@ export class OrdersService {
   constructor(
     private prisma: PrismaService,
     private stockService: StockService,
+    private pricingService: PricingService,
   ) {}
 
   isValidTransition(from: string, to: string): boolean {
@@ -40,89 +42,55 @@ export class OrdersService {
     items: Array<{
       productId: string;
       variationId?: string;
+      scaleId?: string;
       quantity: number;
-      price: number; // ignorado — recalculado do banco
+      price?: number; // ignorado — recalculado pelo PricingService
     }>;
-    subtotal: number; // ignorado — recalculado do banco
+    subtotal?: number; // ignorado
     shipping?: number;
-    discount?: number; // ignorado — calculado pelo PaymentsService
-    total: number; // ignorado — recalculado do banco
+    shippingZipCode?: string;
+    discount?: number; // ignorado — calculado pelo PricingService
+    total?: number; // ignorado
     shippingAddress?: string;
     shippingServiceName?: string;
-    couponId?: string;
+    couponCode?: string;
     paymentMethod?: string;
   }) {
-    // SEGURANÇA: Recalcular TODOS os preços a partir do banco de dados
-    // Nunca confiar nos valores enviados pelo frontend
-    const verifiedItems: Array<{
-      productId: string;
-      variationId?: string;
-      quantity: number;
-      price: number;
-    }> = [];
-
-    for (const item of params.items) {
-      const product = await this.prisma.product.findUnique({
-        where: { id: item.productId },
-        include: { variations: true },
-      });
-
-      if (!product) {
-        throw new BadRequestException(`Produto não encontrado: ${item.productId}`);
-      }
-
-      if (!product.isActive) {
-        throw new BadRequestException(`Produto indisponível: ${product.name ?? item.productId}`);
-      }
-
-      let unitPrice: number;
-
-      if (item.variationId) {
-        const variation = product.variations?.find(
-          (v: { id: string }) => v.id === item.variationId,
-        );
-        if (!variation) {
-          throw new BadRequestException(`Variação não encontrada: ${item.variationId}`);
-        }
-        unitPrice = variation.salePrice ?? variation.price;
-      } else {
-        unitPrice = product.salePrice ?? product.basePrice;
-      }
-
-      verifiedItems.push({
-        productId: item.productId,
-        variationId: item.variationId,
-        quantity: item.quantity,
-        price: unitPrice,
-      });
-    }
-
-    // Recalcular subtotal e total com preços verificados do banco
-    const subtotal = Math.round(
-      verifiedItems.reduce((sum, i) => sum + i.price * i.quantity, 0) * 100,
-    ) / 100;
-    const shipping = params.shipping ?? 0;
-    const total = Math.round((subtotal + shipping) * 100) / 100;
+    // SEGURANÇA: PricingService recalcula TODOS os preços do banco
+    // Valida escala, cupom, frete — nunca confia no frontend
+    const pricing = await this.pricingService.calculateOrderPricing({
+      userId: params.userId,
+      items: params.items.map((i) => ({
+        productId: i.productId,
+        variationId: i.variationId,
+        scaleId: i.scaleId,
+        quantity: i.quantity,
+      })),
+      couponCode: params.couponCode,
+      shippingAmount: params.shipping ?? 0,
+      shippingZipCode: params.shippingZipCode,
+      paymentMethod: params.paymentMethod,
+    });
 
     const order = await this.prisma.order.create({
       data: {
         number: this.generateOrderNumber(),
         userId: params.userId,
         status: 'PENDING',
-        subtotal,
-        shipping,
-        discount: 0, // desconto será aplicado no PaymentsService
-        total,
+        subtotal: pricing.subtotal,
+        shipping: pricing.shipping,
+        discount: pricing.couponDiscount,
+        total: pricing.total,
         shippingAddress: params.shippingAddress,
         shippingServiceName: params.shippingServiceName,
-        couponId: params.couponId,
+        couponId: pricing.couponId,
         paymentMethod: params.paymentMethod,
         items: {
-          create: verifiedItems.map((item) => ({
+          create: pricing.items.map((item) => ({
             productId: item.productId,
             variationId: item.variationId,
             quantity: item.quantity,
-            price: item.price,
+            price: item.unitPrice,
           })),
         },
       },
@@ -132,7 +100,7 @@ export class OrdersService {
     // Reservar estoque (incrementa reservedStock, não decrementa stock)
     await this.stockService.reserveStock(
       order.id,
-      verifiedItems.map((item) => ({
+      pricing.items.map((item) => ({
         productId: item.productId,
         variationId: item.variationId,
         quantity: item.quantity,

@@ -60,6 +60,8 @@ Referência: `docs/02-TDD-STRATEGY.md`
 
 **NUNCA confie em dados do frontend.** Todo cálculo de preço, desconto, frete e validação é feito exclusivamente no backend.
 
+**PricingService (`backend/src/pricing/`) é o ÚNICO ponto de cálculo de preço para pedidos.** Todo `createOrder()` passa pelo `PricingService.calculateOrderPricing()` que valida: preço base do banco, variação, escala (percentageIncrease), cupom (com restrições categoria/tag), frete, e desconto por método de pagamento. **Regra nova que afeta preço = método novo no PricingService + teste isolado + teste de combinação no "CHECKOUT COMPLETO".** Ver `docs/02-TDD-STRATEGY.md` seção "Regra de Ouro".
+
 Regras críticas:
 - DTOs: `whitelist: true` + `forbidNonWhitelisted: true`
 - Registro: role CUSTOMER forçado (campo role NÃO existe no DTO)
@@ -185,12 +187,12 @@ Configurável no admin (PIX = 10%, Boleto = 5%). Calculado sobre subtotal (sem f
 
 **Fases 0-6 completas.** Backend, frontend, deploy, CI/CD — tudo implementado e no ar.
 
-**Números:** 43 test suites (43 pass), 379 testes, ~40 rotas frontend, 0 erros TS.
+**Números:** 44 test suites (44 pass), 412 testes, ~40 rotas frontend, 0 erros TS.
 
 **Site:** https://elitepinup3d.com.br (API + Frontend funcionando)
 **Admin:** rafaelzezao@gmail.com / Admin@2026!
 
-**Módulos implementados:** Auth, Users, Addresses, Categories, Tags, Brands, Scales (ScaleRuleSet + regras por produto/tag/categoria), Products (variações dropdown + escalas radio + atributos + galeria MediaFile 4 tamanhos WebP), Bundles, Cart (Redis + anônimo + escala/variação com chave composta), Orders (state machine), Payments (MP: PIX + Cartão + Boleto), Shipping (Melhor Envio real), Coupons (restrições categoria/tag/cliente), Wishlist, Reviews (recompensa cupom), Search (Elasticsearch), SEO, Blog, Email (React Email + templates editáveis admin + BullMQ), Stock (reserva/confirma/libera/ajuste + audit log), Media (Sharp → 4 WebP), Dashboard admin, Settings (key-value), CheckoutLog (debug).
+**Módulos implementados:** Auth, Users, Addresses, Categories, Tags, Brands, Scales (ScaleRuleSet com escalas inline por regra, prioridade produto/tag/categoria), Products (variações dropdown + escalas radio + atributos + galeria MediaFile 4 tamanhos WebP), Bundles, Cart (Redis + anônimo + escala/variação com chave composta), Orders (state machine), **Pricing (validação completa: base/variação/escala/cupom/frete/pagamento)**, Payments (MP: PIX + Cartão + Boleto), Shipping (Melhor Envio real), Coupons (restrições categoria/tag/cliente), Wishlist, Reviews (recompensa cupom), Search (Elasticsearch), SEO, Blog, Email (React Email + templates editáveis admin + BullMQ), Stock (reserva/confirma/libera/ajuste + audit log), Media (Sharp → 4 WebP), Dashboard admin, Settings (key-value), CheckoutLog (debug).
 
 ---
 
@@ -235,6 +237,8 @@ Estas são decisões e problemas que DEVEM ser lembrados para evitar retrabalho:
 | Migrations manuais em prod | Sem `.env` local, `prisma migrate deploy` falha. Rodar SQL direto via `docker exec elitepinup_db psql`. Colunas são camelCase (Prisma sem @map) |
 | Webhook MP: data.id no query param | HMAC calculado com data.id do query param, não do body |
 | Desconto sobre subtotal | PIX/Boleto desconto = subtotal × %. NUNCA incluir frete no cálculo |
+| PricingService obrigatório | Todo createOrder() passa pelo PricingService. Regra de preço nova = teste no "CHECKOUT COMPLETO" |
+| Escalas simplificadas | Scale table removida. ScaleRuleItem tem name próprio (não FK). 1 página admin |
 | Abas CSS toggle (não unmount) | ProductForm renderiza todas as abas, toggle via CSS hidden/block. Evita perda de dados |
 | Cart chave composta | Unicidade = productId + variationId + scaleId. Remove/update usam query params `?variationId=&scaleId=` |
 
@@ -242,9 +246,16 @@ Estas são decisões e problemas que DEVEM ser lembrados para evitar retrabalho:
 
 ## Última Sessão
 
-- **Data:** 05/04/2026 (sessão 4)
-- **Feito:** Bugfixes (checkout CEP duplicado, variações não salvavam, audit log estoque). Sistema completo de escalas: ScaleRuleSet com regras por produto/tag/categoria, variações como dropdown, escalas como radio buttons com preço dinâmico, carrinho com chave composta (productId+variationId+scaleId), admin CRUD regras de escala
-- **Total:** 43 suites (43 pass), 379 testes, 0 erros TS
+- **Data:** 05/04/2026 (sessão 5)
+- **Feito:**
+  - Fix: migrations automáticas no deploy (docker-entrypoint.sh + prisma migrate deploy)
+  - Fix: baseline das 3 migrations existentes no servidor
+  - Simplificação escalas: removeu tabela Scale, ScaleRuleItem com name próprio, 1 página admin (entrar na regra)
+  - **PricingService**: validação completa de preços no checkout (base/variação/escala/cupom/frete/pagamento)
+  - Orders.createOrder() agora delega ao PricingService
+  - Payments.createPayment() agora inclui couponDiscount no amount
+  - Doc 02-TDD-STRATEGY.md: "Regra de Ouro — Testes de Precificação" + checklist Orders/Pricing
+- **Total:** 44 suites (44 pass), 412 testes, 0 erros TS
 - **Próximo passo:**
   1. Testar fluxo completo: criar regra escala → atribuir a categoria → produto mostra escalas → comprar → carrinho correto
   2. Email alerta de estoque baixo

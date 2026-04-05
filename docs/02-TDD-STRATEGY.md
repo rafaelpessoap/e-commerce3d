@@ -746,6 +746,59 @@ test.describe('Fluxo de Compra', () => {
 
 ---
 
+## Regra de Ouro — Testes de Precificação (OBRIGATÓRIO)
+
+> **Qualquer código que influencie o valor final de um produto ou pedido DEVE ter testes no `PricingService`. Sem exceção.**
+
+### O que influencia o preço
+
+Tudo abaixo passa pelo `PricingService.calculateOrderPricing()`:
+
+- Preço base do produto (`basePrice`, `salePrice`)
+- Preço de variação (`variation.price`, `variation.salePrice`)
+- Incremento de escala (`ScaleRuleItem.percentageIncrease`)
+- Cupom de desconto (PERCENTAGE, FIXED, FREE_SHIPPING)
+- Restrição de cupom por categoria/tag
+- Desconto por método de pagamento (PIX, Boleto)
+- Valor do frete
+- Frete grátis (por cupom ou regra de valor mínimo)
+- **Qualquer regra futura** que altere subtotal, desconto ou total
+
+### Checklist obrigatório ao criar/alterar regra de preço
+
+1. [ ] Existe teste unitário da regra isolada no `describe` correspondente de `pricing.service.spec.ts`
+2. [ ] Existe teste de combinação no `describe('combinações — CHECKOUT COMPLETO')` que inclui a nova regra junto com as existentes
+3. [ ] O `PricingService.calculateOrderPricing()` chama a nova regra (não pode ficar "solta" no código)
+4. [ ] O teste de combinação verifica o `total` final com todos os fatores aplicados (escala + cupom + frete + pagamento)
+5. [ ] Se a regra tem restrições (ex: cupom por categoria), existe teste que valida a rejeição quando a restrição não é atendida
+
+### Como adicionar uma regra de preço nova
+
+```
+1. Criar método privado no PricingService (ex: applyLoyaltyDiscount())
+2. Adicionar describe('loyalty discount') no spec com testes da regra isolada
+3. Adicionar caso no describe('combinações — CHECKOUT COMPLETO') combinando a regra nova com as existentes
+4. Chamar o método em calculateOrderPricing() na posição correta da sequência
+5. Se o teste de combinação NÃO incluir a nova regra → PR DEVE SER REJEITADO
+```
+
+### O guardião final
+
+O `describe('combinações — CHECKOUT COMPLETO')` em `pricing.service.spec.ts` simula o fluxo real do checkout com TODAS as regras ativas. Se uma regra nova não aparece nesse bloco, ela não foi integrada ao fluxo de finalização e o pedido será calculado incorretamente.
+
+### Estrutura de testes do PricingService
+
+```
+pricing.service.spec.ts
+  describe('preço base')         → basePrice, salePrice, variation
+  describe('escala')             → percentageIncrease, prioridade, noScales
+  describe('cupom')              → PERCENTAGE, FIXED, FREE_SHIPPING, restrições
+  describe('desconto pagamento') → PIX 10%, Boleto 5%, CC 0%
+  describe('combinações')        → CHECKOUT COMPLETO — todas as regras juntas
+```
+
+---
+
 ## Checklist por Módulo — O que testar
 
 ### Auth
@@ -792,16 +845,32 @@ test.describe('Fluxo de Compra', () => {
 - [ ] Bundle com escala calcula preço dos componentes na escala
 
 ### Orders / State Machine (CRÍTICO)
-- [ ] Criar pedido calcula total corretamente
-- [ ] Criar pedido valida estoque de todos os itens
-- [ ] Criar pedido desconta estoque dos produtos
-- [ ] Status inicial é `pending_payment`
-- [ ] Transições válidas: pending_payment → payment_approved → production_queue → producing → packaging → shipped → delivered
-- [ ] Transições inválidas são rejeitadas (pending_payment → shipped)
+- [ ] Status inicial é `PENDING`
+- [ ] Transições válidas: PENDING → CONFIRMED → PROCESSING → SHIPPED → DELIVERED
+- [ ] Transições inválidas são rejeitadas
 - [ ] Cada transição registra histórico com timestamp
 - [ ] Cada transição dispara job de email na fila
 - [ ] Cancelamento restaura estoque dos produtos
-- [ ] Admin pode cadastrar novos status
+- [ ] createOrder delega cálculo ao PricingService
+
+### Orders / Pricing — CHECKOUT (CRÍTICO — ver PricingService acima)
+- [ ] Preço base recalculado do banco (ignora frontend)
+- [ ] Variação usa salePrice quando existe
+- [ ] Escala aplica percentageIncrease correto
+- [ ] Escala respeita prioridade (produto > tag > categoria)
+- [ ] Escala com noScales=true não aplica incremento
+- [ ] Cupom PERCENTAGE desconta % do subtotal
+- [ ] Cupom FIXED desconta valor limitado ao subtotal
+- [ ] Cupom FREE_SHIPPING zera o frete
+- [ ] Cupom com restrição de categoria rejeita itens fora
+- [ ] Cupom com restrição de tag rejeita itens fora
+- [ ] Desconto PIX = 10% do subtotal (NÃO do total)
+- [ ] Desconto Boleto = 5% do subtotal
+- [ ] Desconto NUNCA aplicado sobre frete
+- [ ] Total = subtotal - cupomDesconto + frete
+- [ ] Total nunca negativo
+- [ ] Mesmo produto com escalas diferentes = linhas separadas
+- [ ] Combinação completa: variação + escala + cupom + PIX = valor correto
 
 ### Payments
 - [ ] Criar preference no Mercado Pago com dados corretos

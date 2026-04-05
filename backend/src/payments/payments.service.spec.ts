@@ -337,6 +337,36 @@ describe('PaymentsService', () => {
     });
   });
 
+  describe('createPayment — coupon discount integrated', () => {
+    it('should subtract coupon discount (order.discount) from payment amount', async () => {
+      const orderWithCoupon = {
+        ...mockOrder,
+        discount: 15, // cupom de R$15
+      };
+      (prisma.order.findUnique as jest.Mock).mockResolvedValue(orderWithCoupon);
+      (prisma.payment.create as jest.Mock).mockImplementation(async (args: any) => ({
+        id: 'pay1',
+        ...args.data,
+      }));
+      mpClient.createPixPayment.mockResolvedValue({
+        id: 'mp1',
+        status: 'pending',
+        point_of_interaction: { transaction_data: { qr_code: 'qr', qr_code_base64: 'qrb64', ticket_url: 'url' } },
+        date_of_expiration: '2026-04-06T00:00:00Z',
+      });
+
+      await service.createPayment('order1', 'pix', {
+        payerEmail: 'buyer@test.com',
+        payerCpf: '12345678909',
+        payerName: 'Test User',
+      });
+
+      const createCall = (prisma.payment.create as jest.Mock).mock.calls[0][0];
+      // amount = subtotal(100) - PIX(10) - coupon(15) + shipping(15) = 90
+      expect(createCall.data.amount).toBe(90);
+    });
+  });
+
   // ─── createPayment: Edge Cases ───────────────────────────────
 
   describe('createPayment — edge cases', () => {
