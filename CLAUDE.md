@@ -191,7 +191,7 @@ Configurável no admin (PIX = 10%, Boleto = 5%). Calculado sobre subtotal (sem f
 
 **Fases 0-6 completas.** Backend, frontend, deploy, CI/CD — tudo implementado e no ar.
 
-**Números:** ~43 test suites, ~340 testes, ~40 rotas frontend, 0 lint errors.
+**Números:** ~43 test suites, ~379 testes, ~40 rotas frontend, 0 lint errors.
 
 **Site:** https://elitepinup3d.com.br (API + Frontend funcionando)
 **Admin:** rafaelzezao@gmail.com / Admin@2026!
@@ -202,17 +202,7 @@ Configurável no admin (PIX = 10%, Boleto = 5%). Calculado sobre subtotal (sem f
 
 ## Pendências Ativas
 
-### Prioridade Alta — Sprint Atual (Escalas + Variações + Carrinho)
-- [ ] Fase 0: Schema — ScaleRuleSet + ScaleRuleItem + campos em Product/Tag/Category
-- [ ] Fase 1: Backend CRUD regras de escala + resolveScaleRule() + endpoint for-product
-- [ ] Fase 2: Fix descricao curta HTML (dangerouslySetInnerHTML)
-- [ ] Fase 3: Backend Cart — scaleId, chave composta, preco com multiplicador
-- [ ] Fase 4: Frontend types + useCart hook com scaleId
-- [ ] Fase 5: Pagina de produto — dropdown variacao + radio escalas + preco dinâmico
-- [ ] Fase 6: Carrinho — exibir variacao/escala/producao, editar escala
-- [ ] Fase 7: Admin — pagina regras de escala + atribuir em produto/tag/categoria
-
-### Prioridade Alta — Outros
+### Prioridade Alta
 - [ ] Email de alerta de estoque baixo — `checkLowStock()` retorna dados mas NÃO envia email
 - [ ] Expiração automática de pedidos — PIX 30min, Boleto 3 dias (BullMQ delayed)
 
@@ -260,8 +250,8 @@ Estas são decisões e problemas que DEVEM ser lembrados para evitar retrabalho:
 - **Data:** 05/04/2026 (sessão 4)
 - **Feito:** Fix checkout CEP duplicado (externalCep no ShippingCalculator), fix variações não salvavam (frontend não enviava, backend não processava, schema scaleId obrigatório), fix audit log estoque no product form (não passava pelo StockService), migration scaleId opcional
 - **Total:** 43 suites (41 pass, 2 email), 343 testes, 0 erros TS
-- **Em andamento:** Sprint Escalas + Variações + Carrinho (ver plano em `.claude/plans/jiggly-jingling-grove.md`)
-- **Próximo passo:** Fase 0 — Schema ScaleRuleSet + migration
+- **Sprint Escalas concluída:** ScaleRuleSet, variação dropdown, escala radio, cart com escala, admin CRUD regras
+- **Total final:** 43 suites (41 pass, 2 email), 379 testes, 0 erros TS
 
 ---
 
