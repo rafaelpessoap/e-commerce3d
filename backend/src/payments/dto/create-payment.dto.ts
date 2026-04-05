@@ -7,6 +7,7 @@ import {
   Min,
   Max,
   IsEmail,
+  Matches,
 } from 'class-validator';
 
 export class CreatePaymentDto {
@@ -38,6 +39,7 @@ export class CreatePaymentDto {
 
   @IsOptional()
   @IsString()
+  @Matches(/^\d{11}$/, { message: 'CPF deve ter 11 dígitos numéricos' })
   payerCpf?: string;
 
   @IsOptional()

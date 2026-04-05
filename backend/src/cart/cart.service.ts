@@ -89,6 +89,13 @@ export class CartService {
   ) {
     const product = await this.prisma.product.findUnique({
       where: { id: dto.productId },
+      include: {
+        images: {
+          include: { mediaFile: true },
+          orderBy: { order: 'asc' },
+          take: 1,
+        },
+      },
     });
 
     if (!product) {
@@ -102,7 +109,8 @@ export class CartService {
     // Resolve base price, variation info
     let basePrice = product.salePrice ?? product.basePrice;
     let variationName: string | undefined;
-    let image: string | undefined;
+    // Fallback: imagem principal do produto
+    let image: string | undefined = product.images?.[0]?.mediaFile?.thumb ?? undefined;
 
     if (dto.variationId) {
       const variation = await this.prisma.productVariation.findUnique({
@@ -111,7 +119,7 @@ export class CartService {
       if (variation) {
         basePrice = variation.salePrice ?? variation.price;
         variationName = variation.name;
-        image = variation.image ?? undefined;
+        if (variation.image) image = variation.image; // variation override
       }
     }
 

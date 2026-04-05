@@ -21,6 +21,22 @@ const PAYMENT_METHODS = [
   { id: 'credit_card', label: 'Cartão de Crédito', discount: '' },
 ];
 
+function isValidCpf(cpf: string): boolean {
+  const digits = cpf.replace(/\D/g, '');
+  if (digits.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(digits)) return false; // 111.111.111-11 etc.
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += parseInt(digits[i]) * (10 - i);
+  let remainder = (sum * 10) % 11;
+  if (remainder === 10) remainder = 0;
+  if (remainder !== parseInt(digits[9])) return false;
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += parseInt(digits[i]) * (11 - i);
+  remainder = (sum * 10) % 11;
+  if (remainder === 10) remainder = 0;
+  return remainder === parseInt(digits[10]);
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, subtotal, clear } = useCartStore();
@@ -40,6 +56,14 @@ export default function CheckoutPage() {
     if (user) {
       if (user.name) setFullName(user.name);
       if (user.email) setEmail(user.email);
+      if ((user as any).cpf) {
+        const d = (user as any).cpf.replace(/\D/g, '');
+        if (d.length === 11) setCpf(`${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`);
+      }
+      if ((user as any).phone) {
+        const d = (user as any).phone.replace(/\D/g, '');
+        if (d.length >= 10) setPhone(d.length === 11 ? `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}` : `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`);
+      }
     }
   }, [user]);
 
@@ -115,8 +139,8 @@ export default function CheckoutPage() {
       setError('Preencha o nome completo.');
       return;
     }
-    if (!cpf.replace(/\D/g, '') || cpf.replace(/\D/g, '').length !== 11) {
-      setError('Preencha um CPF valido (11 digitos).');
+    if (!isValidCpf(cpf)) {
+      setError('CPF inválido. Verifique os dígitos.');
       return;
     }
     if (!phone.replace(/\D/g, '') || phone.replace(/\D/g, '').length < 10) {
@@ -177,18 +201,16 @@ export default function CheckoutPage() {
         }
       }
 
-      // 1. Criar pedido (backend recalcula preços do banco)
+      // 1. Criar pedido (backend recalcula tudo via PricingService)
       const { data: orderData } = await api.post('/orders', {
         items: items.map((i) => ({
           productId: i.productId,
           variationId: i.variationId,
+          scaleId: i.scaleId,
           quantity: i.quantity,
-          price: i.price, // ignorado pelo backend — recalculado do DB
         })),
-        subtotal, // ignorado pelo backend
         shipping: shippingCost,
-        discount: paymentDiscount, // ignorado pelo backend
-        total, // ignorado pelo backend
+        shippingZipCode: zipCode,
         paymentMethod,
         shippingAddress,
         shippingServiceName: selectedShipping.name,
@@ -492,14 +514,30 @@ export default function CheckoutPage() {
               <CardTitle className="text-lg">Resumo</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {items.map((item) => (
-                <div key={`${item.productId}-${item.variationId ?? ''}`} className="flex justify-between text-sm">
-                  <span className="text-muted-foreground truncate max-w-[60%]">
-                    {item.name} x{item.quantity}
-                  </span>
-                  <span>{formatCurrency(item.price * item.quantity)}</span>
-                </div>
-              ))}
+              {items.map((item) => {
+                const key = `${item.productId}-${item.variationId ?? ''}-${item.scaleId ?? ''}`;
+                return (
+                  <div key={key} className="flex gap-3 text-sm">
+                    {item.image && (
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-12 h-12 object-cover rounded border flex-shrink-0"
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{item.name}</p>
+                      {(item.variationName || item.scaleName) && (
+                        <p className="text-xs text-muted-foreground">
+                          {[item.variationName, item.scaleName].filter(Boolean).join(' / ')}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground">Qtd: {item.quantity}</p>
+                    </div>
+                    <span className="font-medium flex-shrink-0">{formatCurrency(item.price * item.quantity)}</span>
+                  </div>
+                );
+              })}
 
               <Separator />
 
@@ -535,12 +573,6 @@ export default function CheckoutPage() {
                 <span>Total</span>
                 <span>{formatCurrency(total)}</span>
               </div>
-
-              {selectedShipping && selectedShipping.deliveryDays > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Prazo de entrega: {selectedShipping.deliveryRange?.min}-{selectedShipping.deliveryRange?.max} dias úteis
-                </p>
-              )}
 
               {error && <p className="text-sm text-destructive">{error}</p>}
 
