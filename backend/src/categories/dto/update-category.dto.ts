@@ -20,4 +20,8 @@ export class UpdateCategoryDto {
   @IsInt()
   @Min(0)
   extraDays?: number;
+
+  @IsOptional()
+  @IsString()
+  scaleRuleSetId?: string | null;
 }

@@ -149,6 +149,15 @@ export class CreateProductDto {
     scaleId?: string;
   }>;
 
+  // Escalas
+  @IsOptional()
+  @IsString()
+  scaleRuleSetId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  noScales?: boolean;
+
   // Status
   @IsOptional()
   @IsBoolean()

@@ -60,6 +60,8 @@ export function ProductForm({ productId }: ProductFormProps) {
   const [categoryId, setCategoryId] = useState('');
   const [brandId, setBrandId] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [scaleRuleSetId, setScaleRuleSetId] = useState('');
+  const [noScales, setNoScales] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [featured, setFeatured] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -110,6 +112,14 @@ export function ProductForm({ productId }: ProductFormProps) {
     },
   });
 
+  const { data: ruleSets } = useQuery({
+    queryKey: ['admin', 'scale-rule-sets'],
+    queryFn: async () => {
+      const { data } = await api.get('/scales/rule-sets');
+      return data.data ?? [];
+    },
+  });
+
   // Populate form on edit
   useEffect(() => {
     if (existingProduct) {
@@ -134,6 +144,8 @@ export function ProductForm({ productId }: ProductFormProps) {
       setCategoryId(existingProduct.categoryId ?? '');
       setBrandId(existingProduct.brandId ?? '');
       setSelectedTagIds(existingProduct.tags?.map((t: { id: string }) => t.id) ?? []);
+      setScaleRuleSetId(existingProduct.scaleRuleSetId ?? '');
+      setNoScales(existingProduct.noScales ?? false);
       setIsActive(existingProduct.isActive ?? true);
       setFeatured(existingProduct.featured ?? false);
       // Images (with mediaFile relation)
@@ -225,6 +237,8 @@ export function ProductForm({ productId }: ProductFormProps) {
     setCategoryId('');
     setBrandId('');
     setSelectedTagIds([]);
+    setScaleRuleSetId('');
+    setNoScales(false);
     setIsActive(true);
     setFeatured(false);
     setSuccessMsg('');
@@ -265,6 +279,8 @@ export function ProductForm({ productId }: ProductFormProps) {
         isMain: img.isMain,
         order: i,
       })),
+      scaleRuleSetId: scaleRuleSetId || undefined,
+      noScales,
       isActive,
       featured,
     };
@@ -735,6 +751,35 @@ export function ProductForm({ productId }: ProductFormProps) {
                   <Plus className="h-3 w-3 mr-1" />Criar
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* ── Escalas ── */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Escalas</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Regra de escala</Label>
+                <select
+                  value={scaleRuleSetId}
+                  onChange={(e) => setScaleRuleSetId(e.target.value)}
+                  className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Herdar de tag/categoria</option>
+                  {(ruleSets as Array<{ id: string; name: string }>)?.map((rs) => (
+                    <option key={rs.id} value={rs.id}>{rs.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch checked={noScales} onCheckedChange={setNoScales} />
+                <Label className="text-sm font-medium">Escalas nao se aplicam</Label>
+              </div>
+              {noScales && (
+                <p className="text-xs text-muted-foreground">Este produto nao tera opcao de escala na loja.</p>
+              )}
             </CardContent>
           </Card>
         </div>

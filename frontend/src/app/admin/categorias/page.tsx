@@ -30,6 +30,12 @@ export default function AdminCategoriesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editExtraDays, setEditExtraDays] = useState('');
+  const [editScaleRuleSetId, setEditScaleRuleSetId] = useState('');
+
+  const { data: ruleSets } = useQuery({
+    queryKey: ['admin', 'scale-rule-sets'],
+    queryFn: async () => { const { data } = await api.get('/scales/rule-sets'); return data.data ?? []; },
+  });
 
   const { data: categories, isLoading } = useQuery({
     queryKey: ['admin', 'categories'],
@@ -53,7 +59,7 @@ export default function AdminCategoriesPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: { name: string; extraDays?: number } }) =>
+    mutationFn: ({ id, body }: { id: string; body: { name: string; extraDays?: number; scaleRuleSetId?: string | null } }) =>
       api.put(`/categories/${id}`, body),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['admin', 'categories'] });
@@ -90,6 +96,7 @@ export default function AdminCategoriesPage() {
     setEditingId(cat.id as string);
     setEditName(cat.name as string);
     setEditExtraDays(cat.extraDays != null ? String(cat.extraDays) : '');
+    setEditScaleRuleSetId((cat.scaleRuleSetId as string) ?? '');
   }
 
   function handleUpdate() {
@@ -99,6 +106,7 @@ export default function AdminCategoriesPage() {
         body: {
           name: editName,
           extraDays: editExtraDays ? parseInt(editExtraDays, 10) : undefined,
+          scaleRuleSetId: editScaleRuleSetId || null,
         },
       });
     }
@@ -151,6 +159,7 @@ export default function AdminCategoriesPage() {
                 <TableHead>Slug</TableHead>
                 <TableHead>Produtos</TableHead>
                 <TableHead>Dias Producao</TableHead>
+                <TableHead>Regra Escala</TableHead>
                 <TableHead className="w-24">Acoes</TableHead>
               </TableRow>
             </TableHeader>
@@ -200,6 +209,24 @@ export default function AdminCategoriesPage() {
                   </TableCell>
                   <TableCell>{cat._count?.products ?? 0}</TableCell>
                   <TableCell>{cat.extraDays != null ? String(cat.extraDays) : '-'}</TableCell>
+                  <TableCell>
+                    {editingId === cat.id ? (
+                      <select
+                        value={editScaleRuleSetId}
+                        onChange={(e) => setEditScaleRuleSetId(e.target.value)}
+                        className="h-8 w-full rounded-md border bg-background px-2 text-xs"
+                      >
+                        <option value="">Nenhuma</option>
+                        {(ruleSets as Array<{ id: string; name: string }>)?.map((rs) => (
+                          <option key={rs.id} value={rs.id}>{rs.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className="text-xs">
+                        {cat.scaleRuleSetId ? (ruleSets as Array<{ id: string; name: string }>)?.find((rs) => rs.id === cat.scaleRuleSetId)?.name ?? '-' : '-'}
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => startEditing(cat)}>

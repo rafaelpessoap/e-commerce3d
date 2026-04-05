@@ -121,6 +121,15 @@ export class UpdateProductDto {
     order: number;
   }>;
 
+  // Escalas
+  @IsOptional()
+  @IsString()
+  scaleRuleSetId?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  noScales?: boolean;
+
   // Variações (para produto type=variable)
   @IsOptional()
   @IsArray()

@@ -25,6 +25,13 @@ export default function AdminTagsPage() {
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState('');
   const [editExtraDays, setEditExtraDays] = useState('');
+  const [editScaleRuleSetId, setEditScaleRuleSetId] = useState('');
+  const [editNoScales, setEditNoScales] = useState(false);
+
+  const { data: ruleSets } = useQuery({
+    queryKey: ['admin', 'scale-rule-sets'],
+    queryFn: async () => { const { data } = await api.get('/scales/rule-sets'); return data.data ?? []; },
+  });
 
   const { data: tags, isLoading } = useQuery({
     queryKey: ['admin', 'tags'],
@@ -42,7 +49,7 @@ export default function AdminTagsPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: { name: string; color?: string; extraDays?: number } }) =>
+    mutationFn: ({ id, body }: { id: string; body: { name: string; color?: string; extraDays?: number; scaleRuleSetId?: string | null; noScales?: boolean } }) =>
       api.put(`/tags/${id}`, body),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['admin', 'tags'] });
@@ -66,6 +73,8 @@ export default function AdminTagsPage() {
     setEditName(t.name as string);
     setEditColor((t.color as string) ?? '');
     setEditExtraDays(t.extraDays != null ? String(t.extraDays) : '');
+    setEditScaleRuleSetId((t.scaleRuleSetId as string) ?? '');
+    setEditNoScales((t.noScales as boolean) ?? false);
   }
 
   function handleUpdate() {
@@ -76,6 +85,8 @@ export default function AdminTagsPage() {
           name: editName,
           color: editColor || undefined,
           extraDays: editExtraDays ? parseInt(editExtraDays, 10) : undefined,
+          scaleRuleSetId: editScaleRuleSetId || null,
+          noScales: editNoScales,
         },
       });
     }
@@ -117,6 +128,7 @@ export default function AdminTagsPage() {
                 <TableHead>Slug</TableHead>
                 <TableHead>Cor</TableHead>
                 <TableHead>Dias Producao</TableHead>
+                <TableHead>Regra Escala</TableHead>
                 <TableHead className="w-24">Acoes</TableHead>
               </TableRow>
             </TableHeader>
@@ -170,6 +182,30 @@ export default function AdminTagsPage() {
                   <TableCell className="font-mono text-xs text-muted-foreground">{t.slug}</TableCell>
                   <TableCell>{t.color ? <span className="inline-block w-4 h-4 rounded" style={{ backgroundColor: t.color as string }} /> : '-'}</TableCell>
                   <TableCell>{t.extraDays != null ? String(t.extraDays) : '-'}</TableCell>
+                  <TableCell>
+                    {editingId === t.id ? (
+                      <div className="space-y-1">
+                        <select
+                          value={editScaleRuleSetId}
+                          onChange={(e) => setEditScaleRuleSetId(e.target.value)}
+                          className="h-8 w-full rounded-md border bg-background px-2 text-xs"
+                        >
+                          <option value="">Nenhuma</option>
+                          {(ruleSets as Array<{ id: string; name: string }>)?.map((rs) => (
+                            <option key={rs.id} value={rs.id}>{rs.name}</option>
+                          ))}
+                        </select>
+                        <label className="flex items-center gap-1 text-xs">
+                          <input type="checkbox" checked={editNoScales} onChange={(e) => setEditNoScales(e.target.checked)} />
+                          Sem escalas
+                        </label>
+                      </div>
+                    ) : (
+                      <span className="text-xs">
+                        {(t.noScales as boolean) ? 'Sem escalas' : (t.scaleRuleSetId ? (ruleSets as Array<{ id: string; name: string }>)?.find((rs) => rs.id === t.scaleRuleSetId)?.name ?? '-' : '-')}
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => startEditing(t)}>

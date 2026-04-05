@@ -32,4 +32,8 @@ export class CreateCategoryDto {
   @IsInt()
   @Min(0)
   extraDays?: number;
+
+  @IsOptional()
+  @IsString()
+  scaleRuleSetId?: string;
 }

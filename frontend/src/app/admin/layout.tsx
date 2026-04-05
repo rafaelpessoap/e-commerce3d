@@ -38,6 +38,7 @@ const NAV_ITEMS = [
   { href: '/admin/galeria', label: 'Galeria', icon: ImageIcon },
   { href: '/admin/atributos', label: 'Atributos', icon: Layers },
   { href: '/admin/escalas', label: 'Escalas', icon: Ruler },
+  { href: '/admin/escalas/regras', label: 'Regras Escala', icon: Ruler },
   { href: '/admin/estoque', label: 'Estoque', icon: BarChart3 },
   { href: '/admin/frete', label: 'Frete', icon: Truck },
   { href: '/admin/emails', label: 'Emails', icon: Mail },
