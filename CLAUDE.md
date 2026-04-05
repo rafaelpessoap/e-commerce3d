@@ -58,9 +58,7 @@ Referência: `docs/02-TDD-STRATEGY.md`
 
 ## Regra #2: Segurança desde o Dia 1
 
-**NUNCA confie em dados do frontend.** Todo cálculo de preço, desconto, frete e validação é feito exclusivamente no backend.
-
-**PricingService (`backend/src/pricing/`) é o ÚNICO ponto de cálculo de preço para pedidos.** Todo `createOrder()` passa pelo `PricingService.calculateOrderPricing()` que valida: preço base do banco, variação, escala (percentageIncrease), cupom (com restrições categoria/tag), frete, e desconto por método de pagamento. **Regra nova que afeta preço = método novo no PricingService + teste isolado + teste de combinação no "CHECKOUT COMPLETO".** Ver `docs/02-TDD-STRATEGY.md` seção "Regra de Ouro".
+**NUNCA confie em dados do frontend.** Todo cálculo de preço, desconto, frete e validação é feito exclusivamente no backend via `PricingService` (ver Regra #6).
 
 Regras críticas:
 - DTOs: `whitelist: true` + `forbidNonWhitelisted: true`
@@ -149,6 +147,44 @@ Configurável por faixa de CEP + valor mínimo. Desconto de pagamento NUNCA se a
 
 ### Desconto por Método de Pagamento
 Configurável no admin (PIX = 10%, Boleto = 5%). Calculado sobre subtotal (sem frete).
+
+---
+
+## Regra #6: Todo Preço Passa pelo PricingService — SEM EXCEÇÃO
+
+**`PricingService` (`backend/src/pricing/`) é o ÚNICO lugar onde preços de pedido são calculados.**
+
+Qualquer feature nova que altere o valor de um produto ou pedido — desconto, taxa, promoção, regra de fidelidade, cashback, frete diferenciado, o que for — DEVE seguir este fluxo:
+
+### Implementação (obrigatório)
+
+1. Criar método privado no `PricingService` (ex: `applyLoyaltyDiscount()`)
+2. Chamar esse método dentro de `calculateOrderPricing()` na posição correta da sequência
+3. **NUNCA** calcular preço/desconto fora do PricingService (nem no controller, nem no orders.service, nem no frontend)
+
+### Testes (obrigatório — a feature está INCOMPLETA sem isso)
+
+1. Adicionar `describe('nome da regra')` em `pricing.service.spec.ts` com testes da regra isolada
+2. Adicionar caso no `describe('combinações — CHECKOUT COMPLETO')` que combina a regra nova com as existentes
+3. O teste de combinação DEVE verificar o `total` final com **todos** os fatores ativos (base + variação + escala + cupom + frete + pagamento + regra nova)
+
+### O que é "CHECKOUT COMPLETO"?
+
+O `describe('combinações — CHECKOUT COMPLETO')` em `pricing.service.spec.ts` é o **guardião final**. Ele simula o checkout real com TODAS as regras ativas ao mesmo tempo. Se a regra nova não aparece nesse bloco, ela não foi integrada à finalização de compra e **o pedido será calculado errado em produção**.
+
+### Regras que hoje passam pelo PricingService
+
+| Passo | Regra | Método |
+|-------|-------|--------|
+| 1 | Preço base / variação / salePrice | `verifyItems()` |
+| 2 | Escala (percentageIncrease) | `verifyItems()` → `ScalesService` |
+| 3 | Cupom (%, fixo, frete grátis, restrições) | `applyCoupon()` → `CouponsService` |
+| 4 | Frete (validação, free shipping) | `resolveShipping()` |
+| 5 | Desconto pagamento (PIX/Boleto) | `calculatePaymentDiscount()` → `PaymentsService` |
+
+**Ao adicionar regra nova:** inserir linha nesta tabela + atualizar CLAUDE.md.
+
+Referência: `docs/02-TDD-STRATEGY.md` seção "Regra de Ouro — Testes de Precificação"
 
 ---
 
