@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -76,6 +76,22 @@ export default function CheckoutPage() {
     } catch { return null; }
   });
 
+  // Saved addresses
+  interface SavedAddress {
+    id: string;
+    postalCode: string;
+    street: string;
+    number: string;
+    complement?: string;
+    neighborhood: string;
+    city: string;
+    state: string;
+    isDefault?: boolean;
+  }
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [addressMode, setAddressMode] = useState<'saved' | 'new'>('new');
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+
   // Address fields — restore CEP from cart
   const [zipCode, setZipCode] = useState(() => {
     if (typeof window === 'undefined') return '';
@@ -90,9 +106,36 @@ export default function CheckoutPage() {
   const [cepLoading, setCepLoading] = useState(false);
   const [cepError, setCepError] = useState('');
 
-  // Auto-fill address if CEP was saved from cart
+  // Load saved addresses
   useEffect(() => {
-    if (zipCode.length === 8) {
+    api.get('/addresses').then(({ data }) => {
+      const addrs = data.data ?? [];
+      setSavedAddresses(addrs);
+      if (addrs.length > 0) {
+        setAddressMode('saved');
+        const defaultAddr = addrs.find((a: SavedAddress) => a.isDefault) ?? addrs[0];
+        selectSavedAddress(defaultAddr);
+      }
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const selectSavedAddress = useCallback((addr: SavedAddress) => {
+    setSelectedAddressId(addr.id);
+    setZipCode(addr.postalCode);
+    setStreet(addr.street);
+    setNumber(addr.number);
+    setComplement(addr.complement ?? '');
+    setNeighborhood(addr.neighborhood);
+    setCity(addr.city);
+    setState(addr.state);
+    // Reset shipping when address changes
+    setSelectedShipping(null);
+  }, []);
+
+  // Auto-fill address if CEP was saved from cart (only for new address mode)
+  useEffect(() => {
+    if (addressMode === 'new' && zipCode.length === 8) {
       handleCepLookup(zipCode);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -360,85 +403,159 @@ export default function CheckoutPage() {
               <CardTitle className="text-lg">Endereço de Entrega</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* CEP */}
-              <div className="space-y-2">
-                <Label htmlFor="zipCode">CEP</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="zipCode"
-                    placeholder="00000-000"
-                    value={zipCode}
-                    onChange={(e) => handleCepLookup(e.target.value)}
-                    maxLength={9}
-                    className="max-w-[160px]"
-                  />
-                  {cepLoading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground self-center" />}
-                </div>
-                {cepError && <p className="text-xs text-destructive">{cepError}</p>}
-              </div>
-
-              {/* Rua + Número */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2 space-y-2">
-                  <Label htmlFor="street">Rua</Label>
-                  <Input
-                    id="street"
-                    value={street}
-                    onChange={(e) => setStreet(e.target.value)}
-                    placeholder="Rua, Avenida..."
-                  />
-                </div>
+              {/* Saved addresses */}
+              {savedAddresses.length > 0 && (
                 <div className="space-y-2">
-                  <Label htmlFor="number">Número</Label>
-                  <Input
-                    id="number"
-                    value={number}
-                    onChange={(e) => setNumber(e.target.value)}
-                    placeholder="123"
-                  />
-                </div>
-              </div>
+                  {savedAddresses.map((addr) => (
+                    <label
+                      key={addr.id}
+                      className={`flex items-start gap-3 border rounded-lg p-4 cursor-pointer transition-colors ${
+                        addressMode === 'saved' && selectedAddressId === addr.id
+                          ? 'border-primary bg-primary/5'
+                          : 'hover:border-muted-foreground/30'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="address"
+                        checked={addressMode === 'saved' && selectedAddressId === addr.id}
+                        onChange={() => {
+                          setAddressMode('saved');
+                          selectSavedAddress(addr);
+                        }}
+                        className="accent-primary mt-0.5"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">
+                          {addr.street}, {addr.number}
+                          {addr.complement ? ` - ${addr.complement}` : ''}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {addr.neighborhood} - {addr.city}/{addr.state} - CEP {addr.postalCode}
+                        </p>
+                      </div>
+                      {addr.isDefault && (
+                        <span className="text-xs text-primary font-medium shrink-0">Padrão</span>
+                      )}
+                    </label>
+                  ))}
 
-              {/* Complemento */}
-              <div className="space-y-2">
-                <Label htmlFor="complement">Complemento <span className="text-muted-foreground">(opcional)</span></Label>
-                <Input
-                  id="complement"
-                  value={complement}
-                  onChange={(e) => setComplement(e.target.value)}
-                  placeholder="Apto, bloco..."
-                />
-              </div>
+                  {/* New address option */}
+                  <label
+                    className={`flex items-center gap-3 border rounded-lg p-4 cursor-pointer transition-colors ${
+                      addressMode === 'new'
+                        ? 'border-primary bg-primary/5'
+                        : 'hover:border-muted-foreground/30'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="address"
+                      checked={addressMode === 'new'}
+                      onChange={() => {
+                        setAddressMode('new');
+                        setSelectedAddressId(null);
+                        setZipCode('');
+                        setStreet('');
+                        setNumber('');
+                        setComplement('');
+                        setNeighborhood('');
+                        setCity('');
+                        setState('');
+                        setSelectedShipping(null);
+                      }}
+                      className="accent-primary"
+                    />
+                    <Plus className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Novo endereço</span>
+                  </label>
+                </div>
+              )}
 
-              {/* Bairro + Cidade + Estado */}
-              <div className="grid grid-cols-5 gap-3">
-                <div className="col-span-2 space-y-2">
-                  <Label htmlFor="neighborhood">Bairro</Label>
-                  <Input
-                    id="neighborhood"
-                    value={neighborhood}
-                    onChange={(e) => setNeighborhood(e.target.value)}
-                  />
+              {/* New address form */}
+              {(addressMode === 'new' || savedAddresses.length === 0) && (
+                <div className="space-y-4">
+                  {/* CEP */}
+                  <div className="space-y-2">
+                    <Label htmlFor="zipCode">CEP</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="zipCode"
+                        placeholder="00000-000"
+                        value={zipCode}
+                        onChange={(e) => handleCepLookup(e.target.value)}
+                        maxLength={9}
+                        className="max-w-[160px]"
+                      />
+                      {cepLoading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground self-center" />}
+                    </div>
+                    {cepError && <p className="text-xs text-destructive">{cepError}</p>}
+                  </div>
+
+                  {/* Rua + Número */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-2 space-y-2">
+                      <Label htmlFor="street">Rua</Label>
+                      <Input
+                        id="street"
+                        value={street}
+                        onChange={(e) => setStreet(e.target.value)}
+                        placeholder="Rua, Avenida..."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="number">Número</Label>
+                      <Input
+                        id="number"
+                        value={number}
+                        onChange={(e) => setNumber(e.target.value)}
+                        placeholder="123"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Complemento */}
+                  <div className="space-y-2">
+                    <Label htmlFor="complement">Complemento <span className="text-muted-foreground">(opcional)</span></Label>
+                    <Input
+                      id="complement"
+                      value={complement}
+                      onChange={(e) => setComplement(e.target.value)}
+                      placeholder="Apto, bloco..."
+                    />
+                  </div>
+
+                  {/* Bairro + Cidade + Estado */}
+                  <div className="grid grid-cols-5 gap-3">
+                    <div className="col-span-2 space-y-2">
+                      <Label htmlFor="neighborhood">Bairro</Label>
+                      <Input
+                        id="neighborhood"
+                        value={neighborhood}
+                        onChange={(e) => setNeighborhood(e.target.value)}
+                      />
+                    </div>
+                    <div className="col-span-2 space-y-2">
+                      <Label htmlFor="city">Cidade</Label>
+                      <Input
+                        id="city"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="state">UF</Label>
+                      <Input
+                        id="state"
+                        value={state}
+                        onChange={(e) => setState(e.target.value.toUpperCase())}
+                        maxLength={2}
+                        placeholder="SP"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="col-span-2 space-y-2">
-                  <Label htmlFor="city">Cidade</Label>
-                  <Input
-                    id="city"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="state">UF</Label>
-                  <Input
-                    id="state"
-                    value={state}
-                    onChange={(e) => setState(e.target.value.toUpperCase())}
-                    maxLength={2}
-                    placeholder="SP"
-                  />
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
@@ -527,10 +644,11 @@ export default function CheckoutPage() {
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{item.name}</p>
-                      {(item.variationName || item.scaleName) && (
-                        <p className="text-xs text-muted-foreground">
-                          {[item.variationName, item.scaleName].filter(Boolean).join(' / ')}
-                        </p>
+                      {item.variationName && (
+                        <p className="text-xs text-muted-foreground">Modelo: {item.variationName}</p>
+                      )}
+                      {item.scaleName && (
+                        <p className="text-xs text-muted-foreground">Escala: {item.scaleName}</p>
                       )}
                       <p className="text-xs text-muted-foreground">Qtd: {item.quantity}</p>
                     </div>

@@ -264,18 +264,15 @@ export function ProductVariationsAndShipping({
                       className="accent-primary"
                     />
                     <div className="flex-1">
-                      <span className="font-medium text-sm">{item.name}</span>
-                      {extraPct > 0 && (
-                        <span className="text-xs text-muted-foreground ml-2">
-                          +{extraPct}% sobre o base
-                        </span>
-                      )}
-                    </div>
-                    {extraPct > 0 && rawBasePrice > 0 && (
-                      <span className="text-sm font-medium text-primary">
-                        +{formatCurrency(extraPrice)}
+                      <span className="font-medium text-sm">
+                        {item.name}
+                        {extraPct > 0 && rawBasePrice > 0 && (
+                          <span className="text-sm font-medium text-primary ml-2">
+                            (+{formatCurrency(extraPrice)})
+                          </span>
+                        )}
                       </span>
-                    )}
+                    </div>
                   </label>
                 );
               })}

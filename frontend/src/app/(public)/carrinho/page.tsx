@@ -158,9 +158,6 @@ export default function CartPage() {
                 {item.scaleName && (
                   <p className="text-xs text-muted-foreground">
                     Escala: {item.scaleName}
-                    {item.scalePercentage && item.scalePercentage > 0 && (
-                      <span className="text-primary ml-1">(+{item.scalePercentage}%)</span>
-                    )}
                   </p>
                 )}
 

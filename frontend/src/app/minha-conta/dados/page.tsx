@@ -15,6 +15,17 @@ export default function ProfilePage() {
   const setUser = useAuthStore((s) => s.setUser);
 
   const [name, setName] = useState(user?.name ?? '');
+  const [cpf, setCpf] = useState(() => {
+    const d = user?.cpf?.replace(/\D/g, '') ?? '';
+    if (d.length === 11) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
+    return d;
+  });
+  const [phone, setPhone] = useState(() => {
+    const d = user?.phone?.replace(/\D/g, '') ?? '';
+    if (d.length === 11) return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+    if (d.length === 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;
+    return d;
+  });
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
 
@@ -28,8 +39,14 @@ export default function ProfilePage() {
     setSaving(true);
     setMsg('');
     try {
-      const { data } = await api.put('/users/me', { name });
-      setUser({ ...user!, name: data.data.name });
+      const cpfDigits = cpf.replace(/\D/g, '');
+      const phoneDigits = phone.replace(/\D/g, '');
+      const { data } = await api.put('/users/me', {
+        name,
+        ...(cpfDigits.length === 11 ? { cpf: cpfDigits } : {}),
+        ...(phoneDigits.length >= 10 ? { phone: phoneDigits } : {}),
+      });
+      setUser({ ...user!, name: data.data.name, cpf: data.data.cpf, phone: data.data.phone });
       setMsg('Dados atualizados!');
     } catch (err) {
       setMsg((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Erro ao atualizar');
@@ -74,6 +91,48 @@ export default function ProfilePage() {
                 onChange={(e) => setName(e.target.value)}
                 minLength={3}
               />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="cpf">CPF</Label>
+                <Input
+                  id="cpf"
+                  placeholder="000.000.000-00"
+                  value={cpf}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+                    let formatted = digits;
+                    if (digits.length > 9) {
+                      formatted = `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+                    } else if (digits.length > 6) {
+                      formatted = `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+                    } else if (digits.length > 3) {
+                      formatted = `${digits.slice(0, 3)}.${digits.slice(3)}`;
+                    }
+                    setCpf(formatted);
+                  }}
+                  maxLength={14}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Telefone</Label>
+                <Input
+                  id="phone"
+                  placeholder="(00) 00000-0000"
+                  value={phone}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+                    let formatted = digits;
+                    if (digits.length > 6) {
+                      formatted = `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+                    } else if (digits.length > 2) {
+                      formatted = `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+                    }
+                    setPhone(formatted);
+                  }}
+                  maxLength={15}
+                />
+              </div>
             </div>
             {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
             <Button type="submit" disabled={saving}>
