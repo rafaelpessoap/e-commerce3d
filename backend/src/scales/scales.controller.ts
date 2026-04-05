@@ -78,6 +78,15 @@ export class ScalesController {
     return { data: { message: 'Scale item deleted' } };
   }
 
+  @Roles('ADMIN')
+  @Put('rule-sets/:ruleSetId/reorder')
+  async reorderItems(
+    @Param('ruleSetId') ruleSetId: string,
+    @Body() dto: { itemIds: string[] },
+  ) {
+    return { data: await this.scalesService.reorderItems(ruleSetId, dto.itemIds) };
+  }
+
   // ── Endpoint publico: escalas aplicaveis a um produto ──
 
   @Public()

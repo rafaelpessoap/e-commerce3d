@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Pencil, ArrowLeft, Save, X } from 'lucide-react';
+import { Plus, Trash2, Pencil, ArrowLeft, Save, X, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -147,6 +147,15 @@ export default function AdminScalesPage() {
     onError: (err) => setError(extractError(err)),
   });
 
+  const reorderMutation = useMutation({
+    mutationFn: ({ ruleSetId, itemIds }: { ruleSetId: string; itemIds: string[] }) =>
+      api.put(`/scales/rule-sets/${ruleSetId}/reorder`, { itemIds }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'scale-rule-sets'] });
+    },
+    onError: (err) => setError(extractError(err)),
+  });
+
   // ── Handlers ──
 
   function handleCreateRuleSet(e: React.FormEvent) {
@@ -163,6 +172,18 @@ export default function AdminScalesPage() {
       name: newItemName.trim(),
       percentageIncrease: parseFloat(newItemPercentage) || 0,
       sortOrder: (activeRuleSet?.items.length ?? 0),
+    });
+  }
+
+  function handleMoveItem(index: number, direction: 'up' | 'down') {
+    if (!activeRuleSetId || !activeRuleSet) return;
+    const sorted = [...activeRuleSet.items].sort((a, b) => a.sortOrder - b.sortOrder);
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= sorted.length) return;
+    [sorted[index], sorted[newIndex]] = [sorted[newIndex], sorted[index]];
+    reorderMutation.mutate({
+      ruleSetId: activeRuleSetId,
+      itemIds: sorted.map((i) => i.id),
     });
   }
 
@@ -289,14 +310,37 @@ export default function AdminScalesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[70px]">Ordem</TableHead>
                   <TableHead>Escala</TableHead>
                   <TableHead className="w-40">Incremento</TableHead>
-                  <TableHead className="w-[80px]">Ações</TableHead>
+                  <TableHead className="w-[100px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {activeRuleSet.items.map((item) => (
+                {[...activeRuleSet.items].sort((a, b) => a.sortOrder - b.sortOrder).map((item, index, arr) => (
                   <TableRow key={item.id}>
+                    <TableCell>
+                      <div className="flex gap-0.5">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => handleMoveItem(index, 'up')}
+                          disabled={index === 0 || reorderMutation.isPending}
+                        >
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => handleMoveItem(index, 'down')}
+                          disabled={index === arr.length - 1 || reorderMutation.isPending}
+                        >
+                          <ArrowDown className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
                     <TableCell className="font-medium">
                       {editingItemId === item.id ? (
                         <Input
@@ -355,18 +399,29 @@ export default function AdminScalesPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => {
-                          if (confirm(`Excluir escala "${item.name}"?`))
-                            deleteItemMutation.mutate(item.id);
-                        }}
-                        disabled={deleteItemMutation.isPending}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          onClick={() => startEditItem(item)}
+                          title="Editar"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => {
+                            if (confirm(`Excluir escala "${item.name}"?`))
+                              deleteItemMutation.mutate(item.id);
+                          }}
+                          disabled={deleteItemMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

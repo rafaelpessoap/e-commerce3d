@@ -37,9 +37,15 @@ export default function AddressesPage() {
     },
   });
 
+  const setDefaultMutation = useMutation({
+    mutationFn: (id: string) => api.put(`/addresses/${id}`, { isDefault: true }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['addresses'] }),
+  });
+
   function handleCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const isFirst = !addresses?.length;
     createMutation.mutate({
       postalCode: (fd.get('postalCode') as string).replace(/\D/g, ''),
       street: fd.get('street'),
@@ -48,6 +54,7 @@ export default function AddressesPage() {
       neighborhood: fd.get('neighborhood'),
       city: fd.get('city'),
       state: fd.get('state'),
+      isDefault: isFirst,
     });
   }
 
@@ -120,24 +127,51 @@ export default function AddressesPage() {
       ) : (
         <div className="space-y-3">
           {addresses.map((addr: ApiRecord) => (
-            <div key={addr.id} className="flex items-start justify-between border rounded-lg p-4">
-              <div>
+            <div
+              key={addr.id}
+              className={`flex items-start justify-between border rounded-lg p-4 ${
+                addr.isDefault ? 'border-primary bg-primary/5' : ''
+              }`}
+            >
+              <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <p className="font-medium text-sm">
                     {addr.street}, {addr.number}
                     {addr.complement ? ` - ${addr.complement}` : ''}
                   </p>
-                  {addr.isDefault && <Badge variant="secondary"><Star className="h-3 w-3 mr-1" />Padrao</Badge>}
+                  {addr.isDefault && (
+                    <Badge variant="secondary">
+                      <Star className="h-3 w-3 mr-1 fill-current" />
+                      Principal
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {addr.neighborhood} - {addr.city}/{addr.state} - CEP {addr.postalCode}
                 </p>
+                {!addr.isDefault && (
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 mt-1 text-xs"
+                    onClick={() => setDefaultMutation.mutate(addr.id)}
+                    disabled={setDefaultMutation.isPending}
+                  >
+                    Definir como principal
+                  </Button>
+                )}
               </div>
               <Button
                 variant="ghost"
                 size="icon"
                 className="text-destructive shrink-0"
-                onClick={() => deleteMutation.mutate(addr.id)}
+                onClick={() => {
+                  if (addr.isDefault) {
+                    alert('Defina outro endereco como principal antes de excluir este.');
+                    return;
+                  }
+                  deleteMutation.mutate(addr.id);
+                }}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

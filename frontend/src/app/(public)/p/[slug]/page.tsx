@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
-import { formatCurrency, ROUTES } from '@/lib/constants';
+import { ROUTES } from '@/lib/constants';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ProductCard } from '@/components/product/product-card';
 import { ReviewsSection } from '@/components/product/reviews-section';
@@ -51,15 +51,6 @@ async function getRelatedProducts(categoryId: string | undefined, productId: str
   }
 }
 
-async function getDeliveryInfo(productId: string) {
-  try {
-    const { data } = await api.get(`/products/${productId}/delivery-info`);
-    return data.data ?? data;
-  } catch {
-    return { baseDays: 3, extraDays: 0, totalDays: 3 };
-  }
-}
-
 async function getScaleData(productId: string) {
   try {
     const { data } = await api.get(`/scales/for-product/${productId}`);
@@ -81,9 +72,8 @@ export default async function ProductPage({ params }: Props) {
     );
   }
 
-  const [related, delivery, scaleData] = await Promise.all([
+  const [related, scaleData] = await Promise.all([
     getRelatedProducts(product.categoryId, product.id),
-    getDeliveryInfo(product.id),
     getScaleData(product.id),
   ]);
 
@@ -91,10 +81,6 @@ export default async function ProductPage({ params }: Props) {
   const variations = product.variations ?? [];
   const tags = product.tags ?? [];
   const attributes = product.attributes ?? [];
-  const isVariable = product.type === 'variable';
-  const currentPrice = product.salePrice ?? product.basePrice;
-  const hasDiscount = product.salePrice && product.salePrice < product.basePrice;
-
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
@@ -125,23 +111,6 @@ export default async function ProductPage({ params }: Props) {
             <div className="mt-3 text-muted-foreground leading-relaxed prose prose-sm" dangerouslySetInnerHTML={{ __html: product.shortDescription }} />
           )}
 
-          {/* Static price — only for simple products (variable price is in the client component) */}
-          {!isVariable && (
-            <div className="mt-6">
-              {hasDiscount && (
-                <p className="text-lg text-muted-foreground line-through">
-                  {formatCurrency(product.basePrice)}
-                </p>
-              )}
-              <p className="text-3xl font-bold text-primary">
-                {formatCurrency(currentPrice)}
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                ou {formatCurrency(currentPrice * 0.9)} no PIX (10% off)
-              </p>
-            </div>
-          )}
-
           {/* Variations + Scales + Shipping + Add to Cart (all in one client component) */}
           <ProductVariationsAndShipping
             productId={product.id}
@@ -169,16 +138,6 @@ export default async function ProductPage({ params }: Props) {
               ))}
             </div>
           )}
-
-          {/* Delivery info */}
-          <div className="mt-6 bg-muted/50 rounded-lg p-4 text-sm">
-            <p>
-              Entrega em <span className="font-bold">{delivery.totalDays} dias uteis</span>
-              {delivery.extraDays > 0 && (
-                <span className="text-muted-foreground"> (inclui {delivery.extraDays} dias de producao)</span>
-              )}
-            </p>
-          </div>
 
           {/* Attributes */}
           {attributes.length > 0 && (

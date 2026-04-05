@@ -85,6 +85,19 @@ export class ScalesService {
     return this.prisma.scaleRuleItem.delete({ where: { id: itemId } });
   }
 
+  async reorderItems(ruleSetId: string, itemIds: string[]) {
+    await this.findRuleSetById(ruleSetId);
+    await Promise.all(
+      itemIds.map((id, index) =>
+        this.prisma.scaleRuleItem.update({
+          where: { id },
+          data: { sortOrder: index },
+        }),
+      ),
+    );
+    return this.findRuleSetById(ruleSetId);
+  }
+
   // ── Resolve qual regra se aplica a um produto ──
 
   /**

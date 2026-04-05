@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { Loader2, Truck, Package, ShoppingCart, Minus, Plus, Heart } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Loader2, Truck, Package, ShoppingCart, Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api-client';
 import { useCartStore } from '@/store/cart-store';
+import { useAuthStore } from '@/store/auth-store';
 import { formatCurrency } from '@/lib/constants';
 import { WishlistButton } from '@/components/product/wishlist-button';
 
@@ -61,6 +62,7 @@ export function ProductVariationsAndShipping({
   scaleData,
 }: Props) {
   const setCart = useCartStore((s) => s.setCart);
+  const { isAuthenticated } = useAuthStore();
 
   // Variation state
   const [selectedVariation, setSelectedVariation] = useState<Variation | null>(null);
@@ -84,6 +86,23 @@ export function ProductVariationsAndShipping({
   const [quotes, setQuotes] = useState<ShippingQuote[]>([]);
   const [freeShipping, setFreeShipping] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+
+  // Auto-fill CEP from user's default address
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    api.get('/addresses').then(({ data }) => {
+      const addrs = data.data ?? [];
+      const defaultAddr = addrs.find((a: { isDefault?: boolean }) => a.isDefault) ?? addrs[0];
+      if (defaultAddr?.postalCode) {
+        const cleaned = defaultAddr.postalCode.replace(/\D/g, '');
+        if (cleaned.length === 8) {
+          setCep(cleaned);
+          doShippingCalc(cleaned);
+        }
+      }
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   // ── Price calculation ──
   const rawBasePrice = isVariable
@@ -193,6 +212,11 @@ export function ProductVariationsAndShipping({
           <>
             {finalPrice > 0 && (
               <>
+                {!isVariable && salePrice && salePrice < basePrice && (
+                  <p className="text-lg text-muted-foreground line-through">
+                    {formatCurrency(basePrice)}
+                  </p>
+                )}
                 <p className="text-3xl font-bold text-primary">
                   {formatCurrency(finalPrice)}
                 </p>
