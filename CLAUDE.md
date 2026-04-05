@@ -114,12 +114,6 @@ e-commerce3d/
 
 ## Regra #5: Domínio do Negócio — Miniaturas 3D
 
-### Escalas (CONCEITO CRÍTICO)
-Miniaturas vendidas em escalas diferentes (28mm, 32mm, 75mm). Preço com hierarquia:
-1. Produto individual (maior) → 2. Tag → 3. Categoria → 4. Global (menor)
-
-Tipos: `percentage`, `fixed_add`, `fixed_price`. Escala NÃO é variação.
-
 ### Bundles
 Preço = soma dos componentes × (1 - desconto). Atualiza automaticamente. Estoque = menor entre componentes.
 
@@ -191,12 +185,12 @@ Configurável no admin (PIX = 10%, Boleto = 5%). Calculado sobre subtotal (sem f
 
 **Fases 0-6 completas.** Backend, frontend, deploy, CI/CD — tudo implementado e no ar.
 
-**Números:** ~43 test suites, ~379 testes, ~40 rotas frontend, 0 lint errors.
+**Números:** 43 test suites (43 pass), 379 testes, ~40 rotas frontend, 0 erros TS.
 
 **Site:** https://elitepinup3d.com.br (API + Frontend funcionando)
 **Admin:** rafaelzezao@gmail.com / Admin@2026!
 
-**Módulos implementados:** Auth, Users, Addresses, Categories, Tags, Brands, Scales, Products (variações + atributos + galeria MediaFile 4 tamanhos WebP), Bundles, Cart (Redis + anônimo com sessionId), Orders (state machine), Payments (MP: PIX + Cartão + Boleto), Shipping (Melhor Envio real), Coupons (restrições categoria/tag/cliente), Wishlist, Reviews (recompensa cupom), Search (Elasticsearch), SEO, Blog, Email (React Email + templates editáveis admin + BullMQ), Stock (reserva/confirma/libera/ajuste + audit log), Media (Sharp → 4 WebP), Dashboard admin, Settings (key-value), CheckoutLog (debug).
+**Módulos implementados:** Auth, Users, Addresses, Categories, Tags, Brands, Scales (ScaleRuleSet + regras por produto/tag/categoria), Products (variações dropdown + escalas radio + atributos + galeria MediaFile 4 tamanhos WebP), Bundles, Cart (Redis + anônimo + escala/variação com chave composta), Orders (state machine), Payments (MP: PIX + Cartão + Boleto), Shipping (Melhor Envio real), Coupons (restrições categoria/tag/cliente), Wishlist, Reviews (recompensa cupom), Search (Elasticsearch), SEO, Blog, Email (React Email + templates editáveis admin + BullMQ), Stock (reserva/confirma/libera/ajuste + audit log), Media (Sharp → 4 WebP), Dashboard admin, Settings (key-value), CheckoutLog (debug).
 
 ---
 
@@ -238,20 +232,23 @@ Estas são decisões e problemas que DEVEM ser lembrados para evitar retrabalho:
 | MELHOR_ENVIO_TOKEN (com underscore) | docker-compose deve usar mesmo nome que o código |
 | `NEXT_PUBLIC_*` no build time | Precisa de ARG/ENV no Dockerfile + build-arg no workflow |
 | Auth hydrate no app init | Zustand chama GET /users/me se token existe. Layouts esperam `isHydrated` |
-| Testes email (2 suites falham) | `@react-email/render` requer `--experimental-vm-modules`. Não afeta outros testes |
+| Migrations manuais em prod | Sem `.env` local, `prisma migrate deploy` falha. Rodar SQL direto via `docker exec elitepinup_db psql`. Colunas são camelCase (Prisma sem @map) |
 | Webhook MP: data.id no query param | HMAC calculado com data.id do query param, não do body |
 | Desconto sobre subtotal | PIX/Boleto desconto = subtotal × %. NUNCA incluir frete no cálculo |
 | Abas CSS toggle (não unmount) | ProductForm renderiza todas as abas, toggle via CSS hidden/block. Evita perda de dados |
+| Cart chave composta | Unicidade = productId + variationId + scaleId. Remove/update usam query params `?variationId=&scaleId=` |
 
 ---
 
 ## Última Sessão
 
 - **Data:** 05/04/2026 (sessão 4)
-- **Feito:** Fix checkout CEP duplicado (externalCep no ShippingCalculator), fix variações não salvavam (frontend não enviava, backend não processava, schema scaleId obrigatório), fix audit log estoque no product form (não passava pelo StockService), migration scaleId opcional
-- **Total:** 43 suites (41 pass, 2 email), 343 testes, 0 erros TS
-- **Sprint Escalas concluída:** ScaleRuleSet, variação dropdown, escala radio, cart com escala, admin CRUD regras
-- **Total final:** 43 suites (41 pass, 2 email), 379 testes, 0 erros TS
+- **Feito:** Bugfixes (checkout CEP duplicado, variações não salvavam, audit log estoque). Sistema completo de escalas: ScaleRuleSet com regras por produto/tag/categoria, variações como dropdown, escalas como radio buttons com preço dinâmico, carrinho com chave composta (productId+variationId+scaleId), admin CRUD regras de escala
+- **Total:** 43 suites (43 pass), 379 testes, 0 erros TS
+- **Próximo passo:**
+  1. Testar fluxo completo: criar regra escala → atribuir a categoria → produto mostra escalas → comprar → carrinho correto
+  2. Email alerta de estoque baixo
+  3. Expiração automática de pedidos (BullMQ delayed)
 
 ---
 
