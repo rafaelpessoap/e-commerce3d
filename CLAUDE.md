@@ -123,56 +123,31 @@ pending_payment → payment_approved → production_queue → producing → pack
 ```
 Extras: payment_rejected, cancelled, refunded. Cada transição: histórico + email.
 
-### Variações e Frete (REGRA CRÍTICA)
-- Produto variável (`type=variable`): `basePrice=0`, preço vem da variação
-- Variações = modelos/estilos do produto (A, B, C). Seletor: **dropdown**
-- Frete exige seleção de variação primeiro
-- Peso/dimensões: variação herda do pai se null
-- Preço seguro: `salePrice ?? price` da variação
+### Variações e Frete
+- Produto variável: `basePrice=0`, preço vem da variação. Seletor: **dropdown**
+- Preço seguro: `salePrice ?? price`. Peso/dimensões: herda do pai se null
 - Mínimos Melhor Envio: peso >= 0.3kg, largura >= 11cm, altura >= 2cm, comprimento >= 16cm
-- ExtraDays: MAX entre produtos (produto > tag > categoria) + dias do método de envio
 
 ### Escalas (CONCEITO SEPARADO DE VARIAÇÕES)
-- Escalas = tamanho de impressão 3D (28mm, 32mm, 54mm, 75mm). NÃO são variações.
-- Seletor na página: **radio buttons** com diferença de preço
-- **ScaleRuleSet**: regra nomeada que define quais escalas se aplicam e o % de incremento de cada
-- Atribuída a Produto, Tag ou Categoria. Prioridade: **Produto > Tag > Categoria**
-- `noScales` (boolean) em Produto e Tag: se true, escalas NÃO se aplicam
-- Cálculo: `preçoFinal = preçoBase × (1 + percentageIncrease / 100)`
-- Carrinho armazena: scaleId, scaleName, scalePercentage. Mesmo produto + escala diferente = linha separada
-- Preço no carrinho já inclui multiplicador de escala
+- Escalas = tamanho de impressão (28mm, 32mm, 75mm). Seletor: **radio buttons**
+- **ScaleRuleSet** com escalas inline (name + percentageIncrease). Prioridade: **Produto > Tag > Categoria**
+- `noScales` em Produto/Tag: se true, escalas NÃO se aplicam
+- Carrinho: scaleId = ScaleRuleItem.id. Mesmo produto + escala diferente = linha separada
 
-### Frete Grátis
-Configurável por faixa de CEP + valor mínimo. Desconto de pagamento NUNCA se aplica ao frete.
-
-### Desconto por Método de Pagamento
-Configurável no admin (PIX = 10%, Boleto = 5%). Calculado sobre subtotal (sem frete).
+### Frete e Descontos
+- Frete grátis: por faixa de CEP + valor mínimo. Desconto de pagamento NUNCA se aplica ao frete
+- PIX = 10%, Boleto = 5% — sobre subtotal (sem frete)
 
 ---
 
 ## Regra #6: Todo Preço Passa pelo PricingService — SEM EXCEÇÃO
 
-**`PricingService` (`backend/src/pricing/`) é o ÚNICO lugar onde preços de pedido são calculados.**
+**`PricingService` (`backend/src/pricing/`) é o ÚNICO lugar onde preços de pedido são calculados.** Qualquer feature que altere valor (desconto, taxa, promoção, cashback, frete) DEVE:
 
-Qualquer feature nova que altere o valor de um produto ou pedido — desconto, taxa, promoção, regra de fidelidade, cashback, frete diferenciado, o que for — DEVE seguir este fluxo:
-
-### Implementação (obrigatório)
-
-1. Criar método privado no `PricingService` (ex: `applyLoyaltyDiscount()`)
-2. Chamar esse método dentro de `calculateOrderPricing()` na posição correta da sequência
-3. **NUNCA** calcular preço/desconto fora do PricingService (nem no controller, nem no orders.service, nem no frontend)
-
-### Testes (obrigatório — a feature está INCOMPLETA sem isso)
-
-1. Adicionar `describe('nome da regra')` em `pricing.service.spec.ts` com testes da regra isolada
-2. Adicionar caso no `describe('combinações — CHECKOUT COMPLETO')` que combina a regra nova com as existentes
-3. O teste de combinação DEVE verificar o `total` final com **todos** os fatores ativos (base + variação + escala + cupom + frete + pagamento + regra nova)
-
-### O que é "CHECKOUT COMPLETO"?
-
-O `describe('combinações — CHECKOUT COMPLETO')` em `pricing.service.spec.ts` é o **guardião final**. Ele simula o checkout real com TODAS as regras ativas ao mesmo tempo. Se a regra nova não aparece nesse bloco, ela não foi integrada à finalização de compra e **o pedido será calculado errado em produção**.
-
-### Regras que hoje passam pelo PricingService
+1. Criar método privado no `PricingService` e chamar em `calculateOrderPricing()`
+2. Adicionar `describe('nome da regra')` isolado em `pricing.service.spec.ts`
+3. Adicionar caso no `describe('combinações — CHECKOUT COMPLETO')` — o **guardião final** que simula checkout real com TODAS as regras ativas
+4. **NUNCA** calcular preço/desconto fora do PricingService. Feature sem teste de combinação = **INCOMPLETA**
 
 | Passo | Regra | Método |
 |-------|-------|--------|
@@ -182,24 +157,17 @@ O `describe('combinações — CHECKOUT COMPLETO')` em `pricing.service.spec.ts`
 | 4 | Frete (validação, free shipping) | `resolveShipping()` |
 | 5 | Desconto pagamento (PIX/Boleto) | `calculatePaymentDiscount()` → `PaymentsService` |
 
-**Ao adicionar regra nova:** inserir linha nesta tabela + atualizar CLAUDE.md.
-
-Referência: `docs/02-TDD-STRATEGY.md` seção "Regra de Ouro — Testes de Precificação"
+**Ao adicionar regra nova:** inserir linha nesta tabela. Ref: `docs/02-TDD-STRATEGY.md` "Regra de Ouro"
 
 ---
 
 ## Servidor de Produção
 
-- **Hardware:** AMD Ryzen 5 2600, 32GB DDR4, NVMe 2TB
-- **OS:** Ubuntu 24.04 LTS
-- **IP:** 24.152.39.104 (SSH porta 2222, usuário masterdaweb)
-- **Domínio:** elitepinup3d.com.br (DNS via Cloudflare)
-- **Reverse Proxy:** OpenLiteSpeed 1.8.4 via CyberPanel (NÃO usar Nginx)
-- **Containers existentes (NÃO mexer):** arsenal_app (:3001), arsenal_db (PG18), n8n (:5678)
-- **Nosso projeto:** elitepinup_backend (:3002), elitepinup_frontend (:3003), elitepinup_db (PG18 interno)
-- **Deploy:** push → GitHub Actions → GHCR build+push → SSH pull + `--force-recreate`
-- **Storage:** R2 bucket `elitepinup`, CDN: cdn.elitepinup3d.com.br
-- **OLS vhost:** protegido com `chattr +i` (CyberPanel sobrescreve sem isso)
+- **IP:** 24.152.39.104 (SSH porta 2222, user masterdaweb) | Ubuntu 24.04 | AMD Ryzen 5 2600, 32GB, NVMe 2TB
+- **Reverse Proxy:** OpenLiteSpeed 1.8.4 via CyberPanel (NÃO usar Nginx). vhost com `chattr +i`
+- **Containers:** elitepinup_backend (:3002), elitepinup_frontend (:3003), elitepinup_db (PG18). NÃO mexer: arsenal_app (:3001), n8n (:5678)
+- **Deploy:** push → GitHub Actions → GHCR → SSH pull + `--force-recreate` → entrypoint roda `prisma migrate deploy`
+- **Storage:** R2 `elitepinup`, CDN: cdn.elitepinup3d.com.br
 
 ---
 
@@ -256,55 +224,31 @@ Estas são decisões e problemas que DEVEM ser lembrados para evitar retrabalho:
 
 | Gotcha | Detalhe |
 |--------|---------|
-| Prisma 6, NÃO 7 | Prisma 7 não aceita URL no constructor/schema. Incompatível com Docker |
-| OLS, NÃO Nginx | Servidor usa CyberPanel/OLS. Nginx seria redundante e conflitante |
-| `chattr +i` no vhost | CyberPanel esvazia vhost.conf em cada restart do OLS |
-| Redis/ES no host | Containers acessam via `extra_hosts: host.docker.internal`. Redis com senha, bind 0.0.0.0, firewall nft |
+| Prisma 6, NÃO 7 | Prisma 7 incompatível com Docker. NÃO atualizar |
+| Redis/ES no host | Containers: `extra_hosts: host.docker.internal`. Redis com senha, bind 0.0.0.0 |
 | Portas 3002/3003 | 3000 = nghttpx, 3001 = ERP arsenal. Não usar |
-| `--force-recreate` no deploy | Sem isso, containers não atualizam mesmo com imagem nova |
-| `{ data: result }` em controllers | Sem wrapper, frontend faz `data.data` = undefined |
+| `{ data: result }` em controllers | Sem wrapper → frontend quebra |
 | Rotas `/me` antes de `/:id` | NestJS match por ordem. `/me` depois de `/:id` casa 'me' como ID |
 | `@Min(0)` não `@IsPositive` para preço | Produto variável tem basePrice=0 |
 | `@IsString` não `@IsUUID` para IDs | Prisma gera CUIDs, não UUIDs |
-| OLS noCacheUrl obrigatório | /admin, /api, /login, /minha-conta, /checkout, /p/, /c/, /t/, /m/, /produtos — sem isso, binário corrompido |
-| MELHOR_ENVIO_TOKEN (com underscore) | docker-compose deve usar mesmo nome que o código |
+| OLS noCacheUrl obrigatório | /admin, /api, /login, /checkout, /p/, /produtos — sem isso, binário corrompido |
 | `NEXT_PUBLIC_*` no build time | Precisa de ARG/ENV no Dockerfile + build-arg no workflow |
-| Auth hydrate no app init | Zustand chama GET /users/me se token existe. Layouts esperam `isHydrated` |
-| Migrations manuais em prod | Sem `.env` local, `prisma migrate deploy` falha. Rodar SQL direto via `docker exec elitepinup_db psql`. Colunas são camelCase (Prisma sem @map) |
+| Migrations automáticas | `docker-entrypoint.sh` roda `prisma migrate deploy` antes do app. Colunas camelCase (sem @map) |
 | Webhook MP: data.id no query param | HMAC calculado com data.id do query param, não do body |
-| Desconto sobre subtotal | PIX/Boleto desconto = subtotal × %. NUNCA incluir frete no cálculo |
-| PricingService obrigatório | Todo createOrder() passa pelo PricingService. Regra de preço nova = teste no "CHECKOUT COMPLETO" |
-| Escalas simplificadas | Scale table removida. ScaleRuleItem tem name próprio (não FK). 1 página admin |
-| Abas CSS toggle (não unmount) | ProductForm renderiza todas as abas, toggle via CSS hidden/block. Evita perda de dados |
-| Cart chave composta | Unicidade = productId + variationId + scaleId. Remove/update usam query params `?variationId=&scaleId=` |
+| Abas CSS toggle (não unmount) | ProductForm: toggle via CSS hidden/block. Evita perda de dados |
+| Cart chave composta | Unicidade = productId + variationId + scaleId |
 
 ---
 
 ## Última Sessão
 
 - **Data:** 05/04/2026 (sessão 5)
-- **Feito:**
-  - Fix: migrations automáticas no deploy (docker-entrypoint.sh + prisma migrate deploy)
-  - Fix: baseline das 3 migrations existentes no servidor
-  - Simplificação escalas: removeu tabela Scale, ScaleRuleItem com name próprio, 1 página admin (entrar na regra)
-  - **PricingService**: validação completa de preços no checkout (base/variação/escala/cupom/frete/pagamento)
-  - Orders.createOrder() agora delega ao PricingService
-  - Payments.createPayment() agora inclui couponDiscount no amount
-  - Doc 02-TDD-STRATEGY.md: "Regra de Ouro — Testes de Precificação" + checklist Orders/Pricing
+- **Feito:** Deploy auto-migrate (entrypoint.sh), simplificação escalas (1 página, sem tabela Scale), PricingService (Regra #6 — valida tudo no checkout), checkout UX (imagens, variação/escala no resumo, CPF com validação real, pre-fill dados do user)
 - **Total:** 44 suites (44 pass), 412 testes, 0 erros TS
 - **Próximo passo:**
-  1. Testar fluxo completo: criar regra escala → atribuir a categoria → produto mostra escalas → comprar → carrinho correto
+  1. Testar fluxo completo: criar regra escala → atribuir a categoria → produto mostra escalas → comprar → checkout correto
   2. Email alerta de estoque baixo
   3. Expiração automática de pedidos (BullMQ delayed)
 
 ---
-
-## Como Atualizar Este Arquivo
-
-Ao final de cada sessão, atualize:
-1. **Pendências Ativas** — marque concluídos, adicione novos
-2. **Última Sessão** — substitua com resumo do dia
-3. **Gotchas** — adicione se descobriu armadilha nova
-4. **Estado Atual** — atualize números se mudaram significativamente
-
-**NÃO adicione:** histórico detalhado de sprints, lista de bugfixes resolvidos, decisões óbvias que já estão no código. Isso é o git log.
+*Ao final de cada sessão: atualize Última Sessão, Pendências, Gotchas, Estado Atual. NÃO adicione histórico — isso é o git log.*
