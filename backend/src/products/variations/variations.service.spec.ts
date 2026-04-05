@@ -44,7 +44,6 @@ describe('VariationsService', () => {
       expect(result).toHaveLength(1);
       expect(prisma.productVariation.findMany).toHaveBeenCalledWith({
         where: { productId: 'prod1' },
-        include: { scale: true },
         orderBy: { createdAt: 'asc' },
       });
     });
@@ -59,7 +58,6 @@ describe('VariationsService', () => {
         id: 'v1',
         productId: 'prod1',
         name: 'Heroic 28mm',
-        scaleId: 'scale1',
         sku: 'WAR-28',
         price: 49.9,
         stock: 10,
@@ -67,7 +65,6 @@ describe('VariationsService', () => {
 
       const result = await service.create('prod1', {
         name: 'Heroic 28mm',
-        scaleId: 'scale1',
         sku: 'WAR-28',
         price: 49.9,
         stock: 10,
@@ -82,7 +79,6 @@ describe('VariationsService', () => {
       await expect(
         service.create('nonexistent', {
           name: 'Test',
-          scaleId: 's1',
           sku: 'T-1',
           price: 10,
           stock: 0,

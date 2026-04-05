@@ -227,9 +227,7 @@ model ProductVariation {
   productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  name      String // ex: "Heroic Scale (28mm)"
-  scaleId   String?
-  scale     Scale?  @relation(fields: [scaleId], references: [id])
+  name      String // ex: "Modelo A", "Pose Heroica"
 
   sku       String  @default("")
   gtin      String?
@@ -250,8 +248,6 @@ model ProductVariation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([productId, scaleId])
-  @@index([scaleId])
   @@map("product_variations")
 }
 
@@ -369,27 +365,7 @@ model Brand {
   @@map("brands")
 }
 
-model Scale {
-  id         String  @id @default(cuid())
-  name       String  @unique // ex: "Heroic Scale (28mm)"
-  code       String  @unique // ex: "HEROIC_28"
-  baseSize   Float // tamanho base em mm
-  multiplier Float @default(1.0) // multiplicador de preco (legado)
-  priority   Int   @default(0) // para ordenacao
-
-  variations     ProductVariation[]
-  scaleRules     ScaleRule[] // legado
-  scaleRuleItems ScaleRuleItem[]
-
-  isActive Boolean @default(true)
-
-  createdAt DateTime @default(now())
-
-  @@index([code])
-  @@map("scales")
-}
-
-// ── Novo sistema de regras de escala ──
+// ── Regras de escala (escalas definidas inline por regra) ──
 
 model ScaleRuleSet {
   id   String @id @default(cuid())
@@ -412,40 +388,12 @@ model ScaleRuleItem {
   ruleSetId String
   ruleSet   ScaleRuleSet @relation(fields: [ruleSetId], references: [id], onDelete: Cascade)
 
-  scaleId String
-  scale   Scale  @relation(fields: [scaleId], references: [id])
+  name               String // ex: "28mm", "32mm", "75mm"
+  percentageIncrease Float  @default(0) // 0=base, 15=+15%, 80=+80%
+  sortOrder          Int    @default(0) // para ordenacao na UI
 
-  percentageIncrease Float @default(0) // 0=base, 15=+15%, 80=+80%, 150=+150%
-
-  @@unique([ruleSetId, scaleId])
+  @@unique([ruleSetId, name])
   @@map("scale_rule_items")
-}
-
-// ── Legado (mantido para migration history) ──
-
-model ScaleRule {
-  id      String @id @default(cuid())
-  scaleId String
-  scale   Scale  @relation(fields: [scaleId], references: [id], onDelete: Cascade)
-
-  appliesTo RuleScope
-  targetId  String?
-
-  priceMultiplier Float @default(1.0)
-  stockMultiplier Float @default(1.0)
-
-  priority Int @default(0)
-
-  createdAt DateTime @default(now())
-
-  @@map("scale_rules")
-}
-
-enum RuleScope {
-  GLOBAL
-  CATEGORY
-  TAG
-  PRODUCT
 }
 
 model Coupon {

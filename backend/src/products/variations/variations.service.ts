@@ -8,7 +8,6 @@ export class VariationsService {
   async findByProduct(productId: string) {
     return this.prisma.productVariation.findMany({
       where: { productId },
-      include: { scale: true },
       orderBy: { createdAt: 'asc' },
     });
   }
@@ -17,7 +16,6 @@ export class VariationsService {
     productId: string,
     dto: {
       name: string;
-      scaleId?: string;
       sku?: string;
       price: number;
       stock?: number;
@@ -33,7 +31,6 @@ export class VariationsService {
 
     return this.prisma.productVariation.create({
       data: { productId, ...dto },
-      include: { scale: true },
     });
   }
 
@@ -44,7 +41,6 @@ export class VariationsService {
     return this.prisma.productVariation.update({
       where: { id },
       data: dto,
-      include: { scale: true },
     });
   }
 

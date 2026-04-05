@@ -71,7 +71,6 @@ export class ProductsService {
           height: v.height,
           length: v.length,
           image: v.image,
-          scaleId: v.scaleId,
         })),
       });
     }
@@ -87,7 +86,7 @@ export class ProductsService {
         brand: true,
         tags: true,
         images: { include: { mediaFile: true }, orderBy: { order: 'asc' } },
-        variations: { include: { scale: true } },
+        variations: true,
         attributes: { include: { attributeValue: { include: { attribute: true } } } },
         relatedProducts: true,
       },
@@ -105,7 +104,7 @@ export class ProductsService {
         brand: true,
         tags: true,
         images: { include: { mediaFile: true }, orderBy: { order: 'asc' } },
-        variations: { include: { scale: true } },
+        variations: true,
         attributes: { include: { attributeValue: { include: { attribute: true } } } },
         relatedProducts: true,
       },
@@ -287,7 +286,6 @@ export class ProductsService {
             height: v.height,
             length: v.length,
             image: v.image,
-            scaleId: v.scaleId,
           },
         });
 
@@ -323,7 +321,6 @@ export class ProductsService {
             height: v.height,
             length: v.length,
             image: v.image,
-            scaleId: v.scaleId,
           })),
         });
       }

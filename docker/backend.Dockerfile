@@ -24,7 +24,7 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts --omit=dev
 
-# Copy Prisma schema (needed for migrations)
+# Copy Prisma schema + migrations (needed for migrate deploy)
 COPY prisma ./prisma
 
 # Copy built app
@@ -32,6 +32,10 @@ COPY --from=build /app/dist ./dist
 # Copy generated Prisma client
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
+
+# Copy entrypoint script (runs migrations before starting app)
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
 
 # Non-root user
 RUN addgroup -g 1001 -S nodejs && \
@@ -43,4 +47,4 @@ EXPOSE 3002
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
   CMD wget -qO- http://localhost:3002/api/health || exit 1
 
-CMD ["node", "dist/main.js"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

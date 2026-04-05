@@ -122,13 +122,14 @@ export class CartService {
     let scaleId = dto.scaleId;
 
     if (scaleId) {
+      // scaleId = ScaleRuleItem.id
       const ruleSet = await this.scalesService.resolveScaleRule(dto.productId);
       if (ruleSet) {
         const scaleItem = ruleSet.items.find(
-          (i: { scaleId: string }) => i.scaleId === scaleId,
+          (i: { id: string }) => i.id === scaleId,
         );
         if (scaleItem) {
-          scaleName = (scaleItem as any).scale?.name;
+          scaleName = scaleItem.name;
           scalePercentage = scaleItem.percentageIncrease;
           finalPrice = this.scalesService.calculateScalePrice(
             basePrice,

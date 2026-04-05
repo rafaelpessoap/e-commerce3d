@@ -394,7 +394,7 @@ export class StockService {
       where: {
         product: { manageStock: true, isActive: true, type: 'variable' },
       },
-      include: { product: true, scale: true },
+      include: { product: true },
       orderBy: { stock: 'asc' },
     });
 

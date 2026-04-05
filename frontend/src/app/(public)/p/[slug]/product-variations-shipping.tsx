@@ -15,13 +15,13 @@ interface Variation {
   salePrice?: number | null;
   image?: string;
   stock: number;
-  scale?: { name: string };
 }
 
 interface ScaleItem {
-  scaleId: string;
+  id: string;
+  name: string;
   percentageIncrease: number;
-  scale: { id: string; name: string; baseSize: number };
+  sortOrder: number;
 }
 
 interface ScaleData {
@@ -100,9 +100,6 @@ export function ProductVariationsAndShipping({
   // Can add to cart?
   const canAdd = (!isVariable || selectedVariation !== null) && finalPrice > 0;
 
-  // Find base scale for comparison
-  const baseScale = hasScales ? scaleData!.items.find((i) => i.percentageIncrease === 0) ?? scaleData!.items[0] : null;
-
   // ── Handlers ──
 
   function handleSelectVariation(v: Variation) {
@@ -123,7 +120,7 @@ export function ProductVariationsAndShipping({
       const { data } = await api.post('/cart/items', {
         productId,
         variationId: selectedVariation?.id,
-        scaleId: selectedScaleItem?.scaleId,
+        scaleId: selectedScaleItem?.id,
         quantity,
       });
       setCart(data.data.items, data.data.subtotal);
@@ -244,9 +241,9 @@ export function ProductVariationsAndShipping({
           <p className="text-xs text-muted-foreground mb-3">Selecione a escala de impressao</p>
           <div className="space-y-2">
             {scaleData!.items
-              .sort((a, b) => a.scale.baseSize - b.scale.baseSize)
+              .sort((a, b) => a.sortOrder - b.sortOrder)
               .map((item) => {
-                const isSelected = selectedScaleItem?.scaleId === item.scaleId;
+                const isSelected = selectedScaleItem?.id === item.id;
                 const extraPct = item.percentageIncrease;
                 const extraPrice = rawBasePrice > 0
                   ? Math.round(rawBasePrice * extraPct / 100 * 100) / 100
@@ -254,7 +251,7 @@ export function ProductVariationsAndShipping({
 
                 return (
                   <label
-                    key={item.scaleId}
+                    key={item.id}
                     className={`flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer transition-colors ${
                       isSelected ? 'border-primary bg-primary/5' : 'hover:border-muted-foreground/30'
                     }`}
@@ -267,10 +264,10 @@ export function ProductVariationsAndShipping({
                       className="accent-primary"
                     />
                     <div className="flex-1">
-                      <span className="font-medium text-sm">{item.scale.name}</span>
-                      {extraPct > 0 && baseScale && (
+                      <span className="font-medium text-sm">{item.name}</span>
+                      {extraPct > 0 && (
                         <span className="text-xs text-muted-foreground ml-2">
-                          {Math.round(((item.scale.baseSize / baseScale.scale.baseSize) - 1) * 100)}% maior do que a de {baseScale.scale.name}
+                          +{extraPct}% sobre o base
                         </span>
                       )}
                     </div>

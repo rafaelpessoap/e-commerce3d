@@ -196,35 +196,35 @@ describe('CartService', () => {
   });
 
   describe('addItem with scale', () => {
-    it('should apply scale percentage increase to price', async () => {
+    it('should apply scale percentage increase to price (scaleId = ScaleRuleItem.id)', async () => {
       (redis.getJson as jest.Mock).mockResolvedValue(null);
       (prisma.product.findUnique as jest.Mock).mockResolvedValue(mockProduct);
       (scalesService.resolveScaleRule as jest.Mock).mockResolvedValue({
         id: 'rs1',
         name: 'Miniaturas Padrao',
         items: [
-          { scaleId: 's1', scale: { id: 's1', name: '28mm' }, percentageIncrease: 0 },
-          { scaleId: 's2', scale: { id: 's2', name: '32mm' }, percentageIncrease: 15 },
+          { id: 'item1', name: '28mm', percentageIncrease: 0, sortOrder: 0 },
+          { id: 'item2', name: '32mm', percentageIncrease: 15, sortOrder: 1 },
         ],
       });
       (scalesService.calculateScalePrice as jest.Mock).mockReturnValue(57.39);
 
       const result = await service.addItem(userId, {
         productId: 'prod1',
-        scaleId: 's2',
+        scaleId: 'item2', // ScaleRuleItem.id
         quantity: 1,
       });
 
       expect(result.items[0].price).toBe(57.39);
       expect(result.items[0].scaleName).toBe('32mm');
-      expect(result.items[0].scaleId).toBe('s2');
+      expect(result.items[0].scaleId).toBe('item2');
       expect(scalesService.calculateScalePrice).toHaveBeenCalledWith(49.9, 15);
     });
 
     it('should treat same product with different scales as separate items', async () => {
       const existingCart = {
         items: [
-          { productId: 'prod1', scaleId: 's1', quantity: 1, price: 49.9, name: 'Warrior', scaleName: '28mm' },
+          { productId: 'prod1', scaleId: 'item1', quantity: 1, price: 49.9, name: 'Warrior', scaleName: '28mm' },
         ],
       };
       (redis.getJson as jest.Mock).mockResolvedValue(existingCart);
@@ -232,14 +232,14 @@ describe('CartService', () => {
       (scalesService.resolveScaleRule as jest.Mock).mockResolvedValue({
         id: 'rs1',
         items: [
-          { scaleId: 's2', scale: { id: 's2', name: '32mm' }, percentageIncrease: 15 },
+          { id: 'item2', name: '32mm', percentageIncrease: 15, sortOrder: 1 },
         ],
       });
       (scalesService.calculateScalePrice as jest.Mock).mockReturnValue(57.39);
 
       const result = await service.addItem(userId, {
         productId: 'prod1',
-        scaleId: 's2',
+        scaleId: 'item2',
         quantity: 1,
       });
 

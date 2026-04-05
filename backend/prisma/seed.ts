@@ -68,65 +68,26 @@ async function main() {
   }
   console.log(`  ✅ ${categories.length} categories seeded`);
 
-  // ─── Scales ───────────────────────────────────────────────
-  const scales = [
-    {
-      name: 'Heroic (28mm)',
-      code: 'HEROIC_28',
-      baseSize: 28,
-      multiplier: 1.0,
-      priority: 10,
-    },
-    {
-      name: 'Wargame (32mm)',
-      code: 'WARGAME_32',
-      baseSize: 32,
-      multiplier: 1.15,
-      priority: 20,
-    },
-    {
-      name: 'Display (54mm)',
-      code: 'DISPLAY_54',
-      baseSize: 54,
-      multiplier: 1.8,
-      priority: 30,
-    },
-    {
-      name: 'Collector (75mm)',
-      code: 'COLLECTOR_75',
-      baseSize: 75,
-      multiplier: 2.5,
-      priority: 40,
-    },
-  ];
-
-  for (const scale of scales) {
-    await prisma.scale.upsert({
-      where: { code: scale.code },
-      update: {},
-      create: scale,
-    });
-  }
-  console.log(`  ✅ ${scales.length} scales seeded`);
-
-  // ─── Scale Rules (global) ─────────────────────────────────
-  const allScales = await prisma.scale.findMany();
-  for (const scale of allScales) {
-    const ruleExists = await prisma.scaleRule.findFirst({
-      where: { scaleId: scale.id, appliesTo: 'GLOBAL' },
-    });
-    if (!ruleExists) {
-      await prisma.scaleRule.create({
-        data: {
-          scaleId: scale.id,
-          appliesTo: 'GLOBAL',
-          priceMultiplier: scale.multiplier,
-          priority: 0,
+  // ─── Scale Rule Sets ────────────────────────────────────────
+  const existingRuleSet = await prisma.scaleRuleSet.findUnique({
+    where: { name: 'Miniaturas Padrão' },
+  });
+  if (!existingRuleSet) {
+    await prisma.scaleRuleSet.create({
+      data: {
+        name: 'Miniaturas Padrão',
+        items: {
+          create: [
+            { name: '28mm', percentageIncrease: 0, sortOrder: 0 },
+            { name: '32mm', percentageIncrease: 15, sortOrder: 1 },
+            { name: '54mm', percentageIncrease: 80, sortOrder: 2 },
+            { name: '75mm', percentageIncrease: 150, sortOrder: 3 },
+          ],
         },
-      });
-    }
+      },
+    });
   }
-  console.log(`  ✅ Global scale rules seeded`);
+  console.log('  ✅ Scale rule set "Miniaturas Padrão" seeded');
 
   // ─── Tags ─────────────────────────────────────────────────
   const tags = [
@@ -244,48 +205,25 @@ async function main() {
   });
 
   // Create variations for sample product
-  const heroicScale = await prisma.scale.findUnique({
-    where: { code: 'HEROIC_28' },
+  const existingVar = await prisma.productVariation.findFirst({
+    where: { productId: sampleProduct.id, name: 'Modelo A' },
   });
-  const wargameScale = await prisma.scale.findUnique({
-    where: { code: 'WARGAME_32' },
-  });
-
-  if (heroicScale) {
-    await prisma.productVariation.upsert({
-      where: {
-        productId_scaleId: {
-          productId: sampleProduct.id,
-          scaleId: heroicScale.id,
-        },
-      },
-      update: {},
-      create: {
+  if (!existingVar) {
+    await prisma.productVariation.create({
+      data: {
         productId: sampleProduct.id,
-        name: 'Heroic (28mm)',
-        scaleId: heroicScale.id,
-        sku: 'ELF-WAR-001-28',
+        name: 'Modelo A',
+        sku: 'ELF-WAR-001-A',
         price: 49.9,
         stock: 50,
       },
     });
-  }
-
-  if (wargameScale) {
-    await prisma.productVariation.upsert({
-      where: {
-        productId_scaleId: {
-          productId: sampleProduct.id,
-          scaleId: wargameScale.id,
-        },
-      },
-      update: {},
-      create: {
+    await prisma.productVariation.create({
+      data: {
         productId: sampleProduct.id,
-        name: 'Wargame (32mm)',
-        scaleId: wargameScale.id,
-        sku: 'ELF-WAR-001-32',
-        price: 57.39,
+        name: 'Modelo B',
+        sku: 'ELF-WAR-001-B',
+        price: 49.9,
         stock: 30,
       },
     });

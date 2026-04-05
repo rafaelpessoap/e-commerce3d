@@ -1,53 +1,19 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+} from '@nestjs/common';
 import { ScalesService } from './scales.service';
-import { CreateScaleDto } from './dto/create-scale.dto';
-import { UpdateScaleDto } from './dto/update-scale.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 
 @Controller('api/v1/scales')
 export class ScalesController {
   constructor(private readonly scalesService: ScalesService) {}
-
-  @Public()
-  @Get()
-  async findAll() {
-    return { data: await this.scalesService.findAll() };
-  }
-
-  @Roles('ADMIN')
-  @Post()
-  async create(@Body() dto: CreateScaleDto) {
-    return { data: await this.scalesService.create(dto) };
-  }
-
-  @Roles('ADMIN')
-  @Put(':id')
-  async update(@Param('id') id: string, @Body() dto: UpdateScaleDto) {
-    return { data: await this.scalesService.update(id, dto) };
-  }
-
-  @Roles('ADMIN')
-  @Delete(':id')
-  async remove(@Param('id') id: string) {
-    await this.scalesService.remove(id);
-    return { data: { message: 'Scale deactivated successfully' } };
-  }
-
-  @Roles('ADMIN')
-  @Post('rules')
-  async createRule(
-    @Body()
-    dto: {
-      scaleId: string;
-      appliesTo: 'GLOBAL' | 'CATEGORY' | 'TAG' | 'PRODUCT';
-      targetId?: string;
-      priceMultiplier: number;
-      priority: number;
-    },
-  ) {
-    return await this.scalesService.createRule(dto);
-  }
 
   // ── ScaleRuleSet CRUD ──
 
@@ -65,9 +31,7 @@ export class ScalesController {
 
   @Roles('ADMIN')
   @Post('rule-sets')
-  async createRuleSet(
-    @Body() dto: { name: string; items: Array<{ scaleId: string; percentageIncrease: number }> },
-  ) {
+  async createRuleSet(@Body() dto: { name: string }) {
     return { data: await this.scalesService.createRuleSet(dto) };
   }
 
@@ -75,7 +39,7 @@ export class ScalesController {
   @Put('rule-sets/:id')
   async updateRuleSet(
     @Param('id') id: string,
-    @Body() dto: { name?: string; items?: Array<{ scaleId: string; percentageIncrease: number }> },
+    @Body() dto: { name?: string },
   ) {
     return { data: await this.scalesService.updateRuleSet(id, dto) };
   }
@@ -84,7 +48,34 @@ export class ScalesController {
   @Delete('rule-sets/:id')
   async removeRuleSet(@Param('id') id: string) {
     await this.scalesService.removeRuleSet(id);
-    return { data: { message: 'Scale rule set deactivated' } };
+    return { data: { message: 'Scale rule set deleted' } };
+  }
+
+  // ── ScaleRuleItem CRUD (dentro de um RuleSet) ──
+
+  @Roles('ADMIN')
+  @Post('rule-sets/:ruleSetId/items')
+  async addItem(
+    @Param('ruleSetId') ruleSetId: string,
+    @Body() dto: { name: string; percentageIncrease: number; sortOrder?: number },
+  ) {
+    return { data: await this.scalesService.addItem(ruleSetId, dto) };
+  }
+
+  @Roles('ADMIN')
+  @Put('items/:itemId')
+  async updateItem(
+    @Param('itemId') itemId: string,
+    @Body() dto: { name?: string; percentageIncrease?: number; sortOrder?: number },
+  ) {
+    return { data: await this.scalesService.updateItem(itemId, dto) };
+  }
+
+  @Roles('ADMIN')
+  @Delete('items/:itemId')
+  async removeItem(@Param('itemId') itemId: string) {
+    await this.scalesService.removeItem(itemId);
+    return { data: { message: 'Scale item deleted' } };
   }
 
   // ── Endpoint publico: escalas aplicaveis a um produto ──

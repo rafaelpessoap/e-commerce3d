@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ScalesService } from './scales.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotFoundException } from '@nestjs/common';
 
 describe('ScalesService', () => {
   let service: ScalesService;
@@ -13,24 +14,18 @@ describe('ScalesService', () => {
         {
           provide: PrismaService,
           useValue: {
-            scale: {
-              create: jest.fn(),
-              findMany: jest.fn(),
-              findUnique: jest.fn(),
-            },
-            scaleRule: {
-              findMany: jest.fn(),
-              create: jest.fn(),
-            },
             scaleRuleSet: {
               create: jest.fn(),
               findMany: jest.fn(),
               findUnique: jest.fn(),
               update: jest.fn(),
+              delete: jest.fn(),
             },
             scaleRuleItem: {
-              deleteMany: jest.fn(),
-              createMany: jest.fn(),
+              create: jest.fn(),
+              findUnique: jest.fn(),
+              update: jest.fn(),
+              delete: jest.fn(),
             },
             product: {
               findUnique: jest.fn(),
@@ -44,199 +39,183 @@ describe('ScalesService', () => {
     prisma = module.get<PrismaService>(PrismaService);
   });
 
-  describe('create', () => {
-    it('should create a scale with uppercase code', async () => {
-      (prisma.scale.create as jest.Mock).mockResolvedValue({
-        id: 's1',
-        name: 'Heroic Scale (28mm)',
-        code: 'HEROIC_28',
-        baseSize: 28,
-        multiplier: 1.0,
-      });
-
-      const result = await service.create({
-        name: 'Heroic Scale (28mm)',
-        code: 'heroic_28',
-        baseSize: 28,
-      });
-
-      expect(result.code).toBe('HEROIC_28');
-    });
-  });
-
-  describe('calculatePrice — HIERARQUIA DE PRIORIDADE', () => {
-    it('should apply PRODUCT-level rule (highest priority)', async () => {
-      (prisma.scaleRule.findMany as jest.Mock).mockResolvedValue([
-        {
-          appliesTo: 'PRODUCT',
-          targetId: 'prod-1',
-          priceMultiplier: 1.5,
-          priority: 10,
-        },
-        {
-          appliesTo: 'CATEGORY',
-          targetId: 'cat-1',
-          priceMultiplier: 1.2,
-          priority: 5,
-        },
-        {
-          appliesTo: 'GLOBAL',
-          targetId: null,
-          priceMultiplier: 1.1,
-          priority: 1,
-        },
-      ]);
-
-      const price = await service.calculatePrice(
-        100,
-        'prod-1',
-        'scale-1',
-        'cat-1',
-      );
-
-      expect(price).toBe(150); // 100 * 1.5
-    });
-
-    it('should apply CATEGORY-level rule when no PRODUCT rule', async () => {
-      (prisma.scaleRule.findMany as jest.Mock).mockResolvedValue([
-        {
-          appliesTo: 'CATEGORY',
-          targetId: 'cat-1',
-          priceMultiplier: 1.2,
-          priority: 5,
-        },
-        {
-          appliesTo: 'GLOBAL',
-          targetId: null,
-          priceMultiplier: 1.1,
-          priority: 1,
-        },
-      ]);
-
-      const price = await service.calculatePrice(
-        100,
-        'prod-2',
-        'scale-1',
-        'cat-1',
-      );
-
-      expect(price).toBe(120); // 100 * 1.2
-    });
-
-    it('should fallback to GLOBAL rule', async () => {
-      (prisma.scaleRule.findMany as jest.Mock).mockResolvedValue([
-        {
-          appliesTo: 'GLOBAL',
-          targetId: null,
-          priceMultiplier: 1.1,
-          priority: 1,
-        },
-      ]);
-
-      const price = await service.calculatePrice(
-        100,
-        'prod-3',
-        'scale-1',
-        'cat-1',
-      );
-
-      expect(price).toBe(110); // 100 * 1.1
-    });
-
-    it('should return base price when no rules exist', async () => {
-      (prisma.scaleRule.findMany as jest.Mock).mockResolvedValue([]);
-
-      const price = await service.calculatePrice(
-        100,
-        'prod-4',
-        'scale-1',
-        'cat-1',
-      );
-
-      expect(price).toBe(100);
-    });
-
-    it('should round to 2 decimal places', async () => {
-      (prisma.scaleRule.findMany as jest.Mock).mockResolvedValue([
-        {
-          appliesTo: 'GLOBAL',
-          targetId: null,
-          priceMultiplier: 1.333,
-          priority: 1,
-        },
-      ]);
-
-      const price = await service.calculatePrice(
-        100,
-        'prod-5',
-        'scale-1',
-        'cat-1',
-      );
-
-      expect(price).toBe(133.3); // 100 * 1.333 = 133.3 rounded
-    });
-  });
-
-  // ── Novo sistema ScaleRuleSet ──
+  // ── ScaleRuleSet CRUD ──
 
   describe('createRuleSet', () => {
-    it('should create a rule set with items', async () => {
+    it('should create a rule set (empty, items added later)', async () => {
       (prisma.scaleRuleSet.create as jest.Mock).mockResolvedValue({
         id: 'rs1',
         name: 'Miniaturas Padrao',
-        items: [
-          { id: 'i1', scaleId: 's1', percentageIncrease: 0 },
-          { id: 'i2', scaleId: 's2', percentageIncrease: 15 },
-        ],
+        items: [],
       });
 
-      const result = await service.createRuleSet({
-        name: 'Miniaturas Padrao',
-        items: [
-          { scaleId: 's1', percentageIncrease: 0 },
-          { scaleId: 's2', percentageIncrease: 15 },
-        ],
-      });
+      const result = await service.createRuleSet({ name: 'Miniaturas Padrao' });
 
       expect(result.name).toBe('Miniaturas Padrao');
+      expect(result.items).toEqual([]);
       expect(prisma.scaleRuleSet.create).toHaveBeenCalledWith({
-        data: {
-          name: 'Miniaturas Padrao',
-          items: {
-            create: [
-              { scaleId: 's1', percentageIncrease: 0 },
-              { scaleId: 's2', percentageIncrease: 15 },
-            ],
-          },
-        },
-        include: { items: { include: { scale: true } } },
+        data: { name: 'Miniaturas Padrao' },
+        include: { items: { orderBy: { sortOrder: 'asc' } } },
       });
     });
   });
 
   describe('findAllRuleSets', () => {
-    it('should return active rule sets with items', async () => {
+    it('should return active rule sets with items ordered by sortOrder', async () => {
       (prisma.scaleRuleSet.findMany as jest.Mock).mockResolvedValue([
-        { id: 'rs1', name: 'Miniaturas Padrao', items: [] },
+        {
+          id: 'rs1',
+          name: 'Miniaturas Padrao',
+          items: [
+            { id: 'i1', name: '28mm', percentageIncrease: 0, sortOrder: 0 },
+            { id: 'i2', name: '32mm', percentageIncrease: 15, sortOrder: 1 },
+          ],
+        },
       ]);
 
       const result = await service.findAllRuleSets();
 
       expect(result).toHaveLength(1);
+      expect(result[0].items).toHaveLength(2);
       expect(prisma.scaleRuleSet.findMany).toHaveBeenCalledWith({
         where: { isActive: true },
-        include: { items: { include: { scale: true } } },
+        include: { items: { orderBy: { sortOrder: 'asc' } } },
         orderBy: { name: 'asc' },
       });
     });
   });
+
+  describe('findRuleSetById', () => {
+    it('should return rule set by id', async () => {
+      (prisma.scaleRuleSet.findUnique as jest.Mock).mockResolvedValue({
+        id: 'rs1',
+        name: 'Test',
+        items: [],
+      });
+
+      const result = await service.findRuleSetById('rs1');
+      expect(result.id).toBe('rs1');
+    });
+
+    it('should throw NotFoundException if not found', async () => {
+      (prisma.scaleRuleSet.findUnique as jest.Mock).mockResolvedValue(null);
+      await expect(service.findRuleSetById('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('removeRuleSet', () => {
+    it('should delete rule set (cascade deletes items)', async () => {
+      (prisma.scaleRuleSet.findUnique as jest.Mock).mockResolvedValue({
+        id: 'rs1',
+        name: 'Test',
+        items: [],
+      });
+      (prisma.scaleRuleSet.delete as jest.Mock).mockResolvedValue({ id: 'rs1' });
+
+      await service.removeRuleSet('rs1');
+
+      expect(prisma.scaleRuleSet.delete).toHaveBeenCalledWith({
+        where: { id: 'rs1' },
+      });
+    });
+  });
+
+  // ── ScaleRuleItem CRUD ──
+
+  describe('addItem', () => {
+    it('should add an item to a rule set', async () => {
+      (prisma.scaleRuleSet.findUnique as jest.Mock).mockResolvedValue({
+        id: 'rs1',
+        name: 'Test',
+        items: [],
+      });
+      (prisma.scaleRuleItem.create as jest.Mock).mockResolvedValue({
+        id: 'i1',
+        ruleSetId: 'rs1',
+        name: '28mm',
+        percentageIncrease: 0,
+        sortOrder: 0,
+      });
+
+      const result = await service.addItem('rs1', {
+        name: '28mm',
+        percentageIncrease: 0,
+        sortOrder: 0,
+      });
+
+      expect(result.name).toBe('28mm');
+      expect(prisma.scaleRuleItem.create).toHaveBeenCalledWith({
+        data: {
+          ruleSetId: 'rs1',
+          name: '28mm',
+          percentageIncrease: 0,
+          sortOrder: 0,
+        },
+      });
+    });
+
+    it('should throw if rule set not found', async () => {
+      (prisma.scaleRuleSet.findUnique as jest.Mock).mockResolvedValue(null);
+      await expect(
+        service.addItem('nonexistent', { name: '28mm', percentageIncrease: 0 }),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('updateItem', () => {
+    it('should update an existing item', async () => {
+      (prisma.scaleRuleItem.findUnique as jest.Mock).mockResolvedValue({
+        id: 'i1',
+        name: '28mm',
+        percentageIncrease: 0,
+      });
+      (prisma.scaleRuleItem.update as jest.Mock).mockResolvedValue({
+        id: 'i1',
+        name: '28mm',
+        percentageIncrease: 10,
+      });
+
+      const result = await service.updateItem('i1', { percentageIncrease: 10 });
+      expect(result.percentageIncrease).toBe(10);
+    });
+
+    it('should throw if item not found', async () => {
+      (prisma.scaleRuleItem.findUnique as jest.Mock).mockResolvedValue(null);
+      await expect(
+        service.updateItem('nonexistent', { name: '32mm' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('removeItem', () => {
+    it('should delete an item', async () => {
+      (prisma.scaleRuleItem.findUnique as jest.Mock).mockResolvedValue({ id: 'i1' });
+      (prisma.scaleRuleItem.delete as jest.Mock).mockResolvedValue({ id: 'i1' });
+
+      await service.removeItem('i1');
+      expect(prisma.scaleRuleItem.delete).toHaveBeenCalledWith({
+        where: { id: 'i1' },
+      });
+    });
+
+    it('should throw if item not found', async () => {
+      (prisma.scaleRuleItem.findUnique as jest.Mock).mockResolvedValue(null);
+      await expect(service.removeItem('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  // ── resolveScaleRule (hierarquia Produto > Tag > Categoria) ──
 
   describe('resolveScaleRule', () => {
     it('should return null if product has noScales=true', async () => {
       (prisma.product.findUnique as jest.Mock).mockResolvedValue({
         id: 'p1',
         noScales: true,
-        scaleRuleSetId: 'rs1',
+        scaleRuleSet: { id: 'rs1', name: 'X', items: [] },
         tags: [],
         category: null,
       });
@@ -249,14 +228,13 @@ describe('ScalesService', () => {
       (prisma.product.findUnique as jest.Mock).mockResolvedValue({
         id: 'p1',
         noScales: false,
-        scaleRuleSetId: 'rs1',
         scaleRuleSet: {
           id: 'rs1',
           name: 'Product Rule',
-          items: [{ scaleId: 's1', percentageIncrease: 0, scale: { name: '28mm' } }],
+          items: [{ id: 'i1', name: '28mm', percentageIncrease: 0 }],
         },
-        tags: [{ scaleRuleSetId: 'rs2', noScales: false }],
-        category: { scaleRuleSetId: 'rs3' },
+        tags: [{ noScales: false, scaleRuleSet: { id: 'rs2', name: 'Tag Rule' } }],
+        category: { scaleRuleSet: { id: 'rs3', name: 'Cat Rule' } },
       });
 
       const result = await service.resolveScaleRule('p1');
@@ -267,10 +245,9 @@ describe('ScalesService', () => {
       (prisma.product.findUnique as jest.Mock).mockResolvedValue({
         id: 'p1',
         noScales: false,
-        scaleRuleSetId: null,
         scaleRuleSet: null,
-        tags: [{ scaleRuleSetId: 'rs2', noScales: true }],
-        category: { scaleRuleSetId: 'rs3' },
+        tags: [{ noScales: true, scaleRuleSet: { id: 'rs2' } }],
+        category: { scaleRuleSet: { id: 'rs3', name: 'Cat Rule' } },
       });
 
       const result = await service.resolveScaleRule('p1');
@@ -281,21 +258,19 @@ describe('ScalesService', () => {
       (prisma.product.findUnique as jest.Mock).mockResolvedValue({
         id: 'p1',
         noScales: false,
-        scaleRuleSetId: null,
         scaleRuleSet: null,
         tags: [
-          { scaleRuleSetId: null, noScales: false },
+          { noScales: false, scaleRuleSet: null },
           {
-            scaleRuleSetId: 'rs2',
             noScales: false,
             scaleRuleSet: {
               id: 'rs2',
               name: 'Tag Rule',
-              items: [{ scaleId: 's1', percentageIncrease: 10 }],
+              items: [{ id: 'i1', name: '28mm', percentageIncrease: 10 }],
             },
           },
         ],
-        category: { scaleRuleSetId: 'rs3' },
+        category: { scaleRuleSet: { id: 'rs3' } },
       });
 
       const result = await service.resolveScaleRule('p1');
@@ -306,15 +281,13 @@ describe('ScalesService', () => {
       (prisma.product.findUnique as jest.Mock).mockResolvedValue({
         id: 'p1',
         noScales: false,
-        scaleRuleSetId: null,
         scaleRuleSet: null,
         tags: [],
         category: {
-          scaleRuleSetId: 'rs3',
           scaleRuleSet: {
             id: 'rs3',
             name: 'Category Rule',
-            items: [{ scaleId: 's1', percentageIncrease: 20 }],
+            items: [{ id: 'i1', name: '32mm', percentageIncrease: 20 }],
           },
         },
       });
@@ -327,16 +300,24 @@ describe('ScalesService', () => {
       (prisma.product.findUnique as jest.Mock).mockResolvedValue({
         id: 'p1',
         noScales: false,
-        scaleRuleSetId: null,
         scaleRuleSet: null,
         tags: [],
-        category: { scaleRuleSetId: null },
+        category: { scaleRuleSet: null },
       });
 
       const result = await service.resolveScaleRule('p1');
       expect(result).toBeNull();
     });
+
+    it('should throw if product not found', async () => {
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue(null);
+      await expect(service.resolveScaleRule('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
   });
+
+  // ── calculateScalePrice ──
 
   describe('calculateScalePrice', () => {
     it('should apply percentage increase', () => {
